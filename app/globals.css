@@ -10,14 +10,68 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  --color-space-indigo-50: #ebeef9;
+  --color-space-indigo-100: #d8dcf3;
+  --color-space-indigo-200: #b1b9e7;
+  --color-space-indigo-300: #8a96db;
+  --color-space-indigo-400: #6373cf;
+  --color-space-indigo-500: #3c50c3;
+  --color-space-indigo-600: #30409c;
+  --color-space-indigo-700: #243075;
+  --color-space-indigo-800: #18204e;
+  --color-space-indigo-900: #0c1027;
+  --color-space-indigo-950: #080b1b;
+
+  --color-ocean-deep-50: #ebf2f9;
+  --color-ocean-deep-100: #d7e5f4;
+  --color-ocean-deep-200: #afcbe9;
+  --color-ocean-deep-300: #88b1dd;
+  --color-ocean-deep-400: #6097d2;
+  --color-ocean-deep-500: #387dc7;
+  --color-ocean-deep-600: #2d649f;
+  --color-ocean-deep-700: #224b77;
+  --color-ocean-deep-800: #163250;
+  --color-ocean-deep-900: #0b1928;
+  --color-ocean-deep-950: #08121c;
+
+  --color-cornflower-blue-50: #e9f0fc;
+  --color-cornflower-blue-100: #d2e0f9;
+  --color-cornflower-blue-200: #a5c2f3;
+  --color-cornflower-blue-300: #78a3ed;
+  --color-cornflower-blue-400: #4b84e7;
+  --color-cornflower-blue-500: #1f66e0;
+  --color-cornflower-blue-600: #1851b4;
+  --color-cornflower-blue-700: #123d87;
+  --color-cornflower-blue-800: #0c295a;
+  --color-cornflower-blue-900: #06142d;
+  --color-cornflower-blue-950: #040e1f;
+
+  --color-baby-blue-ice-50: #e8f0fc;
+  --color-baby-blue-ice-100: #d2e0f9;
+  --color-baby-blue-ice-200: #a4c1f4;
+  --color-baby-blue-ice-300: #77a3ee;
+  --color-baby-blue-ice-400: #4984e9;
+  --color-baby-blue-ice-500: #1c65e3;
+  --color-baby-blue-ice-600: #1651b6;
+  --color-baby-blue-ice-700: #113d88;
+  --color-baby-blue-ice-800: #0b285b;
+  --color-baby-blue-ice-900: #06142d;
+  --color-baby-blue-ice-950: #040e20;
+
+  --color-soft-periwinkle-50: #e8e8fd;
+  --color-soft-periwinkle-100: #d2d1fa;
+  --color-soft-periwinkle-200: #a5a2f6;
+  --color-soft-periwinkle-300: #7874f1;
+  --color-soft-periwinkle-400: #4b45ed;
+  --color-soft-periwinkle-500: #1e17e8;
+  --color-soft-periwinkle-600: #1812ba;
+  --color-soft-periwinkle-700: #120e8b;
+  --color-soft-periwinkle-800: #0c095d;
+  --color-soft-periwinkle-900: #06052e;
+  --color-soft-periwinkle-950: #040320;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
 
 body {
   background: var(--background);

@@ -14,10 +14,10 @@ export const CATEGORY_STATS_PIPELINE = [
           else: "Uncategorized",
         },
       },
-      total: { $sum: { $abs: "$amount" } },
+      total: { $sum: "$amount" },
       count: { $sum: 1 },
     },
   },
   { $sort: { total: -1 } },
-  { $match: { _id: { $ne: "Credit Card" } } },
+  { $match: { _id: { $nin: ["Credit Card", "Credit", "Debit", "Saving Transfers"] } } },
 ];

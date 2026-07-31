@@ -204,6 +204,31 @@ async function syncIfStale(
       await db.collection("transactions").bulkWrite(bulkOps);
     }
 
+    if (added.length > 0) {
+      const newNames = [...new Set(added.map((t) => t.name))];
+      const patterns = await db
+        .collection("income_patterns")
+        .find({ name: { $in: newNames } })
+        .toArray();
+
+      if (patterns.length > 0) {
+        const patternNames = patterns.map((p) => p.name);
+        await db.collection("transactions").updateMany(
+          {
+            transaction_id: { $in: added.map((t) => t.transaction_id) },
+            name: { $in: patternNames },
+            transaction_type: { $exists: false },
+          },
+          {
+            $set: {
+              transaction_type: "income",
+              income_category: "Income",
+            },
+          }
+        );
+      }
+    }
+
     for (const txn of [...added, ...modified]) {
       await db.collection("account_items").updateOne(
         { account_id: txn.account_id },

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { connectToDatabase } from "@/src/lib/mongodb";
 import { CATEGORY_STATS_PIPELINE } from "@/src/lib/stats-pipeline";
+import { EXCLUDE_TRANSFERS_MATCH } from "@/src/lib/budget-pipeline";
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,18 +10,34 @@ export async function GET(request: NextRequest) {
 
     const accountIdsParam = url.searchParams.get("accountIds") ?? "";
     const startDate = url.searchParams.get("startDate") ?? "";
+    const transactionType = url.searchParams.get("transactionType") ?? "";
     const accountIds = accountIdsParam.split(",").filter(Boolean);
 
-    const matchStage: Record<string, unknown> = {};
+    const matchConditions: Record<string, unknown>[] = [];
+
+    if (transactionType === "income") {
+      matchConditions.push({ transaction_type: "income" });
+    } else {
+      matchConditions.push(
+        {
+          $or: [
+            { transaction_type: { $ne: "income" } },
+            { transaction_type: { $exists: false } },
+          ],
+        },
+        EXCLUDE_TRANSFERS_MATCH,
+      );
+    }
+
     if (accountIds.length > 0) {
-      matchStage.account_id = { $in: accountIds };
+      matchConditions.push({ account_id: { $in: accountIds } });
     }
     if (startDate) {
-      matchStage.date = { $gte: startDate };
+      matchConditions.push({ date: { $gte: startDate } });
     }
 
     const pipeline = [
-      { $match: matchStage },
+      { $match: { $and: matchConditions } },
       ...CATEGORY_STATS_PIPELINE,
     ];
 

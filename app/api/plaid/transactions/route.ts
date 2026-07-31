@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { connectToDatabase } from "@/src/lib/mongodb";
+import { EXCLUDE_TRANSFERS_MATCH } from "@/src/lib/budget-pipeline";
 
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -14,6 +15,8 @@ export async function GET(request: NextRequest) {
     const query = url.searchParams.get("q") ?? "";
     const category = url.searchParams.get("category") ?? "";
     const startDate = url.searchParams.get("startDate") ?? "";
+    const endDate = url.searchParams.get("endDate") ?? "";
+    const transactionType = url.searchParams.get("transactionType") ?? "";
     const limit = Math.min(Number(url.searchParams.get("limit")) || 50, 500);
     const offset = Number(url.searchParams.get("offset")) || 0;
 
@@ -25,8 +28,11 @@ export async function GET(request: NextRequest) {
       filter.account_id = { $in: accountIds };
     }
 
-    if (startDate) {
-      filter.date = { ...((filter.date as Record<string, unknown>) ?? {}), $gte: startDate };
+    if (startDate || endDate) {
+      const dateFilter: Record<string, unknown> = (filter.date as Record<string, unknown>) ?? {};
+      if (startDate) dateFilter.$gte = startDate;
+      if (endDate) dateFilter.$lte = endDate;
+      filter.date = dateFilter;
     }
 
     const conditions: Record<string, unknown>[] = [];
@@ -43,7 +49,26 @@ export async function GET(request: NextRequest) {
     }
 
     if (category) {
-      conditions.push({ category });
+      const categories = category.split(",").filter(Boolean);
+      if (categories.length > 1) {
+        conditions.push({
+          $or: categories.map((c) => ({ category: c })),
+        });
+      } else {
+        conditions.push({ category });
+      }
+    }
+
+    if (transactionType === "income") {
+      conditions.push({ transaction_type: "income" });
+    } else if (transactionType === "expense") {
+      conditions.push(EXCLUDE_TRANSFERS_MATCH);
+      conditions.push({
+        $or: [
+          { transaction_type: { $ne: "income" } },
+          { transaction_type: { $exists: false } },
+        ],
+      });
     }
 
     if (conditions.length > 0) {

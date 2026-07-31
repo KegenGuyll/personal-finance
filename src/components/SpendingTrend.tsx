@@ -2,6 +2,7 @@
 
 import type { Transaction } from "@/src/features/plaid/plaidSlice";
 import { formatDate } from "@/src/utils/date";
+import { CHART_COLORS } from "@/src/utils/chart-colors";
 import {
   LineChart,
   Line,
@@ -96,10 +97,10 @@ export default function SpendingTrend({
           <Line
             type="monotone"
             dataKey="amount"
-            stroke="#3c50c3"
+            stroke={CHART_COLORS[0]}
             strokeWidth={2}
-            dot={{ fill: "#3c50c3", strokeWidth: 0, r: 3 }}
-            activeDot={{ fill: "#3c50c3", stroke: "#fff", strokeWidth: 2, r: 5 }}
+            dot={{ fill: CHART_COLORS[0], strokeWidth: 0, r: 3 }}
+            activeDot={{ fill: CHART_COLORS[0], stroke: "#fff", strokeWidth: 2, r: 5 }}
           />
         </LineChart>
       </ResponsiveContainer>

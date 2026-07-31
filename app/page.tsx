@@ -4,6 +4,7 @@ import { useEffect, useMemo } from "react";
 import Link from "next/link";
 import PlaidLinkButton from "@/src/components/PlaidLinkButton";
 import AccountCard from "@/src/components/AccountCard";
+import LoadingSkeleton from "@/src/components/LoadingSkeleton";
 import { useAppDispatch, useAppSelector } from "@/src/lib/hooks";
 import { setAccounts, setLinked } from "@/src/features/plaid/plaidSlice";
 import type { Account } from "@/src/features/plaid/plaidSlice";
@@ -35,7 +36,7 @@ export default function Home() {
     }
   }, [statusData, dispatch]);
 
-  const { data } = usePlaidAccounts(isLinked);
+  const { data, isLoading: isAccountsLoading } = usePlaidAccounts(isLinked);
 
   useEffect(() => {
     if (data?.accounts) {
@@ -69,6 +70,12 @@ export default function Home() {
       )}
 
       <PlaidLinkButton />
+
+      {isAccountsLoading && (
+        <div className="w-full max-w-4xl">
+          <LoadingSkeleton count={4} className="space-y-3" />
+        </div>
+      )}
 
       {sorted.length > 0 && (
         <div className="w-full max-w-4xl space-y-6">

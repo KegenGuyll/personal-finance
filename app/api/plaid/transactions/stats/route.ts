@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { connectToDatabase } from "@/src/lib/mongodb";
+import { CATEGORY_STATS_PIPELINE } from "@/src/lib/stats-pipeline";
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,27 +21,7 @@ export async function GET(request: NextRequest) {
 
     const pipeline = [
       { $match: matchStage },
-      {
-        $group: {
-          _id: {
-            $cond: {
-              if: { $isArray: "$category" },
-              then: {
-                $cond: {
-                  if: { $gt: [{ $size: "$category" }, 0] },
-                  then: { $arrayElemAt: ["$category", -1] },
-                  else: "Uncategorized",
-                },
-              },
-              else: "Uncategorized",
-            },
-          },
-          total: { $sum: { $abs: "$amount" } },
-          count: { $sum: 1 },
-        },
-      },
-      { $sort: { total: -1 } },
-      { $match: { _id: { $ne: "Credit Card" } } },
+      ...CATEGORY_STATS_PIPELINE,
     ];
 
     const results = await db

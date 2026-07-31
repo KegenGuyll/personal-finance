@@ -11,6 +11,7 @@ import { useRelatedTransactions } from "@/src/hooks/useRelatedTransactions";
 import TransactionItem from "@/src/components/TransactionItem";
 import SpendingTrend from "@/src/components/SpendingTrend";
 import CategoryEditor from "@/src/components/CategoryEditor";
+import LoadingSkeleton from "@/src/components/LoadingSkeleton";
 
 export default function TransactionDetailPage({
   params,
@@ -207,19 +208,7 @@ function RelatedTransactions({
   );
 
   if (isLoading) {
-    return (
-      <div className="mt-2 space-y-2">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div
-            key={i}
-            className="animate-pulse rounded-lg border border-space-indigo-100 bg-white px-4 py-3"
-          >
-            <div className="mb-2 h-4 w-3/4 rounded bg-space-indigo-100" />
-            <div className="h-3 w-1/4 rounded bg-space-indigo-50" />
-          </div>
-        ))}
-      </div>
-    );
+    return <LoadingSkeleton count={3} className="mt-2 space-y-2" />;
   }
 
   if (allTransactions.length === 0) return null;

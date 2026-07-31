@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useRef, useMemo, useEffect } from "react";
-import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCategories } from "@/src/hooks/useCategories";
+import { useAddCategory } from "@/src/hooks/useAddCategory";
 
 interface CategoryEditorProps {
   transactionId: string;
@@ -31,15 +32,7 @@ export default function CategoryEditor({
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const addCategory = useMutation({
-    mutationFn: async (name: string) => {
-      await fetch("/api/categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-    },
-  });
+  const addCategory = useAddCategory();
 
   const handleOpen = () => {
     setInputValue(currentValue);

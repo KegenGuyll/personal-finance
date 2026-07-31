@@ -9,21 +9,7 @@ import {
 } from "recharts";
 import type { CategoryStat } from "@/src/hooks/useCategoryStats";
 import { formatCurrency } from "@/src/utils/currency";
-
-const COLORS = [
-  "#3c50c3",
-  "#6373cf",
-  "#8a96db",
-  "#387dc7",
-  "#6097d2",
-  "#88b1dd",
-  "#1f66e0",
-  "#4b84e7",
-  "#78a3ed",
-  "#1e17e8",
-  "#4b45ed",
-  "#7874f1",
-];
+import { CHART_COLORS as COLORS } from "@/src/utils/chart-colors";
 
 interface ChartEntry extends CategoryStat {
   grandTotal: number;

@@ -8,12 +8,12 @@ import { useAccount } from "@/src/hooks/useAccount";
 import { formatCurrency } from "@/src/utils/currency";
 import { useAccountTransactions } from "@/src/hooks/useAccountTransactions";
 import { useCategoryStats } from "@/src/hooks/useCategoryStats";
-import TransactionItem from "@/src/components/TransactionItem";
+import TransactionList from "@/src/components/TransactionList";
 import CategoryBreakdown from "@/src/components/CategoryBreakdown";
 import SearchInput from "@/src/components/SearchInput";
 import DateRangeFilter, { getStartDate } from "@/src/components/DateRangeFilter";
 
-function TransactionList({
+function AccountTransactionList({
   accountId,
 }: {
   accountId: string;
@@ -36,55 +36,20 @@ function TransactionList({
 
   const transactions = data?.pages.flatMap((p) => p.transactions) ?? [];
 
-  if (isLoading) {
-    return (
-      <div className="mt-6 space-y-2">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div
-            key={i}
-            className="animate-pulse rounded-lg border border-space-indigo-100 bg-white px-4 py-3"
-          >
-            <div className="mb-2 h-4 w-3/4 rounded bg-space-indigo-100" />
-            <div className="h-3 w-1/4 rounded bg-space-indigo-50" />
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <p className="mt-6 text-sm text-red-500">
-        Failed to load transactions.
-      </p>
-    );
-  }
-
-  if (transactions.length === 0) {
-    return (
-      <p className="mt-6 text-sm text-space-indigo-400">
-        {query || category
-          ? "No transactions match your filters."
-          : "No transactions found for this account."}
-      </p>
-    );
-  }
-
   return (
-    <div className="mt-4 space-y-2">
-      {transactions.map((txn) => (
-        <TransactionItem key={txn.transaction_id} transaction={txn} />
-      ))}
-      {hasNextPage && (
-        <button
-          onClick={() => fetchNextPage()}
-          disabled={isFetchingNextPage}
-          className="w-full rounded-lg border border-space-indigo-200 bg-white py-2.5 text-sm font-medium text-space-indigo-600 transition-colors hover:bg-space-indigo-50 disabled:opacity-50"
-        >
-          {isFetchingNextPage ? "Loading..." : "Load more"}
-        </button>
-      )}
-    </div>
+    <TransactionList
+      transactions={transactions}
+      isLoading={isLoading}
+      error={error}
+      hasNextPage={hasNextPage}
+      isFetchingNextPage={isFetchingNextPage}
+      onLoadMore={() => fetchNextPage()}
+      emptyMessage={
+        query || category
+          ? "No transactions match your filters."
+          : "No transactions found for this account."
+      }
+    />
   );
 }
 
@@ -191,7 +156,7 @@ export default function AccountTransactionsPage({
       </Suspense>
 
       <Suspense fallback={null}>
-        <TransactionList accountId={accountId} />
+        <AccountTransactionList accountId={accountId} />
       </Suspense>
     </main>
   );

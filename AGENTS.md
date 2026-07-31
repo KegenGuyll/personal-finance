@@ -8,6 +8,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 All UI components that use Tailwind CSS for styling (e.g., buttons, inputs, cards, etc.) must be created as standalone, self-contained components in their own files under `src/components/`.
 
+- **Loading states**: Always include a loading indicator (e.g., skeleton) for async data. Use the shared `LoadingSkeleton` component in `src/components/LoadingSkeleton.tsx` for transaction or list loading. Do not inline skeleton markup in pages.
+- **Shared components**: If the same component structure appears in multiple pages (e.g., transaction lists), extract it into a reusable component under `src/components/` and share it via props rather than duplicating the markup.
+
 # Color Palette
 
 Use only the custom color tokens defined in `app/globals.css` under the `@theme` block: `space-indigo`, `ocean-deep`, `cornflower-blue`, `baby-blue-ice`, and `soft-periwinkle` (each with shades 50–950). Do not introduce arbitrary colors or Tailwind's default color palette.
@@ -37,3 +40,9 @@ This is a personal finance web application intended for a single user. However, 
 # Data Fetching Rules
 
 All TanStack Query hooks (`useQuery`, `useInfiniteQuery`, `useMutation`) must be defined in their own dedicated files under `src/hooks/`. Each hook file should export a single hook function named after the resource it fetches (e.g., `usePlaidAccounts`, `useAccountTransactions`, `useTransaction`). Do not inline `useQuery` or other TanStack Query calls directly in components or pages.
+
+# Shared Logic & Utilities
+
+- **DRY server-side logic**: Duplicate logic (e.g., MongoDB aggregation pipelines) must be extracted into shared modules under `src/lib/` and imported where needed. Do not copy-paste pipeline definitions across API routes.
+- **Chart colors**: All chart components (`SpendingTrend`, `CategoryBreakdown`, etc.) must use the shared `CHART_COLORS` array from `src/utils/chart-colors.ts` instead of hardcoded hex values. These colors map to the custom Tailwind theme palette.
+- **Reusable hooks**: General-purpose hooks (e.g., `useDebounce`) must live in `src/hooks/` so they can be reused throughout the application.

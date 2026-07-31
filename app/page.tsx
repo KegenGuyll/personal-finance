@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
+import Link from "next/link";
 import PlaidLinkButton from "@/src/components/PlaidLinkButton";
 import AccountCard from "@/src/components/AccountCard";
 import { useAppDispatch, useAppSelector } from "@/src/lib/hooks";
@@ -71,17 +72,28 @@ export default function Home() {
 
       {sorted.length > 0 && (
         <div className="w-full max-w-4xl space-y-6">
-          <h2 className="text-xl font-semibold text-space-indigo-700">
-            Connected Accounts
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-space-indigo-700">
+              Connected Accounts
+            </h2>
+            <Link
+              href="/transactions"
+              className="text-sm font-medium text-cornflower-blue-500 hover:text-cornflower-blue-600"
+            >
+              View all &rarr;
+            </Link>
+          </div>
           {[...grouped].map(([type, groupedAccounts]) => (
             <div key={type}>
-              <div className="mb-3 flex items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-space-indigo-400">
+              <Link
+                href={`/transactions?type=${type}`}
+                className="group mb-3 flex items-center gap-2"
+              >
+                <span className="text-xs font-semibold uppercase tracking-wide text-space-indigo-400 group-hover:text-space-indigo-600 transition-colors">
                   {type}
                 </span>
-                <div className="h-px flex-1 bg-space-indigo-100" />
-              </div>
+                <div className="h-px flex-1 bg-space-indigo-100 group-hover:bg-space-indigo-200 transition-colors" />
+              </Link>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {groupedAccounts.map((account) => (
                   <AccountCard key={account.account_id} account={account} />

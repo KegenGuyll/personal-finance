@@ -33,3 +33,7 @@ This is a personal finance web application intended for a single user. However, 
 - **Client-side Plaid**: `react-plaid-link` for the Plaid Link UI
 - **Data Fetching**: TanStack Query (`@tanstack/react-query`) for all client-side network requests
 - **State Management**: Redux Toolkit (`@reduxjs/toolkit`) with `react-redux`
+
+# Data Fetching Rules
+
+All TanStack Query hooks (`useQuery`, `useInfiniteQuery`, `useMutation`) must be defined in their own dedicated files under `src/hooks/`. Each hook file should export a single hook function named after the resource it fetches (e.g., `usePlaidAccounts`, `useAccountTransactions`, `useTransaction`). Do not inline `useQuery` or other TanStack Query calls directly in components or pages.

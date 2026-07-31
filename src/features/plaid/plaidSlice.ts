@@ -1,5 +1,21 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
+export interface Transaction {
+  transaction_id: string;
+  account_id: string;
+  amount: number;
+  date: string;
+  name: string;
+  merchant_name: string | null;
+  category: string[] | null;
+  pending: boolean;
+  payment_channel: string;
+  iso_currency_code: string | null;
+  datetime: string | null;
+  authorized_date: string | null;
+  userModified?: boolean;
+}
+
 export interface AccountBalance {
   available: number | null;
   current: number;
@@ -22,6 +38,7 @@ export interface PlaidState {
   isLoading: boolean;
   error: string | null;
   accounts: Account[];
+  accountsLoaded: boolean;
 }
 
 const initialState: PlaidState = {
@@ -30,6 +47,7 @@ const initialState: PlaidState = {
   isLoading: false,
   error: null,
   accounts: [],
+  accountsLoaded: false,
 };
 
 const plaidSlice = createSlice({
@@ -48,6 +66,7 @@ const plaidSlice = createSlice({
     },
     setAccounts(state, action: PayloadAction<Account[]>) {
       state.accounts = action.payload;
+      state.accountsLoaded = true;
     },
     setLoading(state, action: PayloadAction<boolean>) {
       state.isLoading = action.payload;

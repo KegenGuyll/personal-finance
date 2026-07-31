@@ -6,6 +6,27 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppDispatch, useAppSelector } from "@/src/lib/hooks";
 import { setLinkToken, clearLinkToken, setLinked, setError } from "@/src/features/plaid/plaidSlice";
 
+function PlaidLinkOverlay({
+  linkToken,
+  onSuccess,
+}: {
+  linkToken: string;
+  onSuccess: PlaidLinkOnSuccess;
+}) {
+  const { open, ready } = usePlaidLink({
+    token: linkToken,
+    onSuccess,
+  });
+
+  useEffect(() => {
+    if (ready) {
+      open();
+    }
+  }, [ready, open]);
+
+  return null;
+}
+
 export default function PlaidLinkButton() {
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
@@ -59,24 +80,18 @@ export default function PlaidLinkButton() {
     [exchangePublicToken, dispatch]
   );
 
-  const { open, ready } = usePlaidLink({
-    token: linkToken,
-    onSuccess,
-  });
-
-  useEffect(() => {
-    if (linkToken && ready) {
-      open();
-    }
-  }, [linkToken, ready, open]);
-
   return (
-    <button
-      onClick={() => createLinkToken.mutate()}
-      disabled={createLinkToken.isPending}
-      className="rounded-lg bg-space-indigo-600 px-6 py-3 font-medium text-white transition-colors hover:bg-space-indigo-700 disabled:opacity-50"
-    >
-      {createLinkToken.isPending ? "Connecting..." : "Connect Bank Account"}
-    </button>
+    <>
+      {linkToken && (
+        <PlaidLinkOverlay linkToken={linkToken} onSuccess={onSuccess} />
+      )}
+      <button
+        onClick={() => createLinkToken.mutate()}
+        disabled={createLinkToken.isPending}
+        className="rounded-lg bg-space-indigo-600 px-6 py-3 font-medium text-white transition-colors hover:bg-space-indigo-700 disabled:opacity-50"
+      >
+        {createLinkToken.isPending ? "Connecting..." : "Connect Bank Account"}
+      </button>
+    </>
   );
 }

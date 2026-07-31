@@ -9,6 +9,7 @@ export default function CreditCardAccountCard({
 }) {
   return (
     <BaseAccountCard
+      accountId={account.account_id}
       title={account.official_name ?? account.name}
       subtitle={
         <>

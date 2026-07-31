@@ -9,6 +9,7 @@ export default function InvestmentAccountCard({
 }) {
   return (
     <BaseAccountCard
+      accountId={account.account_id}
       title={account.name}
       subtitle={
         <>

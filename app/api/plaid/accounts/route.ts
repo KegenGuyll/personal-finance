@@ -15,7 +15,16 @@ export async function GET() {
       const response = await plaidClient.accountsGet({
         access_token: item.accessToken,
       });
-      allAccounts.push(...response.data.accounts);
+      const accounts = response.data.accounts;
+      allAccounts.push(...accounts);
+
+      for (const account of accounts) {
+        await db.collection("account_items").updateOne(
+          { account_id: account.account_id },
+          { $set: { account_id: account.account_id, accessToken: item.accessToken, itemId: item.itemId } },
+          { upsert: true }
+        );
+      }
     }
 
     return Response.json({ accounts: allAccounts });

@@ -30,8 +30,9 @@ export async function POST(request: NextRequest) {
         $set: {
           name: body.name,
           incomeCategory: "Income",
-          createdAt: new Date(),
+          updatedAt: new Date(),
         },
+        $setOnInsert: { createdAt: new Date() },
       },
       { upsert: true }
     );

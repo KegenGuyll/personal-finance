@@ -1,12 +1,8 @@
 import { NextRequest } from "next/server";
 import { connectToDatabase } from "@/src/lib/mongodb";
-import { getCategoryActuals } from "@/src/lib/budget-pipeline";
+import { getCategoryActuals, getMappings, remapActuals } from "@/src/lib/budget-pipeline";
+import { getCurrentMonth } from "@/src/lib/month-utils";
 import type { Goal } from "@/src/types/budget";
-
-function getCurrentMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
 
 function calcMonthlyContribution(goal: Goal): number {
   const today = new Date();
@@ -20,24 +16,24 @@ function calcMonthlyContribution(goal: Goal): number {
 async function recalcFeasibility(db: NonNullable<Awaited<ReturnType<typeof connectToDatabase>>["db"]>, goal: Goal, monthlyContribution: number): Promise<boolean> {
   try {
     const month = getCurrentMonth();
-    const incomeActuals = await getCategoryActuals(db, month, true);
-    const expenseActuals = await getCategoryActuals(db, month, false);
+    const [incomeActuals, expenseActuals, savingsRawActuals, mappings] = await Promise.all([
+      getCategoryActuals(db, month, true),
+      getCategoryActuals(db, month, false),
+      getCategoryActuals(db, month, false, true, true),
+      getMappings(db),
+    ]);
 
     const totalIncome = [...incomeActuals.values()].reduce((s, a) => s + a.total, 0);
     const totalExpenses = [...expenseActuals.values()].reduce((s, a) => s + a.total, 0);
 
-    const groups = await db
-      .collection("budget_groups")
-      .find({})
-      .sort({ sortOrder: 1 })
-      .toArray();
-
-    const savingsGroup = groups.find((g) => g.name === "Savings");
+    const { actualsByGroup } = remapActuals(savingsRawActuals, mappings);
+    const savingsMap = actualsByGroup.get("Savings");
     let savingsActual = 0;
-    if (savingsGroup) {
-      for (const cat of savingsGroup.categories as string[]) {
-        savingsActual += expenseActuals.get(cat)?.total ?? 0;
-      }
+    if (savingsMap) {
+      savingsActual = [...savingsMap.values()].reduce(
+        (sum, a) => sum + a.total,
+        0
+      );
     }
 
     const surplus = totalIncome - totalExpenses - savingsActual;

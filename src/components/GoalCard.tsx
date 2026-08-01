@@ -28,7 +28,7 @@ export default function GoalCard({ goal }: GoalCardProps) {
   );
 
   const handleContribute = () => {
-    const amount = Math.round(parseFloat(contributeAmount) * 100);
+    const amount = Math.round(parseFloat(contributeAmount) * 100) / 100;
     if (isNaN(amount) || amount <= 0) return;
 
     contributeToGoal.mutate({

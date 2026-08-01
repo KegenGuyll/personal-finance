@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { connectToDatabase } from "@/src/lib/mongodb";
-import { getBudgetGroups, getCategoryActuals, getMappings, remapActuals } from "@/src/lib/budget-pipeline";
+import { getBudgetGroups, getCategoryActuals, getMappings, remapActuals, getUnderspentAmounts } from "@/src/lib/budget-pipeline";
 import type { Budget, BudgetGroupSummary, BudgetCategorySummary, BudgetSummary } from "@/src/types/budget";
 
 export async function GET(request: NextRequest) {
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const [groups, budgets, expenseActuals, incomeActuals, savingsActuals, mappings, settings] = await Promise.all([
+    const [groups, budgets, expenseActuals, incomeActuals, savingsActuals, mappings, settings, unresolvedCarryovers] = await Promise.all([
       getBudgetGroups(db),
       db.collection<Budget>("budgets").find({ month }).toArray(),
       getCategoryActuals(db, month, false),
@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
       getCategoryActuals(db, month, false, true, true),
       getMappings(db),
       db.collection("budget_settings").findOne({ month }) as Promise<{ expectedIncome?: number } | null>,
+      getUnderspentAmounts(db, month),
     ]);
 
     const totalIncome = [...incomeActuals.values()].reduce(
@@ -36,8 +37,14 @@ export async function GET(request: NextRequest) {
     const { actualsByGroup: savingsByGroup } = remapActuals(savingsActuals, mappings);
 
     const budgetByCategory = new Map<string, Budget>();
+    const budgetsByGroup = new Map<string, Budget[]>();
     for (const b of budgets) {
       budgetByCategory.set(b.category, b);
+      const groupKey = String(b.groupId);
+      if (!budgetsByGroup.has(groupKey)) {
+        budgetsByGroup.set(groupKey, []);
+      }
+      budgetsByGroup.get(groupKey)!.push(b);
     }
 
     const plaidLeavesByBudgetCat = new Map<string, string[]>();
@@ -57,50 +64,57 @@ export async function GET(request: NextRequest) {
         ? savingsByGroup.get(group.name)
         : actualsByGroup.get(group.name);
 
-      let categories: BudgetCategorySummary[] = [];
-
-      if (groupActuals) {
-        categories = [...groupActuals.entries()].map(([budgetCat, actual]) => {
-          const budget = budgetByCategory.get(budgetCat);
-          const plannedAmount = budget?.plannedAmount ?? 0;
-          const actualAmount = actual.total;
-
-          const effectiveLimit = plannedAmount;
-          const remaining = effectiveLimit - actualAmount;
-          const percentUsed =
-            effectiveLimit > 0
-              ? Math.round((actualAmount / effectiveLimit) * 100)
-              : 0;
-
-          let suggestedAmount = 0;
-          if (!budget && actualAmount > 0) {
-            suggestedAmount = actualAmount;
-          } else if (!budget && groupTarget > 0) {
-            const mappedCount = groupActuals.size;
-            if (mappedCount > 0) {
-              const existingPlanned = [...groupActuals.keys()]
-                .filter((k) => budgetByCategory.has(k))
-                .reduce((sum, k) => sum + (budgetByCategory.get(k)?.plannedAmount ?? 0), 0);
-              const unbudgetedCount = Math.max(1, [...groupActuals.keys()].filter((k) => !budgetByCategory.has(k)).length);
-              const remainingBudget = Math.max(0, groupTarget - existingPlanned);
-              suggestedAmount = Math.round(remainingBudget / unbudgetedCount);
-            }
-          }
-
-          return {
-            category: budgetCat,
-            plaidLeaves: plaidLeavesByBudgetCat.get(budgetCat) ?? [],
-            groupId: group._id!,
-            plannedAmount,
-            actualAmount,
-            remaining,
-            percentUsed,
-            carryoverFromPrevious: 0,
-            hasUnresolvedCarryover: false,
-            suggestedAmount,
-          };
-        });
+      const budgetCats = budgetsByGroup.get(String(group._id)) ?? [];
+      const categoryKeys = new Set<string>();
+      for (const key of groupActuals?.keys() ?? []) {
+        categoryKeys.add(key);
       }
+      for (const b of budgetCats) {
+        categoryKeys.add(b.category);
+      }
+
+      const categories: BudgetCategorySummary[] = [...categoryKeys].map((budgetCat) => {
+        const budget = budgetByCategory.get(budgetCat);
+        const actual = groupActuals?.get(budgetCat);
+        const plannedAmount = budget?.plannedAmount ?? 0;
+        const carryoverFromPrevious = budget?.carryoverFromPrevious ?? 0;
+        const actualAmount = actual?.total ?? 0;
+
+        const effectiveLimit = plannedAmount + carryoverFromPrevious;
+        const remaining = effectiveLimit - actualAmount;
+        const percentUsed =
+          effectiveLimit > 0
+            ? Math.round((actualAmount / effectiveLimit) * 100)
+            : 0;
+
+        let suggestedAmount = 0;
+        if (!budget && actualAmount > 0) {
+          suggestedAmount = actualAmount;
+        } else if (!budget && groupTarget > 0 && groupActuals) {
+          const mappedCount = groupActuals.size;
+          if (mappedCount > 0) {
+            const existingPlanned = [...groupActuals.keys()]
+              .filter((k) => budgetByCategory.has(k))
+              .reduce((sum, k) => sum + (budgetByCategory.get(k)?.plannedAmount ?? 0), 0);
+            const unbudgetedCount = Math.max(1, [...groupActuals.keys()].filter((k) => !budgetByCategory.has(k)).length);
+            const remainingBudget = Math.max(0, groupTarget - existingPlanned);
+            suggestedAmount = Math.round(remainingBudget / unbudgetedCount);
+          }
+        }
+
+        return {
+          category: budgetCat,
+          plaidLeaves: plaidLeavesByBudgetCat.get(budgetCat) ?? [],
+          groupId: group._id!,
+          plannedAmount,
+          actualAmount,
+          remaining,
+          percentUsed,
+          carryoverFromPrevious,
+          hasUnresolvedCarryover: unresolvedCarryovers.has(budgetCat),
+          suggestedAmount,
+        };
+      });
 
       const groupPlanned = categories.reduce((sum, c) => sum + c.plannedAmount, 0);
       const groupActual = categories.reduce((sum, c) => sum + c.actualAmount, 0);

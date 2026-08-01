@@ -16,7 +16,7 @@ export default function GoalForm({ onClose }: GoalFormProps) {
   const handleSubmit = () => {
     if (!name.trim() || !targetAmount || !targetDate) return;
 
-    const amount = Math.round(parseFloat(targetAmount) * 100);
+    const amount = Math.round(parseFloat(targetAmount) * 100) / 100;
     if (isNaN(amount) || amount <= 0) return;
 
     createGoal.mutate(

@@ -25,6 +25,13 @@ export async function POST(
       );
     }
 
+    if (body.amount <= 0) {
+      return Response.json(
+        { error: "amount must be positive" },
+        { status: 400 }
+      );
+    }
+
     const contribution: GoalContribution = {
       amount: body.amount,
       date: body.date,

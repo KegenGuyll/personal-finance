@@ -1,13 +1,8 @@
 import { NextRequest } from "next/server";
 import { connectToDatabase } from "@/src/lib/mongodb";
-import { getCategoryActuals } from "@/src/lib/budget-pipeline";
+import { getCategoryActuals, getUnderspentAmounts } from "@/src/lib/budget-pipeline";
+import { getPreviousMonth } from "@/src/lib/month-utils";
 import type { Budget, CarryoverItem } from "@/src/types/budget";
-
-function getPreviousMonth(month: string): string {
-  const [y, m] = month.split("-").map(Number);
-  const d = new Date(y, m - 1, 0);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,31 +18,16 @@ export async function GET(request: NextRequest) {
     }
 
     const prevMonth = getPreviousMonth(month);
-    const actuals = await getCategoryActuals(db, prevMonth, false);
-    const budgets = await db
-      .collection<Budget>("budgets")
-      .find({ month: prevMonth })
-      .toArray();
+    const underspentAmounts = await getUnderspentAmounts(db, month);
 
-    const carryovers: CarryoverItem[] = [];
-
-    for (const budget of budgets) {
-      if (budget.plannedAmount <= 0) continue;
-      if (budget.carryoverDecision) continue;
-
-      const actual = actuals.get(budget.category);
-      const actualAmount = actual?.total ?? 0;
-      const underspent = budget.plannedAmount - actualAmount;
-
-      if (underspent > 0) {
-        carryovers.push({
-          category: budget.category,
-          month: prevMonth,
-          underspentAmount: underspent,
-          hasDecision: false,
-        });
-      }
-    }
+    const carryovers: CarryoverItem[] = [...underspentAmounts.entries()].map(
+      ([category, underspentAmount]) => ({
+        category,
+        month: prevMonth,
+        underspentAmount,
+        hasDecision: false,
+      })
+    );
 
     return Response.json({ carryovers });
   } catch (error) {
@@ -98,7 +78,10 @@ export async function POST(request: NextRequest) {
         const actuals = await getCategoryActuals(db, prevMonth, false);
         const actual = actuals.get(body.category);
         const actualAmount = actual?.total ?? 0;
-        const carryoverAmount = prevBudget.plannedAmount - actualAmount;
+        const carryoverAmount =
+          prevBudget.plannedAmount +
+          (prevBudget.carryoverFromPrevious ?? 0) -
+          actualAmount;
 
         if (carryoverAmount > 0) {
           await db.collection("budgets").updateOne(

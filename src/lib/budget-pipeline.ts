@@ -1,5 +1,6 @@
 import { type Db } from "mongodb";
-import type { BudgetGroup, CategoryMapping } from "@/src/types/budget";
+import type { BudgetGroup, Budget, CategoryMapping } from "@/src/types/budget";
+import { getPreviousMonth } from "@/src/lib/month-utils";
 
 export const EXPENSE_TRANSACTIONS_FILTER = [
   {
@@ -136,4 +137,32 @@ export function remapActuals(
   }
 
   return { actualsByGroup, unmappedLeaves };
+}
+
+export async function getUnderspentAmounts(
+  db: Db,
+  month: string
+): Promise<Map<string, number>> {
+  const prevMonth = getPreviousMonth(month);
+  const [actuals, budgets] = await Promise.all([
+    getCategoryActuals(db, prevMonth, false),
+    db.collection<Budget>("budgets").find({ month: prevMonth }).toArray(),
+  ]);
+
+  const underspent = new Map<string, number>();
+  for (const budget of budgets) {
+    if (budget.plannedAmount <= 0) continue;
+    if (budget.carryoverDecision) continue;
+
+    const actualAmount = actuals.get(budget.category)?.total ?? 0;
+    const effectivePlanned =
+      budget.plannedAmount + (budget.carryoverFromPrevious ?? 0);
+    const leftover = effectivePlanned - actualAmount;
+
+    if (leftover > 0) {
+      underspent.set(budget.category, leftover);
+    }
+  }
+
+  return underspent;
 }

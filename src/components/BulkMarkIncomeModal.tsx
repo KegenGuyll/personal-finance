@@ -45,7 +45,7 @@ export default function BulkMarkIncomeModal({
 
   const bulkMarkIncome = useBulkMarkIncome();
 
-  const transactions = data?.transactions ?? [];
+  const transactions = useMemo(() => data?.transactions ?? [], [data]);
 
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
 

@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import BudgetProgressBar from "./BudgetProgressBar";
+import BudgetRingChart from "./BudgetRingChart";
 import type { BudgetGroupSummary } from "@/src/types/budget";
 import { formatCurrency } from "@/src/utils/currency";
+import { CHART_COLORS } from "@/src/utils/chart-colors";
 
 interface BudgetEnvelopeCardProps {
   group: BudgetGroupSummary;
@@ -13,10 +15,10 @@ interface BudgetEnvelopeCardProps {
 }
 
 function getEnvelopeRingColor(pct: number): string {
-  if (pct < 50) return "stroke-space-indigo-500";
-  if (pct < 80) return "stroke-ocean-deep-500";
-  if (pct <= 100) return "stroke-cornflower-blue-500";
-  return "stroke-red-500";
+  if (pct < 50) return CHART_COLORS[0];
+  if (pct < 80) return CHART_COLORS[4];
+  if (pct <= 100) return CHART_COLORS[6];
+  return "#ef4444";
 }
 
 function getEnvelopeBgColor(name: string): string {
@@ -43,8 +45,6 @@ export default function BudgetEnvelopeCard({
   const totalSpent = group.actualAmount;
   const unallocated = group.unallocatedAmount;
   const ringPercent = totalTarget > 0 ? Math.min((totalSpent / totalTarget) * 100, 100) : 0;
-  const circumference = 2 * Math.PI * 36;
-  const strokeDashoffset = circumference - (ringPercent / 100) * circumference;
 
   const startDate = `${month}-01`;
   const endDate = getEndOfMonth(month);
@@ -62,33 +62,10 @@ export default function BudgetEnvelopeCard({
           <p className="text-xs text-space-indigo-400">{group.percentage}% of income</p>
         </div>
         <div className="relative h-20 w-20">
-          <svg className="h-full w-full -rotate-90" viewBox="0 0 80 80">
-            <circle
-              cx="40"
-              cy="40"
-              r="36"
-              fill="none"
-              stroke="currentColor"
-              className="stroke-space-indigo-100"
-              strokeWidth="6"
-            />
-            <circle
-              cx="40"
-              cy="40"
-              r="36"
-              fill="none"
-              className={`${
-                isSavings
-                  ? "stroke-ocean-deep-500"
-                  : getEnvelopeRingColor(ringPercent)
-              } transition-all duration-500`}
-              strokeWidth="6"
-              strokeLinecap="round"
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-            />
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <BudgetRingChart
+            percent={ringPercent}
+            color={isSavings ? CHART_COLORS[4] : getEnvelopeRingColor(ringPercent)}
+          >
             {isSavings ? (
               <>
                 <span className="text-[11px] font-bold text-ocean-deep-600">
@@ -108,7 +85,7 @@ export default function BudgetEnvelopeCard({
                 </span>
               </>
             )}
-          </div>
+          </BudgetRingChart>
         </div>
       </div>
 

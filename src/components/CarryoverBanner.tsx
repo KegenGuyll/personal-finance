@@ -16,7 +16,7 @@ export default function CarryoverBanner({ carryovers, currentMonth }: CarryoverB
 
   const handleResolve = (
     category: string,
-    decision: "carryover" | "savings" | "goal" | "reset"
+    decision: "carryover" | "reset"
   ) => {
     resolveCarryover.mutate({ month: currentMonth, category, decision });
   };
@@ -50,20 +50,6 @@ export default function CarryoverBanner({ carryovers, currentMonth }: CarryoverB
                 className="rounded-md bg-space-indigo-100 px-2 py-1 text-xs font-medium text-space-indigo-700 transition-colors hover:bg-space-indigo-200 disabled:opacity-50"
               >
                 Carry Over
-              </button>
-              <button
-                onClick={() => handleResolve(item.category, "savings")}
-                disabled={resolveCarryover.isPending}
-                className="rounded-md bg-ocean-deep-100 px-2 py-1 text-xs font-medium text-ocean-deep-700 transition-colors hover:bg-ocean-deep-200 disabled:opacity-50"
-              >
-                Save It
-              </button>
-              <button
-                onClick={() => handleResolve(item.category, "goal")}
-                disabled={resolveCarryover.isPending}
-                className="rounded-md bg-cornflower-blue-100 px-2 py-1 text-xs font-medium text-cornflower-blue-700 transition-colors hover:bg-cornflower-blue-200 disabled:opacity-50"
-              >
-                Put to Goal
               </button>
               <button
                 onClick={() => handleResolve(item.category, "reset")}

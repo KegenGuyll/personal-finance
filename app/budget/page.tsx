@@ -405,6 +405,7 @@ function BudgetContent() {
                   plannedAmount: Math.round(c.plannedAmount / periodFactor),
                   actualAmount: Math.round(c.actualAmount / periodFactor),
                   remaining: Math.round(c.remaining / periodFactor),
+                  carryoverFromPrevious: Math.round(c.carryoverFromPrevious / periodFactor),
                   suggestedAmount: Math.round(c.suggestedAmount / periodFactor),
                 })),
               };

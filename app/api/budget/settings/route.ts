@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { connectToDatabase } from "@/src/lib/mongodb";
+import { getMonthKey } from "@/src/lib/month-utils";
 
 export async function GET(request: NextRequest) {
   try {
@@ -44,12 +45,6 @@ export async function PUT(request: NextRequest) {
         { error: "month and expectedIncome are required" },
         { status: 400 }
       );
-    }
-
-    function getMonthKey(month: string, offset: number): string {
-      const [y, m] = month.split("-").map(Number);
-      const d = new Date(y, m - 1 + offset, 1);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     }
 
     const months = body.applyToFuture

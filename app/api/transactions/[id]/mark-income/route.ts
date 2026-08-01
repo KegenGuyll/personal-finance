@@ -37,8 +37,9 @@ export async function POST(
         $set: {
           name: transaction.name,
           incomeCategory: "Income",
-          createdAt: new Date(),
+          updatedAt: new Date(),
         },
+        $setOnInsert: { createdAt: new Date() },
       },
       { upsert: true }
     );
@@ -80,9 +81,16 @@ export async function DELETE(
       }
     );
 
-    await db.collection("income_patterns").deleteOne({
+    const remainingIncome = await db.collection("transactions").countDocuments({
       name: transaction.name,
+      transaction_type: "income",
     });
+
+    if (remainingIncome === 0) {
+      await db.collection("income_patterns").deleteOne({
+        name: transaction.name,
+      });
+    }
 
     return Response.json({ success: true });
   } catch (error) {

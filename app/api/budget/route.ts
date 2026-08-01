@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { connectToDatabase } from "@/src/lib/mongodb";
+import { getMonthKey } from "@/src/lib/month-utils";
 import type { Budget } from "@/src/types/budget";
 
 export async function GET(request: NextRequest) {
@@ -48,12 +49,6 @@ export async function PUT(request: NextRequest) {
 
     const { ObjectId } = await import("mongodb");
 
-    function getMonthKey(month: string, offset: number): string {
-      const [y, m] = month.split("-").map(Number);
-      const d = new Date(y, m - 1 + offset, 1);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    }
-
     const operationMonths = body.applyToFuture
       ? [body.month, ...Array.from({ length: 12 }, (_, i) => getMonthKey(body.month, i + 1))]
       : [body.month];
@@ -68,10 +63,12 @@ export async function PUT(request: NextRequest) {
               groupId: new ObjectId(b.groupId),
               category: b.category,
               plannedAmount: b.plannedAmount,
-              carryoverFromPrevious: 0,
               updatedAt: new Date(),
             },
-            $setOnInsert: { createdAt: new Date() },
+            $setOnInsert: {
+              carryoverFromPrevious: 0,
+              createdAt: new Date(),
+            },
           },
           upsert: true,
         },

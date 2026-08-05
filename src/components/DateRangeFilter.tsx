@@ -44,6 +44,10 @@ export default function DateRangeFilter() {
   const active = searchParams.get("range") ?? "";
   const startDate = searchParams.get("startDate") ?? "";
   const endDate = searchParams.get("endDate") ?? "";
+  const dateParam = searchParams.get("date") ?? "";
+
+  const isSingleDay = !!dateParam || (!!startDate && startDate === endDate);
+  const singleDayValue = dateParam || startDate;
 
   const customMonthLabel = useMemo(
     () => getCustomMonthLabel(startDate, endDate),
@@ -59,6 +63,7 @@ export default function DateRangeFilter() {
     }
     params.delete("startDate");
     params.delete("endDate");
+    params.delete("date");
     router.replace(`?${params.toString()}`);
   };
 
@@ -70,10 +75,28 @@ export default function DateRangeFilter() {
     router.replace(`?${params.toString()}`);
   };
 
+  const handleClearDate = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("date");
+    if (!dateParam) {
+      params.delete("startDate");
+      params.delete("endDate");
+    }
+    router.replace(`?${params.toString()}`);
+  };
+
+  const singleDayLabel = isSingleDay
+    ? new Date(`${singleDayValue}T12:00:00`).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "";
+
   return (
-    <div className="flex gap-1">
+    <div className="flex flex-wrap items-center gap-1">
       {OPTIONS.map(({ label, value }) => {
-        const isActive = active === value && !customMonthLabel;
+        const isActive = active === value && !customMonthLabel && !isSingleDay;
         return (
           <button
             key={label}
@@ -89,12 +112,23 @@ export default function DateRangeFilter() {
         );
       })}
 
-      {customMonthLabel && (
+      {!isSingleDay && customMonthLabel && (
         <button
           onClick={handleClearCustom}
           className="rounded-lg bg-cornflower-blue-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-cornflower-blue-600"
         >
           {customMonthLabel}
+        </button>
+      )}
+
+      {isSingleDay && (
+        <button
+          onClick={handleClearDate}
+          title="Clear date filter"
+          className="inline-flex items-center gap-1 rounded-full bg-space-indigo-100 px-3 py-1.5 text-xs font-medium text-space-indigo-700 transition-colors hover:bg-space-indigo-200"
+        >
+          {singleDayLabel}
+          <span className="text-space-indigo-400">&times;</span>
         </button>
       )}
     </div>

@@ -1,13 +1,19 @@
 "use client";
 
 import { useMemo, Suspense, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAppSelector } from "@/src/lib/hooks";
 import { useAllTransactions } from "@/src/hooks/useAllTransactions";
 import { useAllCategoryStats } from "@/src/hooks/useAllCategoryStats";
+import { useCategoryNameStats } from "@/src/hooks/useCategoryNameStats";
+import { useSpendingTrend } from "@/src/hooks/useSpendingTrend";
 import TransactionList from "@/src/components/TransactionList";
 import CategoryBreakdown from "@/src/components/CategoryBreakdown";
+import CategoryNameBreakdown from "@/src/components/CategoryNameBreakdown";
+import SpendingTrend from "@/src/components/SpendingTrend";
+import ChartCarousel from "@/src/components/ChartCarousel";
 import SearchInput from "@/src/components/SearchInput";
 import DateRangeFilter, { getStartDate } from "@/src/components/DateRangeFilter";
 import BulkMarkIncomeModal from "@/src/components/BulkMarkIncomeModal";
@@ -110,7 +116,9 @@ function AllTransactionList({
   const urlStartDate = searchParams.get("startDate") ?? "";
   const urlEndDate = searchParams.get("endDate") ?? "";
   const urlTransactionType = searchParams.get("transactionType") ?? "";
-  const startDate = urlStartDate || getStartDate(range);
+  const dateFilter = searchParams.get("date") ?? "";
+  const startDate = dateFilter || urlStartDate || getStartDate(range);
+  const endDate = dateFilter || urlEndDate || null;
   const markIncome = searchParams.get("markIncome") === "true";
 
   const {
@@ -120,7 +128,7 @@ function AllTransactionList({
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useAllTransactions(accountIds, query, category, startDate, urlEndDate || null, urlTransactionType || null);
+  } = useAllTransactions(accountIds, query, category, startDate, endDate, urlTransactionType || null);
 
   const transactions = data?.pages.flatMap((p) => p.transactions) ?? [];
 
@@ -151,14 +159,34 @@ function CategoryStats({
   const searchParams = useSearchParams();
   const range = searchParams.get("range") ?? "";
   const urlStartDate = searchParams.get("startDate") ?? "";
+  const urlEndDate = searchParams.get("endDate") ?? "";
   const urlTransactionType = searchParams.get("transactionType") ?? "";
-  const startDate = urlStartDate || getStartDate(range);
+  const dateFilter = searchParams.get("date") ?? "";
+  const startDate = dateFilter || urlStartDate || getStartDate(range);
+  const endDate = dateFilter || urlEndDate || null;
   const selectedCategory = searchParams.get("category") ?? null;
   const router = useRouter();
 
   const { data, isLoading } = useAllCategoryStats(
     accountIds,
     startDate,
+    endDate,
+    urlTransactionType || null
+  );
+
+  const { data: nameData, isLoading: nameLoading } = useCategoryNameStats(
+    accountIds,
+    selectedCategory ?? "",
+    startDate,
+    endDate,
+    urlTransactionType || null
+  );
+
+  const { data: trendData, isLoading: trendLoading } = useSpendingTrend(
+    accountIds,
+    selectedCategory ?? "",
+    startDate,
+    endDate,
     urlTransactionType || null
   );
 
@@ -172,6 +200,12 @@ function CategoryStats({
     router.replace(`/transactions?${params.toString()}`);
   };
 
+  const handleDateClick = (date: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("date", date);
+    router.replace(`/transactions?${params.toString()}`);
+  };
+
   if (isLoading) {
     return (
       <div className="h-60 animate-pulse rounded-lg border border-space-indigo-100 bg-white" />
@@ -179,6 +213,47 @@ function CategoryStats({
   }
 
   if (!data || data.categories.length === 0) return null;
+
+  const chartSkeleton = (
+    <div className="h-60 animate-pulse rounded-lg border border-space-indigo-100 bg-white" />
+  );
+
+  const slides: ReactNode[] = [
+    <CategoryBreakdown
+      key="category"
+      categories={data.categories}
+      grandTotal={data.grandTotal}
+      selectedCategory={selectedCategory}
+      onSelect={handleSelect}
+    />,
+  ];
+
+  if (selectedCategory) {
+    if (nameLoading) {
+      slides.push(<div key="name-loading">{chartSkeleton}</div>);
+    } else if (nameData && nameData.names.length > 0) {
+      slides.push(
+        <CategoryNameBreakdown
+          key="name"
+          names={nameData.names}
+          grandTotal={nameData.grandTotal}
+        />
+      );
+    }
+  }
+
+  if (trendLoading) {
+    slides.push(<div key="trend-loading">{chartSkeleton}</div>);
+  } else if (trendData && trendData.points.length >= 2) {
+    slides.push(
+      <SpendingTrend
+        key="trend"
+        points={trendData.points}
+        className=""
+        onPointClick={handleDateClick}
+      />
+    );
+  }
 
   return (
     <div>
@@ -196,12 +271,7 @@ function CategoryStats({
           </span>
         </div>
       )}
-      <CategoryBreakdown
-        categories={data.categories}
-        grandTotal={data.grandTotal}
-        selectedCategory={selectedCategory}
-        onSelect={handleSelect}
-      />
+      <ChartCarousel slides={slides} />
     </div>
   );
 }

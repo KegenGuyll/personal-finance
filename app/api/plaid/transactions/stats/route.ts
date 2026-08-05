@@ -1,7 +1,9 @@
 import { NextRequest } from "next/server";
 import { connectToDatabase } from "@/src/lib/mongodb";
-import { CATEGORY_STATS_PIPELINE } from "@/src/lib/stats-pipeline";
-import { EXCLUDE_TRANSFERS_MATCH } from "@/src/lib/budget-pipeline";
+import {
+  CATEGORY_STATS_PIPELINE,
+  buildTransactionStatsMatch,
+} from "@/src/lib/stats-pipeline";
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,31 +12,16 @@ export async function GET(request: NextRequest) {
 
     const accountIdsParam = url.searchParams.get("accountIds") ?? "";
     const startDate = url.searchParams.get("startDate") ?? "";
+    const endDate = url.searchParams.get("endDate") ?? "";
     const transactionType = url.searchParams.get("transactionType") ?? "";
     const accountIds = accountIdsParam.split(",").filter(Boolean);
 
-    const matchConditions: Record<string, unknown>[] = [];
-
-    if (transactionType === "income") {
-      matchConditions.push({ transaction_type: "income" });
-    } else {
-      matchConditions.push(
-        {
-          $or: [
-            { transaction_type: { $ne: "income" } },
-            { transaction_type: { $exists: false } },
-          ],
-        },
-        EXCLUDE_TRANSFERS_MATCH,
-      );
-    }
-
-    if (accountIds.length > 0) {
-      matchConditions.push({ account_id: { $in: accountIds } });
-    }
-    if (startDate) {
-      matchConditions.push({ date: { $gte: startDate } });
-    }
+    const matchConditions = buildTransactionStatsMatch({
+      accountIds,
+      startDate,
+      endDate,
+      transactionType,
+    });
 
     const pipeline = [
       { $match: { $and: matchConditions } },

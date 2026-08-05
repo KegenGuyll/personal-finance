@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { connectToDatabase } from "@/src/lib/mongodb";
-import { getMonthKey } from "@/src/lib/month-utils";
+import { ensureMonthInitialized } from "@/src/lib/budget-pipeline";
 import type { Budget } from "@/src/types/budget";
 
 export async function GET(request: NextRequest) {
@@ -15,6 +15,8 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    await ensureMonthInitialized(db, month);
 
     const budgets = await db
       .collection<Budget>("budgets")
@@ -37,7 +39,6 @@ export async function PUT(request: NextRequest) {
     const body: {
       month: string;
       budgets: { groupId: string; category: string; plannedAmount: number }[];
-      applyToFuture?: boolean;
     } = await request.json();
 
     if (!body.month || !body.budgets || !Array.isArray(body.budgets)) {
@@ -49,34 +50,27 @@ export async function PUT(request: NextRequest) {
 
     const { ObjectId } = await import("mongodb");
 
-    const operationMonths = body.applyToFuture
-      ? [body.month, ...Array.from({ length: 12 }, (_, i) => getMonthKey(body.month, i + 1))]
-      : [body.month];
-
-    const allOps = operationMonths.flatMap((m) =>
-      body.budgets.map((b) => ({
-        updateOne: {
-          filter: { month: m, category: b.category },
-          update: {
-            $set: {
-              month: m,
-              groupId: new ObjectId(b.groupId),
-              category: b.category,
-              plannedAmount: b.plannedAmount,
-              updatedAt: new Date(),
-            },
-            $setOnInsert: {
-              carryoverFromPrevious: 0,
-              createdAt: new Date(),
-            },
+    const ops = body.budgets.map((b) => ({
+      updateOne: {
+        filter: { month: body.month, category: b.category },
+        update: {
+          $set: {
+            month: body.month,
+            groupId: new ObjectId(b.groupId),
+            category: b.category,
+            plannedAmount: b.plannedAmount,
+            updatedAt: new Date(),
           },
-          upsert: true,
+          $setOnInsert: {
+            createdAt: new Date(),
+          },
         },
-      }))
-    );
+        upsert: true,
+      },
+    }));
 
-    if (allOps.length > 0) {
-      await db.collection("budgets").bulkWrite(allOps);
+    if (ops.length > 0) {
+      await db.collection("budgets").bulkWrite(ops);
     }
 
     const budgets = await db

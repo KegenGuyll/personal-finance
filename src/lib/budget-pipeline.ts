@@ -1,6 +1,6 @@
 import { type Db } from "mongodb";
-import type { BudgetGroup, Budget, CategoryMapping } from "@/src/types/budget";
-import { getPreviousMonth } from "@/src/lib/month-utils";
+import type { BudgetGroup, Budget, BudgetCategory, CategoryMapping } from "@/src/types/budget";
+import { getMonthKey, getPreviousMonth } from "@/src/lib/month-utils";
 
 export const EXPENSE_TRANSACTIONS_FILTER = [
   {
@@ -98,6 +98,31 @@ export async function getMappings(db: Db): Promise<CategoryMapping[]> {
     .toArray();
 }
 
+export const DEFAULT_CATEGORY_SORT_ORDER = 1000;
+
+export interface BudgetCategoryRegistryEntry {
+  isBudgeted: boolean;
+  sortOrder: number;
+}
+
+export async function getBudgetCategoryRegistry(
+  db: Db
+): Promise<Map<string, BudgetCategoryRegistryEntry>> {
+  const docs = await db
+    .collection<BudgetCategory>("budget_categories")
+    .find({})
+    .toArray();
+  return new Map(
+    docs.map((d) => [
+      d.name,
+      {
+        isBudgeted: d.isBudgeted,
+        sortOrder: d.sortOrder ?? DEFAULT_CATEGORY_SORT_ORDER,
+      },
+    ])
+  );
+}
+
 export function remapActuals(
   leafActuals: Map<string, { total: number; count: number }>,
   mappings: CategoryMapping[]
@@ -139,30 +164,115 @@ export function remapActuals(
   return { actualsByGroup, unmappedLeaves };
 }
 
-export async function getUnderspentAmounts(
-  db: Db,
-  month: string
-): Promise<Map<string, number>> {
+export async function ensureMonthInitialized(db: Db, month: string): Promise<void> {
   const prevMonth = getPreviousMonth(month);
-  const [actuals, budgets] = await Promise.all([
-    getCategoryActuals(db, prevMonth, false),
+
+  const [existingDocs, prevBudgets] = await Promise.all([
+    db.collection<Budget>("budgets").find({ month }).toArray(),
     db.collection<Budget>("budgets").find({ month: prevMonth }).toArray(),
   ]);
 
-  const underspent = new Map<string, number>();
-  for (const budget of budgets) {
-    if (budget.plannedAmount <= 0) continue;
-    if (budget.carryoverDecision) continue;
+  const existingCategories = new Set(existingDocs.map((b) => b.category));
+  const missing = prevBudgets.filter((b) => !existingCategories.has(b.category));
 
-    const actualAmount = actuals.get(budget.category)?.total ?? 0;
-    const effectivePlanned =
-      budget.plannedAmount + (budget.carryoverFromPrevious ?? 0);
-    const leftover = effectivePlanned - actualAmount;
+  if (missing.length > 0) {
+    const ops = missing.map((b) => ({
+      updateOne: {
+        filter: { month, category: b.category },
+        update: {
+          $set: {
+            month,
+            groupId: b.groupId,
+            category: b.category,
+            plannedAmount: b.plannedAmount,
+            updatedAt: new Date(),
+          },
+          $setOnInsert: { createdAt: new Date() },
+        },
+        upsert: true,
+      },
+    }));
+
+    await db.collection("budgets").bulkWrite(ops);
+  }
+
+  const existingSettings = await db.collection("budget_settings").findOne({ month });
+  if (!existingSettings) {
+    const prevSettings = await db
+      .collection("budget_settings")
+      .findOne({ month: prevMonth });
+    if (prevSettings) {
+      await db.collection("budget_settings").updateOne(
+        { month },
+        {
+          $set: { month, expectedIncome: prevSettings.expectedIncome ?? 0 },
+          $setOnInsert: { createdAt: new Date() },
+        },
+        { upsert: true }
+      );
+    }
+  }
+}
+
+export async function getCarryoverAmounts(
+  db: Db,
+  month: string,
+  mappings: CategoryMapping[]
+): Promise<Map<string, number>> {
+  const groups = await getBudgetGroups(db);
+  const savingsGroupIds = new Set(
+    groups.filter((g) => g.name === "Savings").map((g) => String(g._id))
+  );
+
+  const prevMonth = getPreviousMonth(month);
+  const rangeStart = getMonthKey(month, -24);
+
+  const allDocs = await db
+    .collection<Budget>("budgets")
+    .find({ month: { $gte: rangeStart, $lt: month } })
+    .toArray();
+
+  const docsByMonth = new Map<string, Map<string, Budget>>();
+  for (const doc of allDocs) {
+    if (!docsByMonth.has(doc.month)) {
+      docsByMonth.set(doc.month, new Map());
+    }
+    docsByMonth.get(doc.month)!.set(doc.category, doc);
+  }
+
+  const prevDocs = docsByMonth.get(prevMonth);
+  if (!prevDocs) return new Map();
+
+  const chain = [...docsByMonth.keys()].sort();
+
+  const actualsByMonth = new Map<string, Map<string, number>>();
+  for (const m of chain) {
+    const leafActuals = await getCategoryActuals(db, m, false);
+    const { actualsByGroup } = remapActuals(leafActuals, mappings);
+    const actuals = new Map<string, number>();
+    for (const groupMap of actualsByGroup.values()) {
+      for (const [category, data] of groupMap) {
+        actuals.set(category, data.total);
+      }
+    }
+    actualsByMonth.set(m, actuals);
+  }
+
+  const carryovers = new Map<string, number>();
+  for (const [category, doc] of prevDocs) {
+    if (savingsGroupIds.has(String(doc.groupId))) continue;
+
+    let leftover = 0;
+    for (const m of chain) {
+      const planned = docsByMonth.get(m)?.get(category)?.plannedAmount ?? 0;
+      const actual = actualsByMonth.get(m)?.get(category) ?? 0;
+      leftover = Math.max(0, planned + leftover - actual);
+    }
 
     if (leftover > 0) {
-      underspent.set(budget.category, leftover);
+      carryovers.set(category, leftover);
     }
   }
 
-  return underspent;
+  return carryovers;
 }

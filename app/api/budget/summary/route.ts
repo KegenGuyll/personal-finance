@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { connectToDatabase } from "@/src/lib/mongodb";
-import { getBudgetGroups, getCategoryActuals, getMappings, remapActuals, getUnderspentAmounts } from "@/src/lib/budget-pipeline";
-import type { Budget, BudgetGroupSummary, BudgetCategorySummary, BudgetSummary } from "@/src/types/budget";
+import { DEFAULT_CATEGORY_SORT_ORDER, ensureMonthInitialized, getBudgetCategoryRegistry, getBudgetGroups, getCategoryActuals, getCarryoverAmounts, getMappings, remapActuals } from "@/src/lib/budget-pipeline";
+import type { Budget, BudgetGroupSummary, BudgetCategorySummary, BudgetSummary, UnbudgetedCategorySummary } from "@/src/types/budget";
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,7 +16,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const [groups, budgets, expenseActuals, incomeActuals, savingsActuals, mappings, settings, unresolvedCarryovers] = await Promise.all([
+    await ensureMonthInitialized(db, month);
+
+    const [groups, budgets, expenseActuals, incomeActuals, savingsActuals, mappings, settings, budgetCategoryRegistry] = await Promise.all([
       getBudgetGroups(db),
       db.collection<Budget>("budgets").find({ month }).toArray(),
       getCategoryActuals(db, month, false),
@@ -24,8 +26,15 @@ export async function GET(request: NextRequest) {
       getCategoryActuals(db, month, false, true, true),
       getMappings(db),
       db.collection("budget_settings").findOne({ month }) as Promise<{ expectedIncome?: number } | null>,
-      getUnderspentAmounts(db, month),
+      getBudgetCategoryRegistry(db),
     ]);
+
+    const carryovers = await getCarryoverAmounts(db, month, mappings);
+    for (const category of [...carryovers.keys()]) {
+      if (budgetCategoryRegistry.get(category)?.isBudgeted === false) {
+        carryovers.delete(category);
+      }
+    }
 
     const totalIncome = [...incomeActuals.values()].reduce(
       (sum, a) => sum + a.total,
@@ -73,11 +82,28 @@ export async function GET(request: NextRequest) {
         categoryKeys.add(b.category);
       }
 
-      const categories: BudgetCategorySummary[] = [...categoryKeys].map((budgetCat) => {
+      const sortedKeys = [...categoryKeys].sort((a, b) => {
+        const aOrder = budgetCategoryRegistry.get(a)?.sortOrder ?? DEFAULT_CATEGORY_SORT_ORDER;
+        const bOrder = budgetCategoryRegistry.get(b)?.sortOrder ?? DEFAULT_CATEGORY_SORT_ORDER;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        return a.localeCompare(b);
+      });
+
+      const budgetedKeys: string[] = [];
+      const unbudgetedKeys: string[] = [];
+      for (const key of sortedKeys) {
+        if (budgetCategoryRegistry.get(key)?.isBudgeted === false) {
+          unbudgetedKeys.push(key);
+        } else {
+          budgetedKeys.push(key);
+        }
+      }
+
+      const categories: BudgetCategorySummary[] = budgetedKeys.map((budgetCat) => {
         const budget = budgetByCategory.get(budgetCat);
         const actual = groupActuals?.get(budgetCat);
         const plannedAmount = budget?.plannedAmount ?? 0;
-        const carryoverFromPrevious = budget?.carryoverFromPrevious ?? 0;
+        const carryoverFromPrevious = carryovers.get(budgetCat) ?? 0;
         const actualAmount = actual?.total ?? 0;
 
         const effectiveLimit = plannedAmount + carryoverFromPrevious;
@@ -96,7 +122,12 @@ export async function GET(request: NextRequest) {
             const existingPlanned = [...groupActuals.keys()]
               .filter((k) => budgetByCategory.has(k))
               .reduce((sum, k) => sum + (budgetByCategory.get(k)?.plannedAmount ?? 0), 0);
-            const unbudgetedCount = Math.max(1, [...groupActuals.keys()].filter((k) => !budgetByCategory.has(k)).length);
+            const unbudgetedCount = Math.max(
+              1,
+              [...groupActuals.keys()].filter(
+                (k) => !budgetByCategory.has(k) && budgetCategoryRegistry.get(k)?.isBudgeted !== false
+              ).length
+            );
             const remainingBudget = Math.max(0, groupTarget - existingPlanned);
             suggestedAmount = Math.round(remainingBudget / unbudgetedCount);
           }
@@ -111,7 +142,6 @@ export async function GET(request: NextRequest) {
           remaining,
           percentUsed,
           carryoverFromPrevious,
-          hasUnresolvedCarryover: unresolvedCarryovers.has(budgetCat),
           suggestedAmount,
         };
       });
@@ -122,6 +152,18 @@ export async function GET(request: NextRequest) {
         groupTarget > 0
           ? Math.round((groupActual / groupTarget) * 100)
           : 0;
+
+      const unbudgetedCategories: UnbudgetedCategorySummary[] = unbudgetedKeys
+        .map((budgetCat) => ({
+          category: budgetCat,
+          actualAmount: groupActuals?.get(budgetCat)?.total ?? 0,
+          plaidLeaves: plaidLeavesByBudgetCat.get(budgetCat) ?? [],
+        }))
+        .filter((c) => c.actualAmount !== 0);
+      const unbudgetedAmount = unbudgetedCategories.reduce(
+        (sum, c) => sum + c.actualAmount,
+        0
+      );
 
       return {
         groupId: group._id!,
@@ -134,6 +176,8 @@ export async function GET(request: NextRequest) {
         unallocatedAmount: Math.max(0, groupTarget - groupPlanned),
         percentUsed: groupPercentUsed,
         categories,
+        unbudgetedAmount,
+        unbudgetedCategories,
       };
     });
 

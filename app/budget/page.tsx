@@ -8,17 +8,17 @@ import { setCategoryMappingsOpen } from "@/src/features/ui/uiSlice";
 import { useBudgetSummary } from "@/src/hooks/useBudgetSummary";
 import { useBudgetHealth } from "@/src/hooks/useBudgetHealth";
 import { useIncomeStatus } from "@/src/hooks/useIncomeStatus";
-import { useCarryovers } from "@/src/hooks/useCarryovers";
 import { useMutateBudget } from "@/src/hooks/useMutateBudget";
 import { useSeedBudgetGroups } from "@/src/hooks/useSeedBudgetGroups";
 import { useBudgetGroups } from "@/src/hooks/useBudgetGroups";
 import { useBudgetSettings } from "@/src/hooks/useBudgetSettings";
 import { useMutateBudgetSettings } from "@/src/hooks/useMutateBudgetSettings";
+import { useMutateBudgetCategory } from "@/src/hooks/useMutateBudgetCategory";
+import { useReorderBudgetCategories } from "@/src/hooks/useReorderBudgetCategories";
 import MonthSelector from "@/src/components/MonthSelector";
 import BudgetEnvelopeCard from "@/src/components/BudgetEnvelopeCard";
 import IncomeBanner from "@/src/components/IncomeBanner";
 import IncomeSection from "@/src/components/IncomeSection";
-import CarryoverBanner from "@/src/components/CarryoverBanner";
 import CategoryMappingsManager from "@/src/components/CategoryMappingsManager";
 import { formatCurrency } from "@/src/utils/currency";
 
@@ -44,9 +44,9 @@ function BudgetContent() {
     currentAmount: number;
   } | null>(null);
   const [editAmount, setEditAmount] = useState("");
-  const [applyToFuture, setApplyToFuture] = useState(true);
   const [editingExpectedIncome, setEditingExpectedIncome] = useState(false);
   const [expectedIncomeInput, setExpectedIncomeInput] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
 
   const PERIODS = [
     { label: "Daily", value: "daily" },
@@ -69,11 +69,12 @@ function BudgetContent() {
   const { data: summary, isLoading: summaryLoading } = useBudgetSummary(month);
   const { data: health, isLoading: healthLoading } = useBudgetHealth(month);
   const { data: incomeStatus } = useIncomeStatus(month);
-  const { data: carryoversData } = useCarryovers(month);
   const { data: settingsData } = useBudgetSettings(month);
 
   const mutateBudget = useMutateBudget();
   const mutateSettings = useMutateBudgetSettings();
+  const mutateBudgetCategory = useMutateBudgetCategory();
+  const reorderBudgetCategories = useReorderBudgetCategories();
   const seedGroups = useSeedBudgetGroups();
 
   const hasIncome = incomeStatus?.hasIncome ?? false;
@@ -128,7 +129,14 @@ function BudgetContent() {
     });
   }
 
-  const carryovers = carryoversData?.carryovers ?? [];
+  function handleToggleBudgetCategory(category: string, isBudgeted: boolean) {
+    mutateBudgetCategory.mutate({ name: category, isBudgeted });
+  }
+
+  function handleReorderCategories(orderedNames: string[]) {
+    reorderBudgetCategories.mutate({ orderedNames });
+  }
+
   const groups = summary?.groups ?? [];
   const isLoading = summaryLoading || healthLoading || groupsLoading;
 
@@ -165,12 +173,10 @@ function BudgetContent() {
           plannedAmount: amount,
         },
       ],
-      applyToFuture,
     });
 
     setEditingBudget(null);
     setEditAmount("");
-    setApplyToFuture(true);
   }
 
   return (
@@ -198,6 +204,16 @@ function BudgetContent() {
           >
             Goals
           </Link>
+          <button
+            onClick={() => setIsEditing(!isEditing)}
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+              isEditing
+                ? "bg-space-indigo-600 text-white hover:bg-space-indigo-700"
+                : "bg-space-indigo-50 text-space-indigo-600 hover:bg-space-indigo-100"
+            }`}
+          >
+            {isEditing ? "Done" : "Edit"}
+          </button>
           <button
             onClick={() => dispatch(setCategoryMappingsOpen(!showMappingsManager))}
             className="rounded-lg bg-space-indigo-50 px-3 py-1.5 text-xs font-medium text-space-indigo-600 transition-colors hover:bg-space-indigo-100"
@@ -227,7 +243,7 @@ function BudgetContent() {
                       if (e.key === "Enter") {
                         const amount = Math.round(parseFloat(expectedIncomeInput) * 100) / 100;
                         if (!isNaN(amount) && amount >= 0) {
-                          mutateSettings.mutate({ month, expectedIncome: amount, applyToFuture });
+                          mutateSettings.mutate({ month, expectedIncome: amount });
                         }
                         setEditingExpectedIncome(false);
                       }
@@ -239,7 +255,7 @@ function BudgetContent() {
                     onClick={() => {
                       const amount = Math.round(parseFloat(expectedIncomeInput) * 100) / 100;
                       if (!isNaN(amount) && amount >= 0) {
-                        mutateSettings.mutate({ month, expectedIncome: amount, applyToFuture });
+                        mutateSettings.mutate({ month, expectedIncome: amount });
                       }
                       setEditingExpectedIncome(false);
                     }}
@@ -253,17 +269,6 @@ function BudgetContent() {
                   >
                     Cancel
                   </button>
-                  <label className="flex items-center gap-1">
-                    <input
-                      type="checkbox"
-                      checked={applyToFuture}
-                      onChange={(e) => setApplyToFuture(e.target.checked)}
-                      className="h-3.5 w-3.5 rounded border-space-indigo-200 accent-space-indigo-600"
-                    />
-                    <span className="text-[10px] text-space-indigo-400">
-                      Future months
-                    </span>
-                  </label>
                 </div>
               ) : (
                 <span
@@ -311,8 +316,6 @@ function BudgetContent() {
         />
       )}
 
-      <CarryoverBanner carryovers={carryovers} currentMonth={month} />
-
       {hasIncome && !healthLoading && health && (
         <IncomeSection totalIncome={health.totalIncome} expectedIncome={health.expectedIncome} />
       )}
@@ -345,22 +348,11 @@ function BudgetContent() {
             </button>
             <button
               onClick={() => setEditingBudget(null)}
-              className="rounded-md px-3 py-1.5 text-xs text-space-indigo-500 transition-colors hover:bg-space-indigo-100"
+              className="rounded-md px-3 py-1 text-xs text-space-indigo-500 transition-colors hover:bg-space-indigo-100"
             >
               Cancel
             </button>
           </div>
-          <label className="mt-2 flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={applyToFuture}
-              onChange={(e) => setApplyToFuture(e.target.checked)}
-              className="h-4 w-4 rounded border-space-indigo-200 accent-space-indigo-600"
-            />
-            <span className="text-xs text-space-indigo-500">
-              Apply to all future months
-            </span>
-          </label>
         </div>
       )}
 
@@ -400,6 +392,11 @@ function BudgetContent() {
                 actualAmount: Math.round(group.actualAmount / periodFactor),
                 allocatedAmount: Math.round(group.allocatedAmount / periodFactor),
                 unallocatedAmount: Math.round(group.unallocatedAmount / periodFactor),
+                unbudgetedAmount: Math.round(group.unbudgetedAmount / periodFactor),
+                unbudgetedCategories: group.unbudgetedCategories.map((c) => ({
+                  ...c,
+                  actualAmount: Math.round(c.actualAmount / periodFactor),
+                })),
                 categories: group.categories.map((c) => ({
                   ...c,
                   plannedAmount: Math.round(c.plannedAmount / periodFactor),
@@ -411,11 +408,14 @@ function BudgetContent() {
               };
               return (
                 <BudgetEnvelopeCard
-                  key={group.groupId}
+                  key={`${group.groupId}-${month}`}
                   group={adjusted}
                   month={month}
+                  isEditing={isEditing}
                   onEditCategory={handleEditCategory}
                   onAcceptSuggestion={handleAcceptSuggestion}
+                  onToggleBudgetCategory={handleToggleBudgetCategory}
+                  onReorderCategories={handleReorderCategories}
                 />
               );
             })}

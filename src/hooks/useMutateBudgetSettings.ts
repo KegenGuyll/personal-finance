@@ -3,7 +3,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 interface MutateBudgetSettingsInput {
   month: string;
   expectedIncome: number;
-  applyToFuture?: boolean;
 }
 
 export function useMutateBudgetSettings() {

@@ -1,17 +1,39 @@
 import { connectToDatabase } from "@/src/lib/mongodb";
+import { DEFAULT_CATEGORY_SORT_ORDER } from "@/src/lib/budget-pipeline";
 import { DEFAULT_BUDGET_GROUPS, DEFAULT_CATEGORY_MAPPING } from "@/src/utils/budget-defaults";
+import type { Db } from "mongodb";
+
+async function backfillBudgetCategories(
+  db: Db,
+  allMappings: { budgetCategory: string }[]
+) {
+  const existingNames = await db
+    .collection("budget_categories")
+    .distinct("name");
+
+  const missing = [
+    ...new Set(allMappings.map((m) => m.budgetCategory)),
+  ].filter((name) => !existingNames.includes(name));
+
+  if (missing.length > 0) {
+    await db.collection("budget_categories").bulkWrite(
+      missing.map((name) => ({
+        updateOne: {
+          filter: { name },
+          update: {
+            $set: { name, isBudgeted: true, sortOrder: DEFAULT_CATEGORY_SORT_ORDER },
+            $setOnInsert: { createdAt: new Date() },
+          },
+          upsert: true,
+        },
+      }))
+    );
+  }
+}
 
 export async function POST() {
   try {
     const { db } = await connectToDatabase();
-
-    const existingGroups = await db.collection("budget_groups").countDocuments();
-    if (existingGroups > 0) {
-      return Response.json(
-        { message: "Budget groups already seeded" },
-        { status: 200 }
-      );
-    }
 
     const leafCategories = await db
       .collection("transactions")
@@ -45,21 +67,51 @@ export async function POST() {
     const unmapped: string[] = [];
 
     for (const name of categoryNames) {
-      const group = DEFAULT_CATEGORY_MAPPING[name];
-      if (group === "Needs") needsCategories.push(name);
-      else if (group === "Savings") savingsCategories.push(name);
-      else if (group === "Wants") wantsCategories.push(name);
+      const mapping = DEFAULT_CATEGORY_MAPPING[name];
+      if (mapping?.group === "Needs") needsCategories.push(name);
+      else if (mapping?.group === "Savings") savingsCategories.push(name);
+      else if (mapping?.group === "Wants") wantsCategories.push(name);
       else unmapped.push(name);
     }
 
-    const allMappings = Object.entries(DEFAULT_CATEGORY_MAPPING).map(([category, groupName]) => ({
-      plaidLeafCategory: category,
-      budgetCategory: category,
-      groupName,
+    const allMappings = Object.entries(DEFAULT_CATEGORY_MAPPING).map(([leaf, mapping]) => ({
+      plaidLeafCategory: leaf,
+      budgetCategory: mapping.budgetCategory,
+      groupName: mapping.group,
     }));
 
     for (const name of unmapped) {
       allMappings.push({ plaidLeafCategory: name, budgetCategory: name, groupName: "Wants" });
+    }
+
+    const existingGroups = await db.collection("budget_groups").countDocuments();
+    if (existingGroups > 0) {
+      const existingLeaves = await db
+        .collection("category_group_mappings")
+        .distinct("plaidLeafCategory");
+
+      const missing = allMappings.filter(
+        (m) => !existingLeaves.includes(m.plaidLeafCategory)
+      );
+
+      if (missing.length > 0) {
+        await db.collection("category_group_mappings").bulkWrite(
+          missing.map((m) => ({
+            updateOne: {
+              filter: { plaidLeafCategory: m.plaidLeafCategory },
+              update: { $set: m },
+              upsert: true,
+            },
+          }))
+        );
+      }
+
+      await backfillBudgetCategories(db, allMappings);
+
+      return Response.json({
+        message: "Budget groups already seeded",
+        mappingsAdded: missing.length,
+      });
     }
 
     const groups = [
@@ -99,6 +151,8 @@ export async function POST() {
     if (mappingOps.length > 0) {
       await db.collection("category_group_mappings").bulkWrite(mappingOps);
     }
+
+    await backfillBudgetCategories(db, allMappings);
 
     return Response.json({
       message: "Budget groups seeded successfully",

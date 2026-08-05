@@ -7,22 +7,22 @@ export interface BudgetGroup {
   createdAt: Date;
 }
 
+export interface BudgetCategory {
+  _id?: string;
+  name: string;
+  isBudgeted: boolean;
+  sortOrder?: number;
+  createdAt: Date;
+}
+
 export interface Budget {
   _id?: string;
   month: string;
   groupId: string;
   category: string;
   plannedAmount: number;
-  carryoverFromPrevious: number;
-  carryoverDecision?: CarryoverDecision;
   createdAt: Date;
   updatedAt: Date;
-}
-
-export interface CarryoverDecision {
-  decision: "carryover" | "savings" | "goal" | "reset";
-  goalId?: string;
-  resolvedAt: Date;
 }
 
 export interface IncomePattern {
@@ -62,8 +62,13 @@ export interface BudgetCategorySummary {
   remaining: number;
   percentUsed: number;
   carryoverFromPrevious: number;
-  hasUnresolvedCarryover: boolean;
   suggestedAmount: number;
+}
+
+export interface UnbudgetedCategorySummary {
+  category: string;
+  actualAmount: number;
+  plaidLeaves: string[];
 }
 
 export interface BudgetGroupSummary {
@@ -77,6 +82,8 @@ export interface BudgetGroupSummary {
   unallocatedAmount: number;
   percentUsed: number;
   categories: BudgetCategorySummary[];
+  unbudgetedAmount: number;
+  unbudgetedCategories: UnbudgetedCategorySummary[];
 }
 
 export interface BudgetSummary {
@@ -98,14 +105,6 @@ export interface BudgetHealth {
   savingsGroupActual: number;
   surplus: number;
   savingsRate: number;
-}
-
-export interface CarryoverItem {
-  category: string;
-  month: string;
-  underspentAmount: number;
-  hasDecision: boolean;
-  decision?: string;
 }
 
 export interface CategoryMapping {

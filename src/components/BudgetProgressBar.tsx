@@ -13,6 +13,9 @@ interface BudgetProgressBarProps {
   suggestedAmount?: number;
   onAcceptSuggestion?: () => void;
   isSavings?: boolean;
+  onToggleBudget?: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
 }
 
 function getBarColor(pct: number, isSavings: boolean): string {
@@ -33,6 +36,9 @@ export default function BudgetProgressBar({
   suggestedAmount,
   onAcceptSuggestion,
   isSavings = false,
+  onToggleBudget,
+  onMoveUp,
+  onMoveDown,
 }: BudgetProgressBarProps) {
   const effectiveLimit = limit + (carryover ?? 0);
   const percent = effectiveLimit > 0 ? Math.min((spent / effectiveLimit) * 100, 100) : 0;
@@ -82,6 +88,55 @@ export default function BudgetProgressBar({
           </span>
         )}
       </div>
+      {(onMoveUp || onMoveDown) && (
+        <div className="flex shrink-0 items-center">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onMoveUp?.();
+            }}
+            disabled={!onMoveUp}
+            title="Move up"
+            className="rounded px-0.5 text-[10px] text-space-indigo-400 transition-colors hover:bg-space-indigo-50 hover:text-space-indigo-600 disabled:opacity-30 disabled:hover:bg-transparent"
+          >
+            &#9650;
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onMoveDown?.();
+            }}
+            disabled={!onMoveDown}
+            title="Move down"
+            className="rounded px-0.5 text-[10px] text-space-indigo-400 transition-colors hover:bg-space-indigo-50 hover:text-space-indigo-600 disabled:opacity-30 disabled:hover:bg-transparent"
+          >
+            &#9660;
+          </button>
+        </div>
+      )}
+      {onToggleBudget && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggleBudget();
+          }}
+          title="Remove from budget"
+          className="flex shrink-0 cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-[10px] text-space-indigo-400 transition-colors hover:bg-space-indigo-50 hover:text-space-indigo-600"
+        >
+          <span className="flex h-3 w-3 items-center justify-center rounded-sm border border-space-indigo-300 bg-space-indigo-100">
+            <span className="text-[9px] leading-none text-space-indigo-600">
+              &#10003;
+            </span>
+          </span>
+          Budget
+        </button>
+      )}
       {suggestedAmount !== undefined && suggestedAmount > 0 && limit === 0 && (
         <div className="ml-[5rem] mt-0.5 flex items-center gap-2">
           <span className="text-[10px] text-space-indigo-400">

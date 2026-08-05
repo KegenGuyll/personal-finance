@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { connectToDatabase } from "@/src/lib/mongodb";
-import { getMonthKey } from "@/src/lib/month-utils";
+import { getPreviousMonth } from "@/src/lib/month-utils";
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,9 +15,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const settings = await db
+    let settings = await db
       .collection("budget_settings")
       .findOne({ month });
+
+    if (!settings) {
+      settings = await db
+        .collection("budget_settings")
+        .findOne({ month: getPreviousMonth(month) });
+    }
 
     return Response.json({
       expectedIncome: settings?.expectedIncome ?? 0,
@@ -37,7 +43,6 @@ export async function PUT(request: NextRequest) {
     const body: {
       month: string;
       expectedIncome: number;
-      applyToFuture?: boolean;
     } = await request.json();
 
     if (!body.month || body.expectedIncome === undefined) {
@@ -47,19 +52,14 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const months = body.applyToFuture
-      ? [body.month, ...Array.from({ length: 12 }, (_, i) => getMonthKey(body.month, i + 1))]
-      : [body.month];
-
-    const ops = months.map((m) => ({
-      updateOne: {
-        filter: { month: m },
-        update: { $set: { month: m, expectedIncome: body.expectedIncome } },
-        upsert: true,
+    await db.collection("budget_settings").updateOne(
+      { month: body.month },
+      {
+        $set: { month: body.month, expectedIncome: body.expectedIncome },
+        $setOnInsert: { createdAt: new Date() },
       },
-    }));
-
-    await db.collection("budget_settings").bulkWrite(ops);
+      { upsert: true }
+    );
 
     return Response.json({ success: true });
   } catch (error) {

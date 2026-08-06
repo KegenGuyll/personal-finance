@@ -62,7 +62,9 @@ export async function GET(request: NextRequest) {
     if (transactionType === "income") {
       conditions.push({ transaction_type: "income" });
     } else if (transactionType === "expense") {
-      conditions.push(EXCLUDE_TRANSFERS_MATCH);
+      if (!category) {
+        conditions.push(EXCLUDE_TRANSFERS_MATCH);
+      }
       conditions.push({
         $or: [
           { transaction_type: { $ne: "income" } },

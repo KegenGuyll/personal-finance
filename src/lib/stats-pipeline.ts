@@ -1,39 +1,47 @@
 import { EXCLUDE_TRANSFERS_MATCH } from "./budget-pipeline";
 
-export const CATEGORY_STATS_PIPELINE = [
-  {
-    $group: {
-      _id: {
-        $cond: {
-          if: { $isArray: "$category" },
-          then: {
-            $cond: {
-              if: { $gt: [{ $size: "$category" }, 0] },
-              then: { $arrayElemAt: ["$category", -1] },
-              else: "Uncategorized",
+export function buildCategoryStatsPipeline(useAbsoluteValue: boolean) {
+  return [
+    {
+      $group: {
+        _id: {
+          $cond: {
+            if: { $isArray: "$category" },
+            then: {
+              $cond: {
+                if: { $gt: [{ $size: "$category" }, 0] },
+                then: { $arrayElemAt: ["$category", -1] },
+                else: "Uncategorized",
+              },
             },
+            else: "Uncategorized",
           },
-          else: "Uncategorized",
         },
+        total: {
+          $sum: useAbsoluteValue ? { $abs: "$amount" } : "$amount",
+        },
+        count: { $sum: 1 },
       },
-      total: { $sum: "$amount" },
-      count: { $sum: 1 },
     },
-  },
-  { $sort: { total: -1 } },
-  { $match: { _id: { $nin: ["Credit Card", "Credit", "Debit", "Saving Transfers"] } } },
-];
+    { $sort: { total: -1 } },
+    { $match: { _id: { $nin: ["Credit Card", "Credit", "Debit", "Saving Transfers"] } } },
+  ];
+}
 
-export const NAME_STATS_PIPELINE = [
-  {
-    $group: {
-      _id: { $ifNull: ["$name", "Unknown"] },
-      total: { $sum: "$amount" },
-      count: { $sum: 1 },
+export function buildNameStatsPipeline(useAbsoluteValue: boolean) {
+  return [
+    {
+      $group: {
+        _id: { $ifNull: ["$name", "Unknown"] },
+        total: {
+          $sum: useAbsoluteValue ? { $abs: "$amount" } : "$amount",
+        },
+        count: { $sum: 1 },
+      },
     },
-  },
-  { $sort: { total: -1 } },
-];
+    { $sort: { total: -1 } },
+  ];
+}
 
 export function buildSpendingTrendPipeline(useAbsoluteValue: boolean) {
   return [
@@ -67,15 +75,15 @@ export function buildTransactionStatsMatch({
   if (transactionType === "income") {
     matchConditions.push({ transaction_type: "income" });
   } else {
-    matchConditions.push(
-      {
-        $or: [
-          { transaction_type: { $ne: "income" } },
-          { transaction_type: { $exists: false } },
-        ],
-      },
-      EXCLUDE_TRANSFERS_MATCH,
-    );
+    matchConditions.push({
+      $or: [
+        { transaction_type: { $ne: "income" } },
+        { transaction_type: { $exists: false } },
+      ],
+    });
+    if (!category) {
+      matchConditions.push(EXCLUDE_TRANSFERS_MATCH);
+    }
   }
 
   if (accountIds && accountIds.length > 0) {

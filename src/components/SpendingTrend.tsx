@@ -20,6 +20,7 @@ interface ChartData {
   amount: number;
   name: string;
   average: number;
+  dailyLimit: number;
 }
 
 function CustomTooltip({
@@ -95,11 +96,13 @@ export default function SpendingTrend({
   points,
   className = "mt-4",
   onPointClick,
+  dailyLimit,
 }: {
   transactions?: Transaction[];
   points?: TrendPoint[];
   className?: string;
   onPointClick?: (date: string) => void;
+  dailyLimit?: number;
 }) {
   const grouped = new Map<string, { amount: number; name: string }>();
 
@@ -119,14 +122,14 @@ export default function SpendingTrend({
   }
 
   const data: ChartData[] = [...grouped.entries()]
-    .map(([date, { amount, name }]) => ({ date, amount, name, average: 0 }))
+    .map(([date, { amount, name }]) => ({ date, amount, name, average: 0, dailyLimit: 0 }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
   if (data.length < 2) return null;
 
   const total = data.reduce((sum, d) => sum + d.amount, 0);
   const average = total / data.length;
-  const chartData = data.map((d) => ({ ...d, average }));
+  const chartData = data.map((d) => ({ ...d, average, dailyLimit: dailyLimit ?? 0 }));
 
   return (
     <div
@@ -155,6 +158,15 @@ export default function SpendingTrend({
             />
             Avg Daily Spend
           </span>
+          {dailyLimit && dailyLimit > 0 && (
+            <span className="flex items-center gap-1.5 text-xs" style={{ color: "#f97316" }}>
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: "#f97316" }}
+              />
+              Daily Limit
+            </span>
+          )}
         </div>
       </div>
       <ResponsiveContainer width="100%" height={240}>
@@ -212,6 +224,18 @@ export default function SpendingTrend({
             dot={false}
             activeDot={false}
           />
+          {dailyLimit && dailyLimit > 0 && (
+            <Line
+              type="monotone"
+              dataKey="dailyLimit"
+              name="Daily Limit"
+              stroke="#f97316"
+              strokeWidth={2}
+              strokeDasharray="5 3"
+              dot={false}
+              activeDot={false}
+            />
+          )}
         </LineChart>
       </ResponsiveContainer>
     </div>

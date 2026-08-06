@@ -13,16 +13,14 @@ function calcMonthlyContribution(goal: Goal): number {
   return amountNeeded > 0 ? Math.round(amountNeeded / monthsRemaining) : 0;
 }
 
-async function recalcFeasibility(db: NonNullable<Awaited<ReturnType<typeof connectToDatabase>>["db"]>, goal: Goal, monthlyContribution: number): Promise<boolean> {
+async function recalcFeasibility(
+  incomeActuals: Map<string, { total: number; count: number }>,
+  expenseActuals: Map<string, { total: number; count: number }>,
+  savingsRawActuals: Map<string, { total: number; count: number }>,
+  mappings: Awaited<ReturnType<typeof getMappings>>,
+  monthlyContribution: number
+): Promise<boolean> {
   try {
-    const month = getCurrentMonth();
-    const [incomeActuals, expenseActuals, savingsRawActuals, mappings] = await Promise.all([
-      getCategoryActuals(db, month, true),
-      getCategoryActuals(db, month, false),
-      getCategoryActuals(db, month, false, true, true),
-      getMappings(db),
-    ]);
-
     const totalIncome = [...incomeActuals.values()].reduce((s, a) => s + a.total, 0);
     const totalExpenses = [...expenseActuals.values()].reduce((s, a) => s + a.total, 0);
 
@@ -53,10 +51,24 @@ export async function GET() {
       .sort({ createdAt: -1 })
       .toArray();
 
+    const month = getCurrentMonth();
+    const [incomeActuals, expenseActuals, savingsRawActuals, mappings] = await Promise.all([
+      getCategoryActuals(db, month, true),
+      getCategoryActuals(db, month, false),
+      getCategoryActuals(db, month, false, true, true),
+      getMappings(db),
+    ]);
+
     const enriched = await Promise.all(
       goals.map(async (g) => {
         const monthly = calcMonthlyContribution(g);
-        const feasible = await recalcFeasibility(db, g, monthly);
+        const feasible = await recalcFeasibility(
+          incomeActuals,
+          expenseActuals,
+          savingsRawActuals,
+          mappings,
+          monthly
+        );
         return { ...g, monthlyContribution: monthly, isFeasible: feasible };
       })
     );
@@ -118,7 +130,20 @@ export async function POST(request: NextRequest) {
     const created = await db.collection<Goal>("goals").findOne({ _id: result.insertedId } as Record<string, unknown>);
 
     if (created) {
-      created.isFeasible = await recalcFeasibility(db, created, monthlyContribution);
+      const month = getCurrentMonth();
+      const [incomeActuals, expenseActuals, savingsRawActuals, mappings] = await Promise.all([
+        getCategoryActuals(db, month, true),
+        getCategoryActuals(db, month, false),
+        getCategoryActuals(db, month, false, true, true),
+        getMappings(db),
+      ]);
+      created.isFeasible = await recalcFeasibility(
+        incomeActuals,
+        expenseActuals,
+        savingsRawActuals,
+        mappings,
+        monthlyContribution
+      );
     }
 
     return Response.json({ goal: created }, { status: 201 });

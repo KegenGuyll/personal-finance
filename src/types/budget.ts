@@ -63,6 +63,7 @@ export interface BudgetCategorySummary {
   percentUsed: number;
   carryoverFromPrevious: number;
   suggestedAmount: number;
+  dailyLimit?: number;
 }
 
 export interface UnbudgetedCategorySummary {

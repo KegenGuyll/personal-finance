@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { ObjectId } from "mongodb";
 import { connectToDatabase } from "@/src/lib/mongodb";
 import { ensureMonthInitialized } from "@/src/lib/budget-pipeline";
 import type { Budget } from "@/src/types/budget";
@@ -47,8 +48,6 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    const { ObjectId } = await import("mongodb");
 
     const ops = body.budgets.map((b) => ({
       updateOne: {

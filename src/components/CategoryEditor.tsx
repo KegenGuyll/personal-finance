@@ -95,6 +95,10 @@ export default function CategoryEditor({
     queryClient.invalidateQueries({
       queryKey: ["account-transactions", accountId],
     });
+    queryClient.invalidateQueries({ queryKey: ["all-transactions"] });
+    queryClient.invalidateQueries({ queryKey: ["spending-trend"] });
+    queryClient.invalidateQueries({ queryKey: ["all-category-stats"] });
+    queryClient.invalidateQueries({ queryKey: ["category-name-stats"] });
 
     setIsOpen(false);
   };

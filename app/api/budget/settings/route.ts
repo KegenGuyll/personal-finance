@@ -25,8 +25,11 @@ export async function GET(request: NextRequest) {
         .findOne({ month: getPreviousMonth(month) });
     }
 
+    const configured = settings !== null;
+
     return Response.json({
       expectedIncome: settings?.expectedIncome ?? 0,
+      configured,
     });
   } catch (error) {
     console.error("Error fetching budget settings:", error);

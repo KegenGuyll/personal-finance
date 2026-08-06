@@ -4,19 +4,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 export default function ChartCarousel({ slides }: { slides: ReactNode[] }) {
+  return <ChartCarouselInner key={slides.length} slides={slides} />;
+}
+
+function ChartCarouselInner({ slides }: { slides: ReactNode[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [prevSlideCount, setPrevSlideCount] = useState(slides.length);
-
-  if (slides.length !== prevSlideCount) {
-    setPrevSlideCount(slides.length);
-    setActiveIndex(0);
-  }
 
   useEffect(() => {
     const el = containerRef.current;
     if (el) el.scrollTo({ left: 0 });
-  }, [slides.length]);
+  }, []);
 
   const scrollToIndex = useCallback((index: number) => {
     const el = containerRef.current;

@@ -385,6 +385,8 @@ function BudgetContent() {
 
           <div className="grid gap-4 lg:grid-cols-3">
             {groups.map((group) => {
+              const [y, m] = month.split("-").map(Number);
+              const daysInMonth = new Date(y, m, 0).getDate();
               const adjusted = {
                 ...group,
                 targetAmount: Math.round(group.targetAmount / periodFactor),
@@ -404,6 +406,7 @@ function BudgetContent() {
                   remaining: Math.round(c.remaining / periodFactor),
                   carryoverFromPrevious: Math.round(c.carryoverFromPrevious / periodFactor),
                   suggestedAmount: Math.round(c.suggestedAmount / periodFactor),
+                  dailyLimit: Math.round(c.plannedAmount / daysInMonth),
                 })),
               };
               return (

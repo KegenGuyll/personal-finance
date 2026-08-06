@@ -1,5 +1,5 @@
 import { connectToDatabase } from "@/src/lib/mongodb";
-import { DEFAULT_CATEGORY_SORT_ORDER } from "@/src/lib/budget-pipeline";
+import { DEFAULT_CATEGORY_SORT_ORDER, LEAF_CATEGORY_EXPRESSION } from "@/src/lib/budget-pipeline";
 import { DEFAULT_BUDGET_GROUPS, DEFAULT_CATEGORY_MAPPING } from "@/src/utils/budget-defaults";
 import type { Db } from "mongodb";
 
@@ -40,19 +40,7 @@ export async function POST() {
       .aggregate([
         {
           $group: {
-            _id: {
-              $cond: {
-                if: { $isArray: "$category" },
-                then: {
-                  $cond: {
-                    if: { $gt: [{ $size: "$category" }, 0] },
-                    then: { $arrayElemAt: ["$category", -1] },
-                    else: "Uncategorized",
-                  },
-                },
-                else: "Uncategorized",
-              },
-            },
+            _id: LEAF_CATEGORY_EXPRESSION,
           },
         },
         { $sort: { _id: 1 } },

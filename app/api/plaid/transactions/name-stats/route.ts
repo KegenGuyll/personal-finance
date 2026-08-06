@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { connectToDatabase } from "@/src/lib/mongodb";
 import {
-  NAME_STATS_PIPELINE,
+  buildNameStatsPipeline,
   buildTransactionStatsMatch,
 } from "@/src/lib/stats-pipeline";
 
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
     const pipeline = [
       { $match: { $and: matchConditions } },
-      ...NAME_STATS_PIPELINE,
+      ...buildNameStatsPipeline(transactionType === "income"),
     ];
 
     const results = await db

@@ -165,6 +165,8 @@ function CategoryStats({
   const startDate = dateFilter || urlStartDate || getStartDate(range);
   const endDate = dateFilter || urlEndDate || null;
   const selectedCategory = searchParams.get("category") ?? null;
+  const dailyLimitParam = searchParams.get("dailyLimit");
+  const dailyLimit = dailyLimitParam ? parseFloat(dailyLimitParam) : undefined;
   const router = useRouter();
 
   const { data, isLoading } = useAllCategoryStats(
@@ -251,6 +253,7 @@ function CategoryStats({
         points={trendData.points}
         className=""
         onPointClick={handleDateClick}
+        dailyLimit={dailyLimit}
       />
     );
   }

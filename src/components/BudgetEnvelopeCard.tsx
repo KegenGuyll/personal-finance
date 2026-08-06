@@ -201,7 +201,11 @@ export default function BudgetEnvelopeCard({
                   (cat.plaidLeaves && cat.plaidLeaves.length > 0
                     ? cat.plaidLeaves.join(",")
                     : cat.category)
-                )}&startDate=${startDate}&endDate=${endDate}&transactionType=expense`
+                )}&startDate=${startDate}&endDate=${endDate}&transactionType=expense${
+                  cat.dailyLimit && cat.dailyLimit > 0
+                    ? `&dailyLimit=${cat.dailyLimit}`
+                    : ""
+                }`
               : undefined}
           />
         ))}

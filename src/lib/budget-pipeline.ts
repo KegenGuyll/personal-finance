@@ -15,7 +15,23 @@ export const INCOME_TRANSACTIONS_FILTER = [
   { transaction_type: "income" },
 ];
 
+export const SAVINGS_GROUP_NAME = "Savings";
+
 const EXCLUDED_LEAF_CATEGORIES = ["Credit Card", "Credit", "Debit", "Saving Transfers"];
+
+export const LEAF_CATEGORY_EXPRESSION = {
+  $cond: {
+    if: { $isArray: "$category" },
+    then: {
+      $cond: {
+        if: { $gt: [{ $size: "$category" }, 0] },
+        then: { $arrayElemAt: ["$category", -1] },
+        else: "Uncategorized",
+      },
+    },
+    else: "Uncategorized",
+  },
+};
 
 export const EXCLUDE_TRANSFERS_MATCH = {
   $expr: {
@@ -62,19 +78,7 @@ export async function getCategoryActuals(
       { $match: matchStage },
       {
         $group: {
-          _id: {
-            $cond: {
-              if: { $isArray: "$category" },
-              then: {
-                $cond: {
-                  if: { $gt: [{ $size: "$category" }, 0] },
-                  then: { $arrayElemAt: ["$category", -1] },
-                  else: "Uncategorized",
-                },
-              },
-              else: "Uncategorized",
-            },
-          },
+          _id: LEAF_CATEGORY_EXPRESSION,
           total: {
             $sum: isIncome || useAbsoluteValue ? { $abs: "$amount" } : "$amount",
           },
@@ -221,7 +225,7 @@ export async function getCarryoverAmounts(
 ): Promise<Map<string, number>> {
   const groups = await getBudgetGroups(db);
   const savingsGroupIds = new Set(
-    groups.filter((g) => g.name === "Savings").map((g) => String(g._id))
+    groups.filter((g) => g.name === SAVINGS_GROUP_NAME).map((g) => String(g._id))
   );
 
   const prevMonth = getPreviousMonth(month);
@@ -245,9 +249,44 @@ export async function getCarryoverAmounts(
 
   const chain = [...docsByMonth.keys()].sort();
 
+  const actualsAgg = await db
+    .collection("transactions")
+    .aggregate([
+      {
+        $match: {
+          $and: [
+            { date: { $gte: `${rangeStart}-01`, $lt: `${month}-01` } },
+            EXPENSE_TRANSACTIONS_FILTER[0],
+            EXCLUDE_TRANSFERS_MATCH,
+          ],
+        },
+      },
+      {
+        $group: {
+          _id: {
+            month: { $substr: ["$date", 0, 7] },
+            leaf: LEAF_CATEGORY_EXPRESSION,
+          },
+          total: { $sum: "$amount" },
+          count: { $sum: 1 },
+        },
+      },
+    ])
+    .toArray();
+
+  const rawByMonth = new Map<string, Map<string, { total: number; count: number }>>();
+  for (const r of actualsAgg) {
+    const m = r._id.month as string;
+    const leaf = r._id.leaf as string;
+    if (!rawByMonth.has(m)) {
+      rawByMonth.set(m, new Map());
+    }
+    rawByMonth.get(m)!.set(leaf, { total: r.total as number, count: r.count as number });
+  }
+
   const actualsByMonth = new Map<string, Map<string, number>>();
   for (const m of chain) {
-    const leafActuals = await getCategoryActuals(db, m, false);
+    const leafActuals = rawByMonth.get(m) ?? new Map();
     const { actualsByGroup } = remapActuals(leafActuals, mappings);
     const actuals = new Map<string, number>();
     for (const groupMap of actualsByGroup.values()) {

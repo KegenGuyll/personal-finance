@@ -11,12 +11,17 @@ interface CategoryStatsResponse {
   grandTotal: number;
 }
 
-export function useCategoryStats(accountId: string, startDate: string | null) {
+export function useCategoryStats(
+  accountId: string,
+  startDate: string | null,
+  endDate: string | null = null
+) {
   return useQuery({
-    queryKey: ["category-stats", accountId, startDate],
+    queryKey: ["category-stats", accountId, startDate, endDate],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (startDate) params.set("startDate", startDate);
+      if (endDate) params.set("endDate", endDate);
       const res = await fetch(
         `/api/plaid/accounts/${accountId}/transactions/stats?${params}`
       );

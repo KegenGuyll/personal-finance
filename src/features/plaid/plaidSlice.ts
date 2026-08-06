@@ -14,6 +14,8 @@ export interface Transaction {
   datetime: string | null;
   authorized_date: string | null;
   userModified?: boolean;
+  transaction_type?: "expense" | "income" | "transfer";
+  income_category?: string;
 }
 
 export interface AccountBalance {

@@ -25,6 +25,12 @@ Before considering a task complete, all of the following must pass with **no war
 
 Any warning or linting error in the output is a failure and must be fixed.
 
+# Response Rules
+
+- **Do not code unless explicitly asked**: When the user asks a question (e.g., "how does X work," "why is Y happening," "explain Z"), only explain. Do not write code, make edits, or fix anything. This applies regardless of the current mode (plan or build). Only make code changes when the user explicitly asks you to fix an issue, implement a feature, or make a specific change. Words like "explain," "how," "why," and "what" are questions that require answers, not code.
+- **Plan before building**: For complex features or changes, present the plan first and wait for confirmation before writing code.
+- **Never start the dev server**: Do not start, stop, or restart `npm run dev` (or any local server process) on the user's behalf — these processes belong to the user's terminal session. You may only *recommend* that the user start/stop/restart the server, unless explicitly told to do so. Exceptions: short-lived, self-terminating commands (e.g., `npm run build`, `npm run lint`, one-off scripts) that do not leave a server running.
+
 # Application Context
 
 This is a personal finance web application intended for a single user. However, since it is deployed on the internet, all security must be treated with the same rigor as a multi-tenant public application. Never expose secrets, API keys, or access tokens to the client. All sensitive operations must happen server-side.

@@ -12,6 +12,8 @@ interface TransactionListProps {
   isFetchingNextPage: boolean;
   onLoadMore: () => void;
   emptyMessage?: string;
+  showIncomeButtons?: boolean;
+  onMarkIncomeStart?: (name: string) => void;
 }
 
 export default function TransactionList({
@@ -22,6 +24,8 @@ export default function TransactionList({
   isFetchingNextPage,
   onLoadMore,
   emptyMessage = "No transactions found.",
+  showIncomeButtons = false,
+  onMarkIncomeStart,
 }: TransactionListProps) {
   if (isLoading) {
     return <LoadingSkeleton count={5} className="mt-6 space-y-2" />;
@@ -44,7 +48,12 @@ export default function TransactionList({
   return (
     <div className="mt-4 space-y-2">
       {transactions.map((txn) => (
-        <TransactionItem key={txn.transaction_id} transaction={txn} />
+        <TransactionItem
+          key={txn.transaction_id}
+          transaction={txn}
+          showIncomeButton={showIncomeButtons}
+          onMarkIncomeStart={onMarkIncomeStart}
+        />
       ))}
       {hasNextPage && (
         <button

@@ -1,6 +1,9 @@
 import { NextRequest } from "next/server";
 import { connectToDatabase } from "@/src/lib/mongodb";
-import { CATEGORY_STATS_PIPELINE } from "@/src/lib/stats-pipeline";
+import {
+  buildCategoryStatsPipeline,
+  buildTransactionStatsMatch,
+} from "@/src/lib/stats-pipeline";
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,19 +12,20 @@ export async function GET(request: NextRequest) {
 
     const accountIdsParam = url.searchParams.get("accountIds") ?? "";
     const startDate = url.searchParams.get("startDate") ?? "";
+    const endDate = url.searchParams.get("endDate") ?? "";
+    const transactionType = url.searchParams.get("transactionType") ?? "";
     const accountIds = accountIdsParam.split(",").filter(Boolean);
 
-    const matchStage: Record<string, unknown> = {};
-    if (accountIds.length > 0) {
-      matchStage.account_id = { $in: accountIds };
-    }
-    if (startDate) {
-      matchStage.date = { $gte: startDate };
-    }
+    const matchConditions = buildTransactionStatsMatch({
+      accountIds,
+      startDate,
+      endDate,
+      transactionType,
+    });
 
     const pipeline = [
-      { $match: matchStage },
-      ...CATEGORY_STATS_PIPELINE,
+      { $match: { $and: matchConditions } },
+      ...buildCategoryStatsPipeline(transactionType === "income"),
     ];
 
     const results = await db

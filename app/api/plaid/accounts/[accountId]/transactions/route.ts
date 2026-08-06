@@ -39,6 +39,7 @@ export async function GET(
     const query = url.searchParams.get("q") ?? "";
     const category = url.searchParams.get("category") ?? "";
     const startDate = url.searchParams.get("startDate") ?? "";
+    const endDate = url.searchParams.get("endDate") ?? "";
     const limit = Math.min(Number(url.searchParams.get("limit")) || 50, 500);
     const offset = Number(url.searchParams.get("offset")) || 0;
 
@@ -52,8 +53,12 @@ export async function GET(
       filter.transaction_id = { $ne: exclude };
     }
 
-    if (startDate) {
-      filter.date = { $gte: startDate };
+    if (startDate || endDate) {
+      const dateFilter: Record<string, unknown> =
+        (filter.date as Record<string, unknown>) ?? {};
+      if (startDate) dateFilter.$gte = startDate;
+      if (endDate) dateFilter.$lte = endDate;
+      filter.date = dateFilter;
     }
 
     const conditions: Record<string, unknown>[] = [];
@@ -202,6 +207,31 @@ async function syncIfStale(
 
     if (bulkOps.length > 0) {
       await db.collection("transactions").bulkWrite(bulkOps);
+    }
+
+    if (added.length > 0) {
+      const newNames = [...new Set(added.map((t) => t.name))];
+      const patterns = await db
+        .collection("income_patterns")
+        .find({ name: { $in: newNames } })
+        .toArray();
+
+      if (patterns.length > 0) {
+        const patternNames = patterns.map((p) => p.name);
+        await db.collection("transactions").updateMany(
+          {
+            transaction_id: { $in: added.map((t) => t.transaction_id) },
+            name: { $in: patternNames },
+            transaction_type: { $exists: false },
+          },
+          {
+            $set: {
+              transaction_type: "income",
+              income_category: "Income",
+            },
+          }
+        );
+      }
     }
 
     for (const txn of [...added, ...modified]) {

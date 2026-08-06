@@ -4,6 +4,7 @@ import { useState } from "react";
 import { formatCurrency } from "@/src/utils/currency";
 import { useContributeToGoal } from "@/src/hooks/useContributeToGoal";
 import { useDeleteGoal } from "@/src/hooks/useDeleteGoal";
+import { useDeleteContribution } from "@/src/hooks/useDeleteContribution";
 import type { Goal } from "@/src/types/budget";
 
 interface GoalCardProps {
@@ -15,7 +16,9 @@ export default function GoalCard({ goal }: GoalCardProps) {
   const [contributeAmount, setContributeAmount] = useState("");
   const contributeToGoal = useContributeToGoal();
   const deleteGoal = useDeleteGoal();
+  const deleteContribution = useDeleteContribution();
 
+  const isArchived = Boolean(goal.deletedAt);
   const progressPercent = goal.targetAmount > 0
     ? Math.min((goal.currentAmount / goal.targetAmount) * 100, 100)
     : 0;
@@ -40,6 +43,17 @@ export default function GoalCard({ goal }: GoalCardProps) {
     setShowContribute(false);
   };
 
+  const handleDeleteContribution = (contributionId: string) => {
+    if (goal._id && confirm("Delete this contribution?")) {
+      deleteContribution.mutate({
+        goalId: goal._id,
+        contributionId,
+      });
+    }
+  };
+
+  const contributions = goal.contributions ?? [];
+
   return (
     <div className="rounded-lg border border-space-indigo-100 bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-start justify-between">
@@ -52,7 +66,11 @@ export default function GoalCard({ goal }: GoalCardProps) {
           </p>
         </div>
         <div className="flex items-center gap-1">
-          {goal.isFeasible ? (
+          {isArchived ? (
+            <span className="rounded-full bg-space-indigo-100 px-2 py-0.5 text-[10px] font-medium text-space-indigo-500">
+              Archived
+            </span>
+          ) : goal.isFeasible ? (
             <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
               On Track
             </span>
@@ -114,15 +132,15 @@ export default function GoalCard({ goal }: GoalCardProps) {
         </div>
       </div>
 
-      {!goal.isFeasible && (
+      {!goal.isFeasible && !isArchived && (
         <p className="mb-3 text-[11px] text-cornflower-blue-600">
-          Your current budget surplus may not cover the required{" "}
+          Your current savings may not cover the required{" "}
           {formatCurrency(goal.monthlyContribution)}/month. Consider adjusting
           your spending or extending the target date.
         </p>
       )}
 
-      {showContribute ? (
+      {!isArchived && showContribute ? (
         <div className="flex items-center gap-2">
           <span className="text-xs text-space-indigo-600">$</span>
           <input
@@ -153,32 +171,43 @@ export default function GoalCard({ goal }: GoalCardProps) {
           </button>
         </div>
       ) : (
-        <button
-          onClick={() => setShowContribute(true)}
-          className="rounded-md bg-space-indigo-50 px-3 py-1.5 text-xs font-medium text-space-indigo-600 transition-colors hover:bg-space-indigo-100"
-        >
-          Add Contribution
-        </button>
+        !isArchived && (
+          <button
+            onClick={() => setShowContribute(true)}
+            className="rounded-md bg-space-indigo-50 px-3 py-1.5 text-xs font-medium text-space-indigo-600 transition-colors hover:bg-space-indigo-100"
+          >
+            Add Contribution
+          </button>
+        )
       )}
 
-      {goal.contributions.length > 0 && (
+      {contributions.length > 0 && (
         <div className="mt-3 border-t border-space-indigo-50 pt-2">
           <p className="mb-1 text-[10px] text-space-indigo-400">
-            Recent contributions
+            Contributions
           </p>
-          <div className="max-h-24 space-y-1 overflow-y-auto">
-            {goal.contributions
+          <div className="max-h-32 space-y-1 overflow-y-auto">
+            {contributions
               .slice()
               .reverse()
-              .slice(0, 5)
-              .map((c, i) => (
+              .map((c) => (
                 <div
-                  key={i}
-                  className="flex justify-between text-[10px] text-space-indigo-500"
+                  key={c._id}
+                  className="flex items-center justify-between text-[10px] text-space-indigo-500"
                 >
                   <span>{c.date}</span>
-                  <span className="font-medium">
-                    {formatCurrency(c.amount)}
+                  <span className="flex items-center gap-1.5">
+                    <span className="font-medium">
+                      {formatCurrency(c.amount)}
+                    </span>
+                    <button
+                      onClick={() => handleDeleteContribution(c._id!)}
+                      disabled={deleteContribution.isPending}
+                      className="rounded px-1 text-space-indigo-300 transition-colors hover:text-red-500 disabled:opacity-50"
+                      aria-label="Delete contribution"
+                    >
+                      &times;
+                    </button>
                   </span>
                 </div>
               ))}

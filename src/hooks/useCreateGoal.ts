@@ -4,6 +4,7 @@ interface CreateGoalInput {
   name: string;
   targetAmount: number;
   targetDate: string;
+  startDate?: string;
   linkedAccountId?: string;
 }
 

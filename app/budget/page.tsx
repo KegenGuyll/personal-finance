@@ -15,6 +15,7 @@ import { useBudgetSettings } from "@/src/hooks/useBudgetSettings";
 import { useMutateBudgetSettings } from "@/src/hooks/useMutateBudgetSettings";
 import { useMutateBudgetCategory } from "@/src/hooks/useMutateBudgetCategory";
 import { useReorderBudgetCategories } from "@/src/hooks/useReorderBudgetCategories";
+import { useGoals } from "@/src/hooks/useGoals";
 import MonthSelector from "@/src/components/MonthSelector";
 import BudgetEnvelopeCard from "@/src/components/BudgetEnvelopeCard";
 import IncomeBanner from "@/src/components/IncomeBanner";
@@ -70,6 +71,7 @@ function BudgetContent() {
   const { data: health, isLoading: healthLoading } = useBudgetHealth(month);
   const { data: incomeStatus } = useIncomeStatus(month);
   const { data: settingsData } = useBudgetSettings(month);
+  const { data: goalsData } = useGoals({ month, includeDeleted: true });
 
   const mutateBudget = useMutateBudget();
   const mutateSettings = useMutateBudgetSettings();
@@ -415,6 +417,11 @@ function BudgetContent() {
                   group={adjusted}
                   month={month}
                   isEditing={isEditing}
+                  goals={group.name === "Savings" ? goalsData?.goals : undefined}
+                  unallocatedSavings={
+                    group.name === "Savings" ? goalsData?.unallocated : undefined
+                  }
+                  periodFactor={periodFactor}
                   onEditCategory={handleEditCategory}
                   onAcceptSuggestion={handleAcceptSuggestion}
                   onToggleBudgetCategory={handleToggleBudgetCategory}

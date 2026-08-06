@@ -49,6 +49,10 @@ async function ensureIndexes(db: Db) {
     { targetDate: 1 },
     { name: "goals_target_date_idx" }
   );
+  await db.collection("goal_contributions").createIndex(
+    { goalId: 1, date: 1 },
+    { name: "goal_contributions_goal_date_idx" }
+  );
   await db.collection("budget_settings").createIndex(
     { month: 1 },
     { name: "budget_settings_month_idx", unique: true }

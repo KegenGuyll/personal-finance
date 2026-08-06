@@ -1,79 +1,115 @@
 import { NextRequest } from "next/server";
+import type { Document } from "mongodb";
 import { connectToDatabase } from "@/src/lib/mongodb";
-import { getCategoryActuals, getMappings, remapActuals } from "@/src/lib/budget-pipeline";
-import { getCurrentMonth } from "@/src/lib/month-utils";
+import { getCategoryActuals, getMappings, remapActuals, SAVINGS_GROUP_NAME } from "@/src/lib/budget-pipeline";
+import { getCurrentMonth, getEndOfMonth } from "@/src/lib/month-utils";
 import type { Goal } from "@/src/types/budget";
 
 function calcMonthlyContribution(goal: Goal): number {
   const today = new Date();
-  const target = new Date(`${goal.targetDate}T00:00:00`);
-  const remaining = target.getTime() - today.getTime();
-  const monthsRemaining = Math.max(1, Math.ceil(remaining / (30.44 * 24 * 60 * 60 * 1000)));
+  const start = goal.startDate
+    ? Math.max(today.getTime(), new Date(`${goal.startDate}T00:00:00`).getTime())
+    : today.getTime();
+  const target = new Date(`${goal.targetDate}T00:00:00`).getTime();
+
+  if (today.getTime() > target) return 0;
+
+  const monthsRemaining = Math.max(1, Math.ceil((target - start) / (30.44 * 24 * 60 * 60 * 1000)));
   const amountNeeded = goal.targetAmount - goal.currentAmount;
   return amountNeeded > 0 ? Math.round(amountNeeded / monthsRemaining) : 0;
 }
 
-async function recalcFeasibility(
-  incomeActuals: Map<string, { total: number; count: number }>,
-  expenseActuals: Map<string, { total: number; count: number }>,
-  savingsRawActuals: Map<string, { total: number; count: number }>,
-  mappings: Awaited<ReturnType<typeof getMappings>>,
-  monthlyContribution: number
-): Promise<boolean> {
-  try {
-    const totalIncome = [...incomeActuals.values()].reduce((s, a) => s + a.total, 0);
-    const totalExpenses = [...expenseActuals.values()].reduce((s, a) => s + a.total, 0);
-
-    const { actualsByGroup } = remapActuals(savingsRawActuals, mappings);
-    const savingsMap = actualsByGroup.get("Savings");
-    let savingsActual = 0;
-    if (savingsMap) {
-      savingsActual = [...savingsMap.values()].reduce(
-        (sum, a) => sum + a.total,
-        0
-      );
-    }
-
-    const surplus = totalIncome - totalExpenses - savingsActual;
-    return monthlyContribution <= surplus;
-  } catch {
-    return false;
-  }
+function isActiveToday(goal: Goal): boolean {
+  const today = new Date().toISOString().split("T")[0];
+  const start = goal.startDate ?? today;
+  return start <= today && today <= goal.targetDate;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const { db } = await connectToDatabase();
+    const url = new URL(request.url);
+    const month = url.searchParams.get("month") ?? getCurrentMonth();
+    const includeDeleted = url.searchParams.get("includeDeleted") === "true";
+
+    const match: Record<string, unknown> = {};
+    if (!includeDeleted) {
+      match.deletedAt = { $exists: false };
+    }
 
     const goals = await db
       .collection<Goal>("goals")
-      .find({})
+      .find(match)
       .sort({ createdAt: -1 })
       .toArray();
 
-    const month = getCurrentMonth();
-    const [incomeActuals, expenseActuals, savingsRawActuals, mappings] = await Promise.all([
-      getCategoryActuals(db, month, true),
-      getCategoryActuals(db, month, false),
+    const [savingsRawActuals, mappings] = await Promise.all([
       getCategoryActuals(db, month, false, true, true),
       getMappings(db),
     ]);
 
-    const enriched = await Promise.all(
-      goals.map(async (g) => {
-        const monthly = calcMonthlyContribution(g);
-        const feasible = await recalcFeasibility(
-          incomeActuals,
-          expenseActuals,
-          savingsRawActuals,
-          mappings,
-          monthly
-        );
-        return { ...g, monthlyContribution: monthly, isFeasible: feasible };
-      })
-    );
+    const { actualsByGroup } = remapActuals(savingsRawActuals, mappings);
+    const savingsMap = actualsByGroup.get(SAVINGS_GROUP_NAME);
+    let savingsActual = 0;
+    if (savingsMap) {
+      savingsActual = [...savingsMap.values()].reduce((sum, a) => sum + a.total, 0);
+    }
 
-    return Response.json({ goals: enriched });
+    const contributions = await db
+      .collection("goal_contributions")
+      .find({
+        goalId: { $in: goals.map((g) => g._id) },
+        date: { $gte: `${month}-01`, $lte: getEndOfMonth(month) },
+      })
+      .toArray();
+
+    const contributionsByGoal = new Map<string, typeof contributions>();
+    for (const c of contributions) {
+      const key = String(c.goalId);
+      const list = contributionsByGoal.get(key) ?? [];
+      list.push(c);
+      contributionsByGoal.set(key, list);
+    }
+
+    const enriched: Goal[] = goals.map((g) => {
+      const monthly = calcMonthlyContribution(g);
+      const goalContribs = contributionsByGoal.get(String(g._id)) ?? [];
+      const allocatedThisMonth = goalContribs.reduce((sum, c) => sum + c.amount, 0);
+      return {
+        ...g,
+        monthlyContribution: monthly,
+        isFeasible: false,
+        contributions: goalContribs.map((c) => ({
+          _id: String(c._id),
+          goalId: String(c.goalId),
+          amount: c.amount,
+          date: c.date,
+          source: c.source,
+          transactionId: c.transactionId,
+          createdAt: c.createdAt,
+        })),
+        allocatedThisMonth,
+      };
+    });
+
+    const active = enriched
+      .filter((g) => !g.deletedAt && isActiveToday(g) && g.currentAmount < g.targetAmount)
+      .sort((a, b) => a.targetDate.localeCompare(b.targetDate));
+
+    let cumulative = 0;
+    for (const g of active) {
+      cumulative += g.monthlyContribution;
+      g.isFeasible = cumulative <= savingsActual;
+    }
+
+    const totalAllocated = enriched.reduce((sum, g) => sum + (g.allocatedThisMonth ?? 0), 0);
+
+    return Response.json({
+      goals: enriched,
+      month,
+      savingsActual,
+      unallocated: savingsActual - totalAllocated,
+    });
   } catch (error) {
     console.error("Error fetching goals:", error);
     return Response.json(
@@ -90,6 +126,7 @@ export async function POST(request: NextRequest) {
       name: string;
       targetAmount: number;
       targetDate: string;
+      startDate?: string;
       linkedAccountId?: string;
     } = await request.json();
 
@@ -101,50 +138,24 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date();
-    const monthlyContribution = calcMonthlyContribution({
+    const startDate = body.startDate ?? now.toISOString().split("T")[0];
+    const goal: Goal = {
       name: body.name,
       targetAmount: body.targetAmount,
       targetDate: body.targetDate,
+      startDate,
       currentAmount: 0,
       monthlyContribution: 0,
       isFeasible: false,
-      contributions: [],
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    const goal: Omit<Goal, "_id"> = {
-      name: body.name,
-      targetAmount: body.targetAmount,
-      targetDate: body.targetDate,
-      currentAmount: 0,
-      monthlyContribution,
-      isFeasible: false,
       linkedAccountId: body.linkedAccountId,
-      contributions: [],
+      contributionIds: [],
       createdAt: now,
       updatedAt: now,
     };
+    goal.monthlyContribution = calcMonthlyContribution(goal);
 
-    const result = await db.collection("goals").insertOne(goal);
+    const result = await db.collection("goals").insertOne(goal as unknown as Document);
     const created = await db.collection<Goal>("goals").findOne({ _id: result.insertedId } as Record<string, unknown>);
-
-    if (created) {
-      const month = getCurrentMonth();
-      const [incomeActuals, expenseActuals, savingsRawActuals, mappings] = await Promise.all([
-        getCategoryActuals(db, month, true),
-        getCategoryActuals(db, month, false),
-        getCategoryActuals(db, month, false, true, true),
-        getMappings(db),
-      ]);
-      created.isFeasible = await recalcFeasibility(
-        incomeActuals,
-        expenseActuals,
-        savingsRawActuals,
-        mappings,
-        monthlyContribution
-      );
-    }
 
     return Response.json({ goal: created }, { status: 201 });
   } catch (error) {

@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import type { Document } from "mongodb";
 import { connectToDatabase } from "@/src/lib/mongodb";
 import type { Goal, GoalContribution } from "@/src/types/budget";
 import { ObjectId } from "mongodb";
@@ -32,13 +33,6 @@ export async function POST(
       );
     }
 
-    const contribution: GoalContribution = {
-      amount: body.amount,
-      date: body.date,
-      source: body.source ?? "manual",
-      transactionId: body.transactionId,
-    };
-
     const goal = await db.collection<Goal>("goals").findOne({
       _id: new ObjectId(id),
     } as Record<string, unknown>);
@@ -50,16 +44,29 @@ export async function POST(
       );
     }
 
+    const contribution: GoalContribution = {
+      goalId: id,
+      amount: body.amount,
+      date: body.date,
+      source: body.source ?? "manual",
+      transactionId: body.transactionId,
+      createdAt: new Date(),
+    };
+
+    const result = await db
+      .collection("goal_contributions")
+      .insertOne(contribution as unknown as Document);
+
     await db.collection("goals").updateOne(
       { _id: new ObjectId(id) } as Record<string, unknown>,
       {
-        $push: { contributions: contribution },
+        $push: { contributionIds: result.insertedId },
         $inc: { currentAmount: body.amount },
         $set: { updatedAt: new Date() },
       } as Record<string, unknown>
     );
 
-    return Response.json({ success: true });
+    return Response.json({ success: true, contributionId: String(result.insertedId) });
   } catch (error) {
     console.error("Error contributing to goal:", error);
     return Response.json(

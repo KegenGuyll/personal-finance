@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import BudgetProgressBar from "./BudgetProgressBar";
 import BudgetRingChart from "./BudgetRingChart";
-import type { BudgetGroupSummary } from "@/src/types/budget";
+import SavingsGoalsSection from "./SavingsGoalsSection";
+import type { BudgetGroupSummary, Goal } from "@/src/types/budget";
 import { formatCurrency } from "@/src/utils/currency";
 import { CHART_COLORS } from "@/src/utils/chart-colors";
 
@@ -12,6 +13,9 @@ interface BudgetEnvelopeCardProps {
   group: BudgetGroupSummary;
   month: string;
   isEditing?: boolean;
+  goals?: Goal[];
+  unallocatedSavings?: number;
+  periodFactor?: number;
   onEditCategory: (category: string) => void;
   onAcceptSuggestion: (category: string, suggestedAmount: number) => void;
   onToggleBudgetCategory: (category: string, isBudgeted: boolean) => void;
@@ -47,6 +51,9 @@ export default function BudgetEnvelopeCard({
   group,
   month,
   isEditing = false,
+  goals,
+  unallocatedSavings,
+  periodFactor = 1,
   onEditCategory,
   onAcceptSuggestion,
   onToggleBudgetCategory,
@@ -134,19 +141,23 @@ export default function BudgetEnvelopeCard({
             {formatCurrency(totalTarget)}
           </span>
         </div>
-        <div className="flex justify-between text-xs">
-          <span className="text-space-indigo-400">Allocated</span>
-          <span className="font-semibold text-space-indigo-700">
-            {formatCurrency(totalPlanned)}
-          </span>
-        </div>
-        {unallocated > 0 && (
-          <div className="flex justify-between text-xs">
-            <span className="text-space-indigo-400">Available</span>
-            <span className="font-semibold text-emerald-600">
-              {formatCurrency(unallocated)}
-            </span>
-          </div>
+        {!isSavings && (
+          <>
+            <div className="flex justify-between text-xs">
+              <span className="text-space-indigo-400">Allocated</span>
+              <span className="font-semibold text-space-indigo-700">
+                {formatCurrency(totalPlanned)}
+              </span>
+            </div>
+            {unallocated > 0 && (
+              <div className="flex justify-between text-xs">
+                <span className="text-space-indigo-400">Available</span>
+                <span className="font-semibold text-emerald-600">
+                  {formatCurrency(unallocated)}
+                </span>
+              </div>
+            )}
+          </>
         )}
         <div className="flex justify-between text-xs border-t border-space-indigo-50 pt-1">
           <span className="text-space-indigo-400">{isSavings ? "Saved" : "Spent"}</span>
@@ -166,52 +177,61 @@ export default function BudgetEnvelopeCard({
       </div>
 
       <div className="min-w-0 space-y-0.5">
-        {orderedCategories.map((cat, index) => (
-          <BudgetProgressBar
-            key={cat.category}
-            label={cat.category}
-            spent={cat.actualAmount}
-            limit={cat.plannedAmount}
-            carryover={cat.carryoverFromPrevious}
-            onEdit={() => onEditCategory(cat.category)}
-            suggestedAmount={cat.suggestedAmount}
-            isSavings={isSavings}
-            onAcceptSuggestion={
-              cat.suggestedAmount > 0
-                ? () => onAcceptSuggestion(cat.category, cat.suggestedAmount)
-                : undefined
-            }
-            onMoveUp={
-              isEditing && index > 0
-                ? () => handleMove(index, -1)
-                : undefined
-            }
-            onMoveDown={
-              isEditing && index < orderedCategories.length - 1
-                ? () => handleMove(index, 1)
-                : undefined
-            }
-            onToggleBudget={
-              isEditing
-                ? () => onToggleBudgetCategory(cat.category, false)
-                : undefined
-            }
-            viewTransactionsUrl={cat.actualAmount > 0
-              ? `/transactions?category=${encodeURIComponent(
-                  (cat.plaidLeaves && cat.plaidLeaves.length > 0
-                    ? cat.plaidLeaves.join(",")
-                    : cat.category)
-                )}&startDate=${startDate}&endDate=${endDate}&transactionType=expense${
-                  cat.dailyLimit && cat.dailyLimit > 0
-                    ? `&dailyLimit=${cat.dailyLimit}`
-                    : ""
-                }`
-              : undefined}
+        {isSavings && goals ? (
+          <SavingsGoalsSection
+            goals={goals}
+            unallocatedSavings={unallocatedSavings ?? 0}
+            periodFactor={periodFactor}
+            month={month}
           />
-        ))}
+        ) : (
+          orderedCategories.map((cat, index) => (
+            <BudgetProgressBar
+              key={cat.category}
+              label={cat.category}
+              spent={cat.actualAmount}
+              limit={cat.plannedAmount}
+              carryover={cat.carryoverFromPrevious}
+              onEdit={() => onEditCategory(cat.category)}
+              suggestedAmount={cat.suggestedAmount}
+              isSavings={isSavings}
+              onAcceptSuggestion={
+                cat.suggestedAmount > 0
+                  ? () => onAcceptSuggestion(cat.category, cat.suggestedAmount)
+                  : undefined
+              }
+              onMoveUp={
+                isEditing && index > 0
+                  ? () => handleMove(index, -1)
+                  : undefined
+              }
+              onMoveDown={
+                isEditing && index < orderedCategories.length - 1
+                  ? () => handleMove(index, 1)
+                  : undefined
+              }
+              onToggleBudget={
+                isEditing
+                  ? () => onToggleBudgetCategory(cat.category, false)
+                  : undefined
+              }
+              viewTransactionsUrl={cat.actualAmount > 0
+                ? `/transactions?category=${encodeURIComponent(
+                    (cat.plaidLeaves && cat.plaidLeaves.length > 0
+                      ? cat.plaidLeaves.join(",")
+                      : cat.category)
+                  )}&startDate=${startDate}&endDate=${endDate}&transactionType=expense${
+                    cat.dailyLimit && cat.dailyLimit > 0
+                      ? `&dailyLimit=${cat.dailyLimit}`
+                      : ""
+                  }`
+                : undefined}
+            />
+          ))
+        )}
       </div>
 
-      {group.unbudgetedCategories.length > 0 && (
+      {!isSavings && group.unbudgetedCategories.length > 0 && (
         <div className="mt-3 border-t border-space-indigo-50 pt-2">
           <button
             type="button"
@@ -270,7 +290,7 @@ export default function BudgetEnvelopeCard({
         </div>
       )}
 
-      {group.categories.length === 0 && (
+      {(!isSavings || !goals) && group.categories.length === 0 && (
         <p className="py-3 text-center text-xs text-space-indigo-300">
           No categories assigned to this group yet
         </p>

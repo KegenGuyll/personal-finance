@@ -33,10 +33,13 @@ export interface IncomePattern {
 }
 
 export interface GoalContribution {
+  _id?: string;
+  goalId?: string;
   amount: number;
   date: string;
   source: "manual" | "transfer";
   transactionId?: string;
+  createdAt?: Date;
 }
 
 export interface Goal {
@@ -44,13 +47,17 @@ export interface Goal {
   name: string;
   targetAmount: number;
   targetDate: string;
+  startDate?: string;
   currentAmount: number;
   monthlyContribution: number;
   isFeasible: boolean;
   linkedAccountId?: string;
-  contributions: GoalContribution[];
+  contributionIds: string[];
+  deletedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  contributions?: GoalContribution[];
+  allocatedThisMonth?: number;
 }
 
 export interface BudgetCategorySummary {

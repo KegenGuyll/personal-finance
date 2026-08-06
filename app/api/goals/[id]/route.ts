@@ -51,7 +51,10 @@ export async function DELETE(
 
   try {
     const { db } = await connectToDatabase();
-    await db.collection("goals").deleteOne({ _id: new ObjectId(id) });
+    await db.collection("goals").updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { deletedAt: new Date(), updatedAt: new Date() } }
+    );
 
     return Response.json({ success: true });
   } catch (error) {

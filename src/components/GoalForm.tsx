@@ -11,6 +11,9 @@ export default function GoalForm({ onClose }: GoalFormProps) {
   const [name, setName] = useState("");
   const [targetAmount, setTargetAmount] = useState("");
   const [targetDate, setTargetDate] = useState("");
+  const [startDate, setStartDate] = useState(() =>
+    new Date().toISOString().split("T")[0]
+  );
   const createGoal = useCreateGoal();
 
   const handleSubmit = () => {
@@ -24,12 +27,14 @@ export default function GoalForm({ onClose }: GoalFormProps) {
         name: name.trim(),
         targetAmount: amount,
         targetDate,
+        startDate,
       },
       {
         onSuccess: () => {
           setName("");
           setTargetAmount("");
           setTargetDate("");
+          setStartDate(new Date().toISOString().split("T")[0]);
           onClose();
         },
       }
@@ -80,6 +85,18 @@ export default function GoalForm({ onClose }: GoalFormProps) {
               placeholder="2000.00"
             />
           </div>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs font-medium text-space-indigo-600">
+            Start Date
+          </label>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="w-full rounded-md border border-space-indigo-200 px-3 py-1.5 text-sm text-space-indigo-800 focus:border-space-indigo-400 focus:outline-none"
+          />
         </div>
 
         <div>

@@ -1,16 +1,66 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useGoals } from "@/src/hooks/useGoals";
 import GoalCard from "@/src/components/GoalCard";
 import GoalForm from "@/src/components/GoalForm";
+import type { Goal } from "@/src/types/budget";
+
+function todayStr(): string {
+  return new Date().toISOString().split("T")[0];
+}
+
+interface GoalSections {
+  active: Goal[];
+  completed: Goal[];
+  past: Goal[];
+  archived: Goal[];
+}
+
+function Section({ title, goals }: { title: string; goals: Goal[] }) {
+  if (goals.length === 0) return null;
+  return (
+    <div>
+      <div className="mb-3 flex items-center gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-space-indigo-400">
+          {title}
+        </span>
+        <div className="h-px flex-1 bg-space-indigo-100" />
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        {goals.map((goal) => (
+          <GoalCard key={goal._id} goal={goal} />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function GoalsContent() {
-  const { data, isLoading } = useGoals();
+  const { data, isLoading } = useGoals({ includeDeleted: true });
   const [showForm, setShowForm] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
-  const goals = data?.goals ?? [];
+  const sections: GoalSections = useMemo(() => {
+    const today = todayStr();
+    const result: GoalSections = { active: [], completed: [], past: [], archived: [] };
+    for (const g of data?.goals ?? []) {
+      if (g.deletedAt) {
+        result.archived.push(g);
+      } else if (g.targetDate < today) {
+        result.past.push(g);
+      } else if (g.currentAmount >= g.targetAmount) {
+        result.completed.push(g);
+      } else {
+        result.active.push(g);
+      }
+    }
+    result.active.sort((a, b) => a.targetDate.localeCompare(b.targetDate));
+    return result;
+  }, [data]);
+
+  const total = sections.active.length + sections.completed.length + sections.past.length;
 
   if (isLoading) {
     return (
@@ -26,12 +76,10 @@ function GoalsContent() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-medium text-space-indigo-600">
-          {goals.length === 0
-            ? "No goals yet"
-            : `${goals.length} goal${goals.length > 1 ? "s" : ""}`}
+          {total === 0 ? "No goals yet" : `${total} goal${total > 1 ? "s" : ""}`}
         </h2>
         <button
           onClick={() => setShowForm(!showForm)}
@@ -43,7 +91,7 @@ function GoalsContent() {
 
       {showForm && <GoalForm onClose={() => setShowForm(false)} />}
 
-      {goals.length === 0 && !showForm && (
+      {total === 0 && !showForm && (
         <div className="py-12 text-center">
           <p className="text-sm text-space-indigo-400">
             No savings goals set up yet.
@@ -54,11 +102,34 @@ function GoalsContent() {
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {goals.map((goal) => (
-          <GoalCard key={goal._id} goal={goal} />
-        ))}
-      </div>
+      <Section title="Active" goals={sections.active} />
+      <Section title="Completed" goals={sections.completed} />
+      <Section title="Past" goals={sections.past} />
+
+      {sections.archived.length > 0 && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowArchived(!showArchived)}
+            className="flex w-full items-center gap-2"
+          >
+            <span className="text-xs font-semibold uppercase tracking-wide text-space-indigo-400 transition-colors hover:text-space-indigo-600">
+              <span className={`inline-block text-[9px] transition-transform ${showArchived ? "rotate-90" : ""}`}>
+                &#9656;
+              </span>{" "}
+              Archived ({sections.archived.length})
+            </span>
+            <div className="h-px flex-1 bg-space-indigo-100" />
+          </button>
+          {showArchived && (
+            <div className="mt-3 grid gap-3 opacity-60 md:grid-cols-2">
+              {sections.archived.map((goal) => (
+                <GoalCard key={goal._id} goal={goal} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

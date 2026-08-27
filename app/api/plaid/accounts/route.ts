@@ -1,10 +1,17 @@
-import { plaidClient } from "@/src/lib/plaid";
 import { connectToDatabase } from "@/src/lib/mongodb";
+import {
+  resolveInstitutionLabel,
+  upsertAccountsFromPlaid,
+  type PlaidItemDoc,
+} from "@/src/lib/plaid-sync";
 
 export async function GET() {
   try {
     const { db } = await connectToDatabase();
-    const items = await db.collection("plaid_items").find({}).toArray();
+    const items = (await db
+      .collection("plaid_items")
+      .find({})
+      .toArray()) as unknown as PlaidItemDoc[];
 
     if (items.length === 0) {
       return Response.json({ accounts: [] });
@@ -12,18 +19,15 @@ export async function GET() {
 
     const allAccounts = [];
     for (const item of items) {
-      const response = await plaidClient.accountsGet({
-        access_token: item.accessToken,
-      });
-      const accounts = response.data.accounts;
-      allAccounts.push(...accounts);
+      const accounts = await upsertAccountsFromPlaid(db, item);
+      const institutionName = await resolveInstitutionLabel(db, item);
 
       for (const account of accounts) {
-        await db.collection("account_items").updateOne(
-          { account_id: account.account_id },
-          { $set: { account_id: account.account_id, accessToken: item.accessToken, itemId: item.itemId } },
-          { upsert: true }
-        );
+        allAccounts.push({
+          ...account,
+          itemId: item.itemId,
+          institutionName,
+        });
       }
     }
 

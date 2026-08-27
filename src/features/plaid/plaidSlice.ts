@@ -32,10 +32,11 @@ export interface Account {
   type: string;
   subtype: string | null;
   balances: AccountBalance;
+  itemId?: string;
+  institutionName?: string;
 }
 
 export interface PlaidState {
-  linkToken: string | null;
   isLinked: boolean;
   isLoading: boolean;
   error: string | null;
@@ -44,7 +45,6 @@ export interface PlaidState {
 }
 
 const initialState: PlaidState = {
-  linkToken: null,
   isLinked: false,
   isLoading: false,
   error: null,
@@ -56,12 +56,6 @@ const plaidSlice = createSlice({
   name: "plaid",
   initialState,
   reducers: {
-    setLinkToken(state, action: PayloadAction<string>) {
-      state.linkToken = action.payload;
-    },
-    clearLinkToken(state) {
-      state.linkToken = null;
-    },
     setLinked(state) {
       state.isLinked = true;
       state.error = null;
@@ -81,8 +75,6 @@ const plaidSlice = createSlice({
 });
 
 export const {
-  setLinkToken,
-  clearLinkToken,
   setLinked,
   setAccounts,
   setLoading,

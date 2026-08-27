@@ -1,6 +1,7 @@
 import { type Db, type AnyBulkWriteOperation, type Document } from "mongodb";
-import { CountryCode } from "plaid";
+import { CountryCode, type AccountsGetResponse } from "plaid";
 import { plaidClient } from "@/src/lib/plaid";
+import type { TransactionCategoryRule } from "@/src/types/budget";
 
 export const SYNC_TTL_MS = 5 * 60 * 1000;
 
@@ -59,7 +60,26 @@ export async function syncItemTransactions(
 
     const bulkOps: AnyBulkWriteOperation<Document>[] = [];
 
+    const rulePairs = [
+      ...new Map(
+        added.map((t) => [`${t.account_id}::${t.name}`, { account_id: t.account_id, name: t.name }])
+      ).values(),
+    ];
+
+    const rules = rulePairs.length
+      ? await db
+          .collection<TransactionCategoryRule>("transaction_category_rules")
+          .find({ $or: rulePairs })
+          .toArray()
+      : [];
+
+    const ruleByKey = new Map(
+      rules.map((r) => [`${r.account_id}::${r.name}`, r.category])
+    );
+
     for (const txn of added) {
+      const ruleCategory = ruleByKey.get(`${txn.account_id}::${txn.name}`);
+
       bulkOps.push({
         updateOne: {
           filter: { transaction_id: txn.transaction_id },
@@ -70,7 +90,8 @@ export async function syncItemTransactions(
               date: txn.date,
               name: txn.name,
               merchant_name: txn.merchant_name,
-              category: txn.category,
+              category: ruleCategory ?? txn.category,
+              ...(ruleCategory ? { userModified: true } : {}),
               pending: txn.pending,
               payment_channel: txn.payment_channel,
               iso_currency_code: txn.iso_currency_code,
@@ -185,6 +206,37 @@ export async function syncItemTransactions(
   );
 
   return "synced";
+}
+
+/**
+ * Fetches the current accounts for a Plaid item and upserts them into the
+ * `account_items` collection. Returns the raw Plaid accounts so callers can
+ * attach item metadata before returning them to the client.
+ */
+export async function upsertAccountsFromPlaid(
+  db: Db,
+  plaidItem: PlaidItemDoc
+): Promise<AccountsGetResponse["accounts"]> {
+  const response = await plaidClient.accountsGet({
+    access_token: plaidItem.accessToken,
+  });
+  const accounts = response.data.accounts;
+
+  for (const account of accounts) {
+    await db.collection("account_items").updateOne(
+      { account_id: account.account_id },
+      {
+        $set: {
+          account_id: account.account_id,
+          accessToken: plaidItem.accessToken,
+          itemId: plaidItem.itemId,
+        },
+      },
+      { upsert: true }
+    );
+  }
+
+  return accounts;
 }
 
 /**

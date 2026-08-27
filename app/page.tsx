@@ -50,13 +50,21 @@ export default function Home() {
   const sorted = useMemo(() => sortedAccounts(accounts), [accounts]);
 
   const grouped = useMemo(() => {
-    const groups = new Map<string, Account[]>();
+    const groups = new Map<
+      string,
+      { label: string; itemId?: string; accounts: Account[] }
+    >();
     for (const account of sorted) {
-      const list = groups.get(account.type);
-      if (list) {
-        list.push(account);
+      const key = account.itemId ?? account.institutionName ?? "Linked accounts";
+      const entry = groups.get(key);
+      if (entry) {
+        entry.accounts.push(account);
       } else {
-        groups.set(account.type, [account]);
+        groups.set(key, {
+          label: account.institutionName ?? key,
+          itemId: account.itemId,
+          accounts: [account],
+        });
       }
     }
     return groups;
@@ -98,19 +106,24 @@ export default function Home() {
               </Link>
             </div>
           </div>
-          {[...grouped].map(([type, groupedAccounts]) => (
-            <div key={type}>
-              <Link
-                href={`/transactions?type=${type}`}
-                className="group mb-3 flex items-center gap-2"
-              >
-                <span className="text-xs font-semibold uppercase tracking-wide text-space-indigo-400 group-hover:text-space-indigo-600 transition-colors">
-                  {type}
+          {[...grouped].map(([key, group]) => (
+            <div key={key}>
+              <div className="mb-3 flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-space-indigo-400">
+                  {group.label}
                 </span>
-                <div className="h-px flex-1 bg-space-indigo-100 group-hover:bg-space-indigo-200 transition-colors" />
-              </Link>
+                <div className="h-px flex-1 bg-space-indigo-100" />
+                {group.itemId && (
+                  <PlaidLinkButton
+                    mode="update"
+                    itemId={group.itemId}
+                    label="Add accounts"
+                    className="rounded-md border border-space-indigo-200 px-3 py-1 text-xs font-medium text-space-indigo-600 transition-colors hover:bg-space-indigo-50 disabled:opacity-50"
+                  />
+                )}
+              </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {groupedAccounts.map((account) => (
+                {group.accounts.map((account) => (
                   <AccountCard key={account.account_id} account={account} />
                 ))}
               </div>

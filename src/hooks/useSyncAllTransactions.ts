@@ -51,65 +51,94 @@ export function useSyncAllTransactions() {
       if (!res.ok || !res.body) {
         throw new Error("Failed to start sync");
       }
+      const body = res.body;
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let summary: SyncSummary = { synced: 0, skipped: 0, errors: 0 };
-      const acc: SyncItemResult[] = [];
+      const readStream = async (): Promise<SyncSummary> => {
+        const reader = body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let summary: SyncSummary = { synced: 0, skipped: 0, errors: 0 };
+        const acc: SyncItemResult[] = [];
+        let finalized = false;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
+        try {
+          while (!finalized) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
 
-        let newline = buffer.indexOf("\n");
-        while (newline !== -1) {
-          const line = buffer.slice(0, newline).trim();
-          buffer = buffer.slice(newline + 1);
-          if (line) {
-            let event: SyncStreamEvent;
-            try {
-              event = JSON.parse(line) as SyncStreamEvent;
-            } catch {
+            let newline = buffer.indexOf("\n");
+            while (newline !== -1) {
+              const line = buffer.slice(0, newline).trim();
+              buffer = buffer.slice(newline + 1);
+              if (line) {
+                let event: SyncStreamEvent;
+                try {
+                  event = JSON.parse(line) as SyncStreamEvent;
+                } catch {
+                  newline = buffer.indexOf("\n");
+                  continue;
+                }
+
+                if (event.type === "init") {
+                  setTotal(event.total ?? 0);
+                } else if (event.type === "start") {
+                  setCurrentItem({
+                    itemId: event.itemId ?? "",
+                    label: event.label ?? "Unknown service",
+                  });
+                } else if (event.type === "progress") {
+                  setAddedCount((count) => count + (event.added ?? 0));
+                } else if (event.type === "item") {
+                  const result: SyncItemResult = {
+                    itemId: event.itemId ?? "",
+                    label: event.label ?? "",
+                    status: event.status ?? "error",
+                  };
+                  acc.push(result);
+                  setResults([...acc]);
+                } else if (event.type === "summary") {
+                  summary = {
+                    synced: event.synced ?? 0,
+                    skipped: event.skipped ?? 0,
+                    errors: event.errors ?? 0,
+                  };
+                  setLastSummary(summary);
+                  setCurrentItem(null);
+                  finalized = true;
+                  break;
+                } else if (event.type === "error") {
+                  throw new Error(event.message ?? "Sync failed");
+                }
+              }
               newline = buffer.indexOf("\n");
-              continue;
-            }
-
-            if (event.type === "init") {
-              setTotal(event.total ?? 0);
-            } else if (event.type === "start") {
-              setCurrentItem({
-                itemId: event.itemId ?? "",
-                label: event.label ?? "Unknown service",
-              });
-            } else if (event.type === "progress") {
-              setAddedCount((count) => count + (event.added ?? 0));
-            } else if (event.type === "item") {
-              const result: SyncItemResult = {
-                itemId: event.itemId ?? "",
-                label: event.label ?? "",
-                status: event.status ?? "error",
-              };
-              acc.push(result);
-              setResults([...acc]);
-            } else if (event.type === "summary") {
-              summary = {
-                synced: event.synced ?? 0,
-                skipped: event.skipped ?? 0,
-                errors: event.errors ?? 0,
-              };
-              setLastSummary(summary);
-              setCurrentItem(null);
-            } else if (event.type === "error") {
-              throw new Error(event.message ?? "Sync failed");
             }
           }
-          newline = buffer.indexOf("\n");
+        } finally {
+          try {
+            await reader.cancel();
+          } catch {
+            // Reader may already be closed; nothing to do.
+          }
         }
-      }
 
-      return summary;
+        return summary;
+      };
+
+      const SYNC_TIMEOUT_MS = 120_000;
+      let timeoutId: number | undefined;
+      const watchdog = new Promise<SyncSummary>((_, reject) => {
+        timeoutId = window.setTimeout(
+          () => reject(new Error("Sync timed out")),
+          SYNC_TIMEOUT_MS
+        );
+      });
+
+      try {
+        return await Promise.race([readStream(), watchdog]);
+      } finally {
+        if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["all-transactions"] });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import Link from "next/link";
 import PlaidLinkButton from "@/src/components/PlaidLinkButton";
 import AccountCard from "@/src/components/AccountCard";
@@ -11,7 +11,7 @@ import { setAccounts, setLinked } from "@/src/features/plaid/plaidSlice";
 import type { Account } from "@/src/features/plaid/plaidSlice";
 import { usePlaidStatus } from "@/src/hooks/usePlaidStatus";
 import { usePlaidAccounts } from "@/src/hooks/usePlaidAccounts";
-import { useSyncAllTransactions } from "@/src/hooks/useSyncAllTransactions";
+import { usePlaidSync } from "@/src/hooks/usePlaidSync";
 
 const TYPE_ORDER: Record<string, number> = {
   depository: 0,
@@ -39,24 +39,7 @@ export default function Home() {
   }, [statusData, dispatch]);
 
   const { data, isLoading: isAccountsLoading } = usePlaidAccounts(isLinked);
-
-  const {
-    mutate: syncAll,
-    isSyncing,
-    currentItem,
-    results,
-    total,
-    addedCount,
-    lastSummary,
-  } = useSyncAllTransactions();
-  const syncTriggeredRef = useRef(false);
-
-  useEffect(() => {
-    if (isLinked && !syncTriggeredRef.current) {
-      syncTriggeredRef.current = true;
-      syncAll();
-    }
-  }, [isLinked, syncAll]);
+  const { data: syncData, isFetching: isSyncing } = usePlaidSync(isLinked);
 
   useEffect(() => {
     if (data?.accounts) {
@@ -104,15 +87,8 @@ export default function Home() {
               Connected Accounts
             </h2>
             <div className="flex items-center gap-3">
-              {(isSyncing || lastSummary) && (
-                <SyncIndicator
-                  isSyncing={isSyncing}
-                  currentLabel={currentItem?.label ?? null}
-                  results={results}
-                  total={total}
-                  addedCount={addedCount}
-                  summary={lastSummary}
-                />
+              {(isSyncing || syncData) && (
+                <SyncIndicator isSyncing={isSyncing} data={syncData} />
               )}
               <Link
                 href="/transactions"

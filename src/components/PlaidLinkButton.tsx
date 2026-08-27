@@ -49,11 +49,19 @@ export default function PlaidLinkButton() {
   });
 
   const exchangePublicToken = useMutation({
-    mutationFn: async (publicToken: string) => {
+    mutationFn: async (payload: {
+      publicToken: string;
+      institutionName?: string;
+      institutionId?: string;
+    }) => {
       const res = await fetch("/api/plaid/exchange-public-token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ public_token: publicToken }),
+        body: JSON.stringify({
+          public_token: payload.publicToken,
+          institutionName: payload.institutionName,
+          institutionId: payload.institutionId,
+        }),
       });
       if (!res.ok) throw new Error("Failed to exchange token");
       return res.json();
@@ -70,9 +78,13 @@ export default function PlaidLinkButton() {
   });
 
   const onSuccess = useCallback<PlaidLinkOnSuccess>(
-    (publicToken) => {
+    (publicToken, metadata) => {
       if (publicToken) {
-        exchangePublicToken.mutate(publicToken);
+        exchangePublicToken.mutate({
+          publicToken,
+          institutionName: metadata.institution?.name,
+          institutionId: metadata.institution?.institution_id,
+        });
       } else {
         dispatch(setError("No public token received"));
       }

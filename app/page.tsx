@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import PlaidLinkButton from "@/src/components/PlaidLinkButton";
 import AccountCard from "@/src/components/AccountCard";
 import LoadingSkeleton from "@/src/components/LoadingSkeleton";
+import SyncIndicator from "@/src/components/SyncIndicator";
 import { useAppDispatch, useAppSelector } from "@/src/lib/hooks";
 import { setAccounts, setLinked } from "@/src/features/plaid/plaidSlice";
 import type { Account } from "@/src/features/plaid/plaidSlice";
 import { usePlaidStatus } from "@/src/hooks/usePlaidStatus";
 import { usePlaidAccounts } from "@/src/hooks/usePlaidAccounts";
+import { useSyncAllTransactions } from "@/src/hooks/useSyncAllTransactions";
 
 const TYPE_ORDER: Record<string, number> = {
   depository: 0,
@@ -37,6 +39,24 @@ export default function Home() {
   }, [statusData, dispatch]);
 
   const { data, isLoading: isAccountsLoading } = usePlaidAccounts(isLinked);
+
+  const {
+    mutate: syncAll,
+    isSyncing,
+    currentItem,
+    results,
+    total,
+    addedCount,
+    lastSummary,
+  } = useSyncAllTransactions();
+  const syncTriggeredRef = useRef(false);
+
+  useEffect(() => {
+    if (isLinked && !syncTriggeredRef.current) {
+      syncTriggeredRef.current = true;
+      syncAll();
+    }
+  }, [isLinked, syncAll]);
 
   useEffect(() => {
     if (data?.accounts) {
@@ -83,12 +103,24 @@ export default function Home() {
             <h2 className="text-xl font-semibold text-space-indigo-700">
               Connected Accounts
             </h2>
-            <Link
-              href="/transactions"
-              className="text-sm font-medium text-cornflower-blue-500 hover:text-cornflower-blue-600"
-            >
-              View all &rarr;
-            </Link>
+            <div className="flex items-center gap-3">
+              {(isSyncing || lastSummary) && (
+                <SyncIndicator
+                  isSyncing={isSyncing}
+                  currentLabel={currentItem?.label ?? null}
+                  results={results}
+                  total={total}
+                  addedCount={addedCount}
+                  summary={lastSummary}
+                />
+              )}
+              <Link
+                href="/transactions"
+                className="text-sm font-medium text-cornflower-blue-500 hover:text-cornflower-blue-600"
+              >
+                View all &rarr;
+              </Link>
+            </div>
           </div>
           {[...grouped].map(([type, groupedAccounts]) => (
             <div key={type}>

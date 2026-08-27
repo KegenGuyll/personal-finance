@@ -61,6 +61,10 @@ async function ensureIndexes(db: Db) {
     { plaidLeafCategory: 1 },
     { name: "category_group_mappings_plaid_idx", unique: true }
   );
+  await db.collection("transaction_category_rules").createIndex(
+    { account_id: 1, name: 1 },
+    { name: "transaction_category_rules_account_name_idx", unique: true }
+  );
   indexesEnsured = true;
 }
 

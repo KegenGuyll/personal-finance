@@ -141,6 +141,7 @@ export default function TransactionDetailPage({
                       accountId={accountId}
                       currentCategory={transaction.category}
                       transactionName={transaction.name}
+                      initialAutoApply={!!data.categoryRule}
                     />
                   </dd>
                 </div>
@@ -158,6 +159,7 @@ export default function TransactionDetailPage({
                     accountId={accountId}
                     currentCategory={null}
                     transactionName={transaction.name}
+                    initialAutoApply={!!data.categoryRule}
                   />
                 </dd>
               </div>

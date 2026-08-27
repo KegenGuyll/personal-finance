@@ -122,4 +122,13 @@ export interface CategoryMapping {
   groupName: string;
 }
 
+export interface TransactionCategoryRule {
+  _id?: string;
+  account_id: string;
+  name: string;
+  category: string[];
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
 export type TransactionType = "expense" | "income" | "transfer";

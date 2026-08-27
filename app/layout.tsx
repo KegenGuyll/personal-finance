@@ -4,6 +4,7 @@ import "./globals.css";
 import StoreProvider from "@/src/components/StoreProvider";
 import QueryProvider from "@/src/components/QueryProvider";
 import AccountProvider from "@/src/components/AccountProvider";
+import Header from "@/src/components/Header";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,7 +34,10 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <StoreProvider>
           <QueryProvider>
-            <AccountProvider>{children}</AccountProvider>
+            <AccountProvider>
+              <Header />
+              {children}
+            </AccountProvider>
           </QueryProvider>
         </StoreProvider>
       </body>

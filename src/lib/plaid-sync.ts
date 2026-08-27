@@ -1,4 +1,5 @@
 import { type Db, type AnyBulkWriteOperation, type Document } from "mongodb";
+import { CountryCode } from "plaid";
 import { plaidClient } from "@/src/lib/plaid";
 
 export const SYNC_TTL_MS = 5 * 60 * 1000;
@@ -184,4 +185,46 @@ export async function syncItemTransactions(
   );
 
   return "synced";
+}
+
+/**
+ * Resolves a human-readable label for a Plaid item (e.g. "Chase").
+ *
+ * Uses the institution name stored at link time; if it is missing (items
+ * linked before institution names were persisted), it backfills the name via
+ * Plaid's accountsGet + institutionsGetById and stores it for next time.
+ * Falls back to a truncated item id if the name cannot be resolved.
+ */
+export async function resolveInstitutionLabel(
+  db: Db,
+  item: PlaidItemDoc
+): Promise<string> {
+  if (item.institutionName) return item.institutionName;
+
+  try {
+    const accountsResponse = await plaidClient.accountsGet({
+      access_token: item.accessToken,
+    });
+    const institutionId = accountsResponse.data.item?.institution_id;
+
+    if (institutionId) {
+      const institutionsResponse = await plaidClient.institutionsGetById({
+        institution_id: institutionId,
+        country_codes: [CountryCode.Us],
+      });
+      const name = institutionsResponse.data.institution.name;
+      await db.collection("plaid_items").updateOne(
+        { itemId: item.itemId },
+        { $set: { institutionName: name, institutionId } }
+      );
+      return name;
+    }
+  } catch (error) {
+    console.error(
+      `Error resolving institution for item ${item.itemId}:`,
+      error
+    );
+  }
+
+  return `Item ${item.itemId.slice(0, 8)}`;
 }

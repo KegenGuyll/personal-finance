@@ -13,20 +13,12 @@ export interface SyncSummary {
   errors: number;
 }
 
-interface SyncStreamEvent {
-  type: "init" | "start" | "progress" | "item" | "summary" | "error";
-  total?: number;
-  itemId?: string;
-  label?: string;
-  added?: number;
-  modified?: number;
-  removed?: number;
-  status?: SyncItemResult["status"];
-  synced?: number;
-  skipped?: number;
-  errors?: number;
-  message?: string;
+interface PlaidItem {
+  itemId: string;
+  label: string;
 }
+
+const REQUEST_TIMEOUT_MS = 120_000;
 
 export function useSyncAllTransactions() {
   const queryClient = useQueryClient();
@@ -47,98 +39,56 @@ export function useSyncAllTransactions() {
       setAddedCount(0);
       setLastSummary(null);
 
-      const res = await fetch("/api/plaid/sync-all", { method: "POST" });
-      if (!res.ok || !res.body) {
-        throw new Error("Failed to start sync");
-      }
-      const body = res.body;
+      const itemsRes = await fetch("/api/plaid/items", {
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+      if (!itemsRes.ok) throw new Error("Failed to list Plaid items");
+      const { items } = (await itemsRes.json()) as { items: PlaidItem[] };
+      setTotal(items.length);
 
-      const readStream = async (): Promise<SyncSummary> => {
-        const reader = body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        let summary: SyncSummary = { synced: 0, skipped: 0, errors: 0 };
-        const acc: SyncItemResult[] = [];
-        let finalized = false;
+      const acc: SyncItemResult[] = [];
+      let synced = 0;
+      let skipped = 0;
+      let errors = 0;
+      let addedTotal = 0;
+
+      for (const item of items) {
+        setCurrentItem(item);
 
         try {
-          while (!finalized) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
+          const res = await fetch("/api/plaid/sync-item", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ itemId: item.itemId }),
+            signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+          });
+          if (!res.ok) throw new Error("Failed to sync item");
 
-            let newline = buffer.indexOf("\n");
-            while (newline !== -1) {
-              const line = buffer.slice(0, newline).trim();
-              buffer = buffer.slice(newline + 1);
-              if (line) {
-                let event: SyncStreamEvent;
-                try {
-                  event = JSON.parse(line) as SyncStreamEvent;
-                } catch {
-                  newline = buffer.indexOf("\n");
-                  continue;
-                }
+          const data = (await res.json()) as {
+            status: SyncItemResult["status"];
+            added: number;
+          };
 
-                if (event.type === "init") {
-                  setTotal(event.total ?? 0);
-                } else if (event.type === "start") {
-                  setCurrentItem({
-                    itemId: event.itemId ?? "",
-                    label: event.label ?? "Unknown service",
-                  });
-                } else if (event.type === "progress") {
-                  setAddedCount((count) => count + (event.added ?? 0));
-                } else if (event.type === "item") {
-                  const result: SyncItemResult = {
-                    itemId: event.itemId ?? "",
-                    label: event.label ?? "",
-                    status: event.status ?? "error",
-                  };
-                  acc.push(result);
-                  setResults([...acc]);
-                } else if (event.type === "summary") {
-                  summary = {
-                    synced: event.synced ?? 0,
-                    skipped: event.skipped ?? 0,
-                    errors: event.errors ?? 0,
-                  };
-                  setLastSummary(summary);
-                  setCurrentItem(null);
-                  finalized = true;
-                  break;
-                } else if (event.type === "error") {
-                  throw new Error(event.message ?? "Sync failed");
-                }
-              }
-              newline = buffer.indexOf("\n");
-            }
-          }
-        } finally {
-          try {
-            await reader.cancel();
-          } catch {
-            // Reader may already be closed; nothing to do.
-          }
+          acc.push({ itemId: item.itemId, label: item.label, status: data.status });
+          setResults([...acc]);
+
+          addedTotal += data.added ?? 0;
+          setAddedCount(addedTotal);
+
+          if (data.status === "synced") synced++;
+          else if (data.status === "skipped") skipped++;
+        } catch (error) {
+          console.error(`Error syncing item ${item.itemId}:`, error);
+          acc.push({ itemId: item.itemId, label: item.label, status: "error" });
+          setResults([...acc]);
+          errors++;
         }
-
-        return summary;
-      };
-
-      const SYNC_TIMEOUT_MS = 120_000;
-      let timeoutId: number | undefined;
-      const watchdog = new Promise<SyncSummary>((_, reject) => {
-        timeoutId = window.setTimeout(
-          () => reject(new Error("Sync timed out")),
-          SYNC_TIMEOUT_MS
-        );
-      });
-
-      try {
-        return await Promise.race([readStream(), watchdog]);
-      } finally {
-        if (timeoutId !== undefined) window.clearTimeout(timeoutId);
       }
+
+      setCurrentItem(null);
+      const summary: SyncSummary = { synced, skipped, errors };
+      setLastSummary(summary);
+      return summary;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["all-transactions"] });

@@ -10,6 +10,7 @@ interface CategoryEditorProps {
   accountId: string;
   currentCategory: string[] | null;
   transactionName: string;
+  initialAutoApply?: boolean;
 }
 
 export default function CategoryEditor({
@@ -17,6 +18,7 @@ export default function CategoryEditor({
   accountId,
   currentCategory,
   transactionName,
+  initialAutoApply = false,
 }: CategoryEditorProps) {
   const queryClient = useQueryClient();
   const { data } = useCategories();
@@ -27,6 +29,7 @@ export default function CategoryEditor({
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState(currentValue);
   const [applyToAll, setApplyToAll] = useState(true);
+  const [autoApply, setAutoApply] = useState(initialAutoApply);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -36,6 +39,7 @@ export default function CategoryEditor({
 
   const handleOpen = () => {
     setInputValue(currentValue);
+    setAutoApply(initialAutoApply);
     setIsOpen(true);
   };
 
@@ -85,7 +89,7 @@ export default function CategoryEditor({
     const res = await fetch(`/api/plaid/transactions/${transactionId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ category: categoryArray, applyToAll }),
+      body: JSON.stringify({ category: categoryArray, applyToAll, autoApply }),
     });
 
     if (!res.ok) throw new Error("Failed to update");
@@ -95,6 +99,10 @@ export default function CategoryEditor({
     queryClient.invalidateQueries({
       queryKey: ["account-transactions", accountId],
     });
+    queryClient.invalidateQueries({ queryKey: ["all-transactions"] });
+    queryClient.invalidateQueries({ queryKey: ["spending-trend"] });
+    queryClient.invalidateQueries({ queryKey: ["all-category-stats"] });
+    queryClient.invalidateQueries({ queryKey: ["category-name-stats"] });
 
     setIsOpen(false);
   };
@@ -212,6 +220,25 @@ export default function CategoryEditor({
                 Apply to all &ldquo;{transactionName}&rdquo;
               </span>
             </label>
+
+            <label className="mt-2 flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={autoApply}
+                onChange={(e) => setAutoApply(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-space-indigo-200"
+              />
+              <span className="text-xs text-space-indigo-600">
+                Also apply to new &ldquo;{transactionName}&rdquo; transactions
+                automatically
+              </span>
+            </label>
+            {autoApply && (
+              <p className="mt-1 text-[10px] text-space-indigo-400">
+                Future transactions from this account with this name will use
+                this category when they sync.
+              </p>
+            )}
 
             <div className="mt-5 flex justify-end gap-2">
               <button

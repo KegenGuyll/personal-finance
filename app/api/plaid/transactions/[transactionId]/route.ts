@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { connectToDatabase } from "@/src/lib/mongodb";
+import type { TransactionCategoryRule } from "@/src/types/budget";
 
 export async function GET(
   _request: NextRequest,
@@ -21,7 +22,14 @@ export async function GET(
       );
     }
 
-    return Response.json({ transaction });
+    const categoryRule = await db
+      .collection<TransactionCategoryRule>("transaction_category_rules")
+      .findOne({
+        account_id: transaction.account_id,
+        name: transaction.name,
+      });
+
+    return Response.json({ transaction, categoryRule });
   } catch (error) {
     console.error("Error fetching transaction:", error);
     return Response.json(
@@ -39,7 +47,11 @@ export async function PUT(
 
   try {
     const { db } = await connectToDatabase();
-    const { category, applyToAll }: { category: string[]; applyToAll: boolean } =
+    const {
+      category,
+      applyToAll,
+      autoApply,
+    }: { category: string[]; applyToAll: boolean; autoApply?: boolean } =
       await request.json();
 
     if (!category || !Array.isArray(category)) {
@@ -75,6 +87,27 @@ export async function PUT(
         { transaction_id: transactionId },
         { $set: { category, userModified: true } }
       );
+    }
+
+    if (autoApply) {
+      await db.collection("transaction_category_rules").updateOne(
+        { account_id: transaction.account_id, name: transaction.name },
+        {
+          $set: {
+            account_id: transaction.account_id,
+            name: transaction.name,
+            category,
+            updatedAt: new Date(),
+          },
+          $setOnInsert: { createdAt: new Date() },
+        },
+        { upsert: true }
+      );
+    } else {
+      await db.collection("transaction_category_rules").deleteOne({
+        account_id: transaction.account_id,
+        name: transaction.name,
+      });
     }
 
     return Response.json({ success: true });

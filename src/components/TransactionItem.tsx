@@ -1,12 +1,61 @@
+"use client";
+
 import type { Transaction } from "@/src/features/plaid/plaidSlice";
 import { formatCurrency } from "@/src/utils/currency";
 import { formatDate } from "@/src/utils/date";
+import { useUnmarkIncome } from "@/src/hooks/useUnmarkIncome";
 import Link from "next/link";
+
+function IncomeButton({
+  transaction,
+  onMarkIncomeStart,
+}: {
+  transaction: Transaction;
+  onMarkIncomeStart: (name: string) => void;
+}) {
+  const unmarkIncome = useUnmarkIncome();
+
+  const isIncome = transaction.transaction_type === "income";
+  const isPending = unmarkIncome.isPending;
+
+  if (isIncome) {
+    return (
+      <button
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          unmarkIncome.mutate(transaction.transaction_id);
+        }}
+        disabled={isPending}
+        className="shrink-0 rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700 transition-colors hover:bg-emerald-200 disabled:opacity-50"
+      >
+        {isPending ? "..." : "Income"}
+      </button>
+    );
+  }
+
+  return (
+    <button
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onMarkIncomeStart(transaction.name);
+      }}
+      className="shrink-0 rounded-md bg-space-indigo-50 px-2 py-0.5 text-[10px] font-medium text-space-indigo-400 transition-colors hover:bg-space-indigo-200 hover:text-space-indigo-700"
+    >
+      Income?
+    </button>
+  );
+}
 
 export default function TransactionItem({
   transaction,
+  showIncomeButton = false,
+  onMarkIncomeStart,
 }: {
   transaction: Transaction;
+  showIncomeButton?: boolean;
+  onMarkIncomeStart?: (name: string) => void;
 }) {
   return (
     <Link
@@ -30,16 +79,24 @@ export default function TransactionItem({
             </p>
           )}
         </div>
-        <p
-          className={`ml-3 whitespace-nowrap text-sm font-semibold ${
-            transaction.amount < 0 ? "text-emerald-600" : "text-red-500"
-          }`}
-        >
-          {formatCurrency(
-            -transaction.amount,
-            transaction.iso_currency_code
+        <div className="ml-3 flex items-center gap-2">
+          {showIncomeButton && onMarkIncomeStart && (
+            <IncomeButton
+              transaction={transaction}
+              onMarkIncomeStart={onMarkIncomeStart}
+            />
           )}
-        </p>
+          <p
+            className={`whitespace-nowrap text-sm font-semibold ${
+              transaction.amount < 0 ? "text-emerald-600" : "text-red-500"
+            }`}
+          >
+            {formatCurrency(
+              -transaction.amount,
+              transaction.iso_currency_code
+            )}
+          </p>
+        </div>
       </div>
     </Link>
   );

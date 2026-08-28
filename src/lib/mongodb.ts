@@ -33,6 +33,38 @@ async function ensureIndexes(db: Db) {
     { name: 1 },
     { name: "category_name_idx", unique: true }
   );
+  await db.collection("budget_groups").createIndex(
+    { sortOrder: 1 },
+    { name: "budget_groups_sort_idx" }
+  );
+  await db.collection("budgets").createIndex(
+    { month: 1, category: 1 },
+    { name: "budget_month_category_idx", unique: true }
+  );
+  await db.collection("income_patterns").createIndex(
+    { name: 1 },
+    { name: "income_pattern_name_idx", unique: true }
+  );
+  await db.collection("goals").createIndex(
+    { targetDate: 1 },
+    { name: "goals_target_date_idx" }
+  );
+  await db.collection("goal_contributions").createIndex(
+    { goalId: 1, date: 1 },
+    { name: "goal_contributions_goal_date_idx" }
+  );
+  await db.collection("budget_settings").createIndex(
+    { month: 1 },
+    { name: "budget_settings_month_idx", unique: true }
+  );
+  await db.collection("category_group_mappings").createIndex(
+    { plaidLeafCategory: 1 },
+    { name: "category_group_mappings_plaid_idx", unique: true }
+  );
+  await db.collection("transaction_category_rules").createIndex(
+    { account_id: 1, name: 1 },
+    { name: "transaction_category_rules_account_name_idx", unique: true }
+  );
   indexesEnsured = true;
 }
 
@@ -41,7 +73,13 @@ export async function connectToDatabase(): Promise<MongoConnection> {
     return cached;
   }
 
-  const client = new MongoClient(MONGODB_URI!);
+  const client = new MongoClient(MONGODB_URI!, {
+    maxPoolSize: 10,
+    minPoolSize: 1,
+    connectTimeoutMS: 5000,
+    serverSelectionTimeoutMS: 5000,
+    maxIdleTimeMS: 60000,
+  });
   await client.connect();
   const db = client.db(DB_NAME);
 

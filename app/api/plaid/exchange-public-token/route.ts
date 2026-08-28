@@ -4,7 +4,8 @@ import { connectToDatabase } from "@/src/lib/mongodb";
 
 export async function POST(request: NextRequest) {
   try {
-    const { public_token } = await request.json();
+    const { public_token, institutionName, institutionId } =
+      await request.json();
 
     if (!public_token) {
       return Response.json({ error: "public_token is required" }, { status: 400 });
@@ -26,6 +27,8 @@ export async function POST(request: NextRequest) {
           itemId,
           accessToken,
           createdAt: new Date(),
+          ...(institutionName ? { institutionName } : {}),
+          ...(institutionId ? { institutionId } : {}),
         },
       },
       { upsert: true }

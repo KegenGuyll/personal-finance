@@ -1,10 +1,12 @@
 import { configureStore } from "@reduxjs/toolkit";
 import plaidReducer from "@/src/features/plaid/plaidSlice";
+import uiReducer from "@/src/features/ui/uiSlice";
 
 export function makeStore() {
   return configureStore({
     reducer: {
       plaid: plaidReducer,
+      ui: uiReducer,
     },
   });
 }

@@ -1,9 +1,10 @@
 import { NextRequest } from "next/server";
-import { type Db, type AnyBulkWriteOperation, type Document } from "mongodb";
-import { plaidClient } from "@/src/lib/plaid";
+import { type Db } from "mongodb";
 import { connectToDatabase } from "@/src/lib/mongodb";
-
-const SYNC_TTL_MS = 5 * 60 * 1000;
+import {
+  syncItemTransactions,
+  type PlaidItemDoc,
+} from "@/src/lib/plaid-sync";
 
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -39,6 +40,7 @@ export async function GET(
     const query = url.searchParams.get("q") ?? "";
     const category = url.searchParams.get("category") ?? "";
     const startDate = url.searchParams.get("startDate") ?? "";
+    const endDate = url.searchParams.get("endDate") ?? "";
     const limit = Math.min(Number(url.searchParams.get("limit")) || 50, 500);
     const offset = Number(url.searchParams.get("offset")) || 0;
 
@@ -52,8 +54,12 @@ export async function GET(
       filter.transaction_id = { $ne: exclude };
     }
 
-    if (startDate) {
-      filter.date = { $gte: startDate };
+    if (startDate || endDate) {
+      const dateFilter: Record<string, unknown> =
+        (filter.date as Record<string, unknown>) ?? {};
+      if (startDate) dateFilter.$gte = startDate;
+      if (endDate) dateFilter.$lte = endDate;
+      filter.date = dateFilter;
     }
 
     const conditions: Record<string, unknown>[] = [];
@@ -105,125 +111,11 @@ async function syncIfStale(
   db: Db,
   accountItem: { accessToken: string; itemId: string }
 ) {
-  const plaidItem = await db
+  const plaidItem = (await db
     .collection("plaid_items")
-    .findOne({ itemId: accountItem.itemId });
+    .findOne({ itemId: accountItem.itemId })) as PlaidItemDoc | null;
 
   if (!plaidItem) return;
 
-  const lastSyncedAt = plaidItem.lastSyncedAt
-    ? new Date(plaidItem.lastSyncedAt).getTime()
-    : 0;
-
-  if (Date.now() - lastSyncedAt < SYNC_TTL_MS) return;
-
-  let hasMore = true;
-  let cursor: string | undefined = plaidItem.syncCursor;
-
-  while (hasMore) {
-    const syncResponse = await plaidClient.transactionsSync({
-      access_token: accountItem.accessToken,
-      cursor,
-      options: {
-        include_personal_finance_category: true,
-      },
-    });
-
-    const { added, modified, removed, has_more, next_cursor } =
-      syncResponse.data;
-
-    const bulkOps: AnyBulkWriteOperation<Document>[] = [];
-
-    for (const txn of added) {
-      bulkOps.push({
-        updateOne: {
-          filter: { transaction_id: txn.transaction_id },
-          update: {
-            $set: {
-              account_id: txn.account_id,
-              amount: txn.amount,
-              date: txn.date,
-              name: txn.name,
-              merchant_name: txn.merchant_name,
-              category: txn.category,
-              pending: txn.pending,
-              payment_channel: txn.payment_channel,
-              iso_currency_code: txn.iso_currency_code,
-              datetime: txn.datetime,
-              authorized_date: txn.authorized_date,
-            },
-          },
-          upsert: true,
-        },
-      });
-    }
-
-    for (const txn of modified) {
-      const existing = await db
-        .collection("transactions")
-        .findOne(
-          { transaction_id: txn.transaction_id },
-          { projection: { userModified: 1 } }
-        );
-
-      const setFields: Record<string, unknown> = {
-        account_id: txn.account_id,
-        amount: txn.amount,
-        date: txn.date,
-        name: txn.name,
-        merchant_name: txn.merchant_name,
-        pending: txn.pending,
-        payment_channel: txn.payment_channel,
-        iso_currency_code: txn.iso_currency_code,
-        datetime: txn.datetime,
-        authorized_date: txn.authorized_date,
-      };
-
-      if (!existing?.userModified) {
-        setFields.category = txn.category;
-      }
-
-      bulkOps.push({
-        updateOne: {
-          filter: { transaction_id: txn.transaction_id },
-          update: { $set: setFields },
-          upsert: true,
-        },
-      });
-    }
-
-    for (const txn of removed) {
-      bulkOps.push({
-        deleteOne: {
-          filter: { transaction_id: txn.transaction_id },
-        },
-      });
-    }
-
-    if (bulkOps.length > 0) {
-      await db.collection("transactions").bulkWrite(bulkOps);
-    }
-
-    for (const txn of [...added, ...modified]) {
-      await db.collection("account_items").updateOne(
-        { account_id: txn.account_id },
-        {
-          $set: {
-            account_id: txn.account_id,
-            accessToken: accountItem.accessToken,
-            itemId: accountItem.itemId,
-          },
-        },
-        { upsert: true }
-      );
-    }
-
-    hasMore = has_more;
-    cursor = next_cursor;
-  }
-
-  await db.collection("plaid_items").updateOne(
-    { itemId: accountItem.itemId },
-    { $set: { syncCursor: cursor, lastSyncedAt: new Date() } }
-  );
+  await syncItemTransactions(db, plaidItem);
 }

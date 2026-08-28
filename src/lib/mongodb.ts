@@ -1,11 +1,6 @@
 import { MongoClient, type Db } from "mongodb";
 
-const MONGODB_URI = process.env.MONGODB_URI;
 const DB_NAME = "personal-finance";
-
-if (!MONGODB_URI) {
-  throw new Error("MONGODB_URI environment variable is not set");
-}
 
 interface MongoConnection {
   client: MongoClient;
@@ -69,11 +64,15 @@ async function ensureIndexes(db: Db) {
 }
 
 export async function connectToDatabase(): Promise<MongoConnection> {
+  const MONGODB_URI = process.env.MONGODB_URI;
+  if (!MONGODB_URI) {
+    throw new Error("MONGODB_URI environment variable is not set");
+  }
   if (cached) {
     return cached;
   }
 
-  const client = new MongoClient(MONGODB_URI!, {
+  const client = new MongoClient(MONGODB_URI, {
     maxPoolSize: 10,
     minPoolSize: 1,
     connectTimeoutMS: 5000,

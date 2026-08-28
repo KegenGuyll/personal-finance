@@ -1,21 +1,34 @@
 import { Configuration, PlaidApi, PlaidEnvironments } from "plaid";
 
-const PLAID_CLIENT_ID = process.env.PLAID_CLIENT_ID;
-const PLAID_SECRET = process.env.PLAID_SECRET;
-const PLAID_ENV = (process.env.PLAID_ENV ?? "sandbox") as keyof typeof PlaidEnvironments;
+let _plaid: PlaidApi | null = null;
 
-if (!PLAID_CLIENT_ID || !PLAID_SECRET) {
-  throw new Error("PLAID_CLIENT_ID and PLAID_SECRET must be set");
+function getPlaidClient(): PlaidApi {
+  if (_plaid) return _plaid;
+  const clientId = process.env.PLAID_CLIENT_ID;
+  const secret = process.env.PLAID_SECRET;
+  if (!clientId || !secret) {
+    throw new Error("PLAID_CLIENT_ID and PLAID_SECRET must be set");
+  }
+  const env = (process.env.PLAID_ENV ?? "sandbox") as keyof typeof PlaidEnvironments;
+  const configuration = new Configuration({
+    basePath: PlaidEnvironments[env],
+    baseOptions: {
+      headers: {
+        "PLAID-CLIENT-ID": clientId,
+        "PLAID-SECRET": secret,
+      },
+    },
+  });
+  _plaid = new PlaidApi(configuration);
+  return _plaid;
 }
 
-const configuration = new Configuration({
-  basePath: PlaidEnvironments[PLAID_ENV],
-  baseOptions: {
-    headers: {
-      "PLAID-CLIENT-ID": PLAID_CLIENT_ID,
-      "PLAID-SECRET": PLAID_SECRET,
-    },
+// Lazily created on first use so `next build` (which evaluates route modules
+// without env at build time) does not fail. Methods are bound to the real
+// client; secrets are still required at runtime.
+export const plaidClient = new Proxy({} as PlaidApi, {
+  get(_t, prop) {
+    const value = (getPlaidClient() as any)[prop as string];
+    return typeof value === "function" ? value.bind(getPlaidClient()) : value;
   },
 });
-
-export const plaidClient = new PlaidApi(configuration);

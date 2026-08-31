@@ -32,15 +32,15 @@ export default function Header() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-10 border-b border-space-indigo-100 bg-white/90 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-3">
+    <header className="sticky top-0 z-30 border-b border-space-indigo-100 bg-white/90 backdrop-blur">
+      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-2 px-4 py-2.5 sm:gap-4 sm:px-6 sm:py-3">
         <Link
           href="/"
-          className="text-lg font-bold text-space-indigo-800 transition-colors hover:text-space-indigo-600"
+          className="text-base font-bold text-space-indigo-800 transition-colors hover:text-space-indigo-600 sm:text-lg"
         >
           Personal Finance
         </Link>
-        <nav aria-label="Main navigation" className="flex items-center gap-1">
+        <nav aria-label="Main navigation" className="flex items-center gap-0.5 sm:gap-1">
           {NAV_ITEMS.map(({ label, href, isActive }) => {
             const active = isActive(pathname);
             return (
@@ -48,7 +48,7 @@ export default function Header() {
                 key={href}
                 href={href}
                 aria-current={active ? "page" : undefined}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors sm:px-3 sm:text-sm ${
                   active
                     ? "bg-space-indigo-50 text-space-indigo-800"
                     : "text-space-indigo-500 hover:bg-space-indigo-50 hover:text-space-indigo-700"

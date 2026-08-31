@@ -28,7 +28,8 @@ function getPlaidClient(): PlaidApi {
 // client; secrets are still required at runtime.
 export const plaidClient = new Proxy({} as PlaidApi, {
   get(_t, prop) {
-    const value = (getPlaidClient() as any)[prop as string];
+    const target = getPlaidClient() as unknown as Record<string | symbol, unknown>;
+    const value = target[prop];
     return typeof value === "function" ? value.bind(getPlaidClient()) : value;
   },
 });

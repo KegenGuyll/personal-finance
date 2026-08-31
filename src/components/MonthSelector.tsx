@@ -28,35 +28,38 @@ export default function MonthSelector({ value, onChange }: MonthSelectorProps) {
     `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-1 sm:gap-2">
       <button
         onClick={goToPrev}
-        className="rounded-md px-2 py-1 text-sm text-space-indigo-400 transition-colors hover:bg-space-indigo-50 hover:text-space-indigo-600"
+        className="flex h-9 w-9 items-center justify-center rounded-lg border border-space-indigo-200 bg-white text-sm font-semibold text-space-indigo-700 shadow-2xs transition-colors hover:bg-space-indigo-50 hover:text-space-indigo-900 active:bg-space-indigo-100"
         aria-label="Previous month"
       >
         &#8592;
       </button>
-      <span className="text-sm font-semibold text-space-indigo-800">
+
+      <span className="min-w-[7.5rem] text-center text-sm font-bold text-space-indigo-900 sm:min-w-[8.5rem] sm:text-base">
         {monthLabel}
       </span>
+
+      <button
+        onClick={goToNext}
+        className="flex h-9 w-9 items-center justify-center rounded-lg border border-space-indigo-200 bg-white text-sm font-semibold text-space-indigo-700 shadow-2xs transition-colors hover:bg-space-indigo-50 hover:text-space-indigo-900 active:bg-space-indigo-100"
+        aria-label="Next month"
+      >
+        &#8594;
+      </button>
+
       {!isCurrentMonth && (
         <button
           onClick={() => {
             const now = new Date();
             onChange(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
           }}
-          className="rounded-md px-2 py-0.5 text-xs text-space-indigo-400 transition-colors hover:bg-space-indigo-50 hover:text-space-indigo-600"
+          className="rounded-lg bg-space-indigo-50 px-2.5 py-1.5 text-xs font-semibold text-space-indigo-600 transition-colors hover:bg-space-indigo-100 active:bg-space-indigo-200"
         >
           Today
         </button>
       )}
-      <button
-        onClick={goToNext}
-        className="rounded-md px-2 py-1 text-sm text-space-indigo-400 transition-colors hover:bg-space-indigo-50 hover:text-space-indigo-600"
-        aria-label="Next month"
-      >
-        &#8594;
-      </button>
     </div>
   );
 }

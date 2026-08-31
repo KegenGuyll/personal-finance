@@ -2,7 +2,6 @@
 
 import { useMemo, Suspense, useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAppSelector } from "@/src/lib/hooks";
 import { useAllTransactions } from "@/src/hooks/useAllTransactions";
@@ -17,6 +16,7 @@ import ChartCarousel from "@/src/components/ChartCarousel";
 import SearchInput from "@/src/components/SearchInput";
 import DateRangeFilter, { getStartDate } from "@/src/components/DateRangeFilter";
 import BulkMarkIncomeModal from "@/src/components/BulkMarkIncomeModal";
+import BackButton from "@/src/components/BackButton";
 
 const TYPE_OPTIONS = [
   { label: "All", value: "" },
@@ -281,14 +281,9 @@ function CategoryStats({
 
 export default function AllTransactionsPage() {
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-8">
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 py-6 sm:px-6 sm:py-8">
       <div>
-        <Link
-          href="/"
-          className="text-sm text-cornflower-blue-500 hover:text-cornflower-blue-600"
-        >
-          &larr; Back to accounts
-        </Link>
+        <BackButton fallbackHref="/" label="Back" />
         <h1 className="mt-2 text-xl font-bold text-space-indigo-800">
           All Transactions
         </h1>

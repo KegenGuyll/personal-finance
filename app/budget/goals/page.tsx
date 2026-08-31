@@ -1,10 +1,10 @@
 "use client";
 
 import { Suspense, useMemo, useState } from "react";
-import Link from "next/link";
 import { useGoals } from "@/src/hooks/useGoals";
 import GoalCard from "@/src/components/GoalCard";
 import GoalForm from "@/src/components/GoalForm";
+import BackButton from "@/src/components/BackButton";
 import type { Goal } from "@/src/types/budget";
 
 function todayStr(): string {
@@ -138,12 +138,7 @@ export default function GoalsPage() {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 py-6 sm:px-6 sm:py-8">
       <div>
-        <Link
-          href="/budget"
-          className="text-sm text-cornflower-blue-500 hover:text-cornflower-blue-600"
-        >
-          &larr; Back to budget
-        </Link>
+        <BackButton fallbackHref="/budget" label="Back" />
         <h1 className="mt-2 text-xl font-bold text-space-indigo-800">
           Savings Goals
         </h1>

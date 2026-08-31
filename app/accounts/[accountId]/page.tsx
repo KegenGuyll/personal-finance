@@ -2,7 +2,6 @@
 
 import { use, Suspense } from "react";
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAppSelector } from "@/src/lib/hooks";
 import { useAccount } from "@/src/hooks/useAccount";
@@ -18,6 +17,7 @@ import SpendingTrend from "@/src/components/SpendingTrend";
 import ChartCarousel from "@/src/components/ChartCarousel";
 import SearchInput from "@/src/components/SearchInput";
 import DateRangeFilter, { getStartDate } from "@/src/components/DateRangeFilter";
+import BackButton from "@/src/components/BackButton";
 
 function AccountTransactionList({
   accountId,
@@ -81,7 +81,7 @@ export default function AccountTransactionsPage({
   if (!account) {
     if (isAccountLoading) {
       return (
-        <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-8">
+        <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 py-6 sm:px-6 sm:py-8">
           <div className="animate-pulse space-y-3">
             <div className="h-4 w-1/4 rounded bg-space-indigo-100" />
             <div className="h-6 w-2/3 rounded bg-space-indigo-100" />
@@ -96,12 +96,11 @@ export default function AccountTransactionsPage({
           <p className="text-lg font-medium text-space-indigo-700">
             Account not found
           </p>
-          <Link
-            href="/"
+          <BackButton
+            fallbackHref="/"
+            label="Back to accounts"
             className="mt-3 inline-block text-sm text-cornflower-blue-500 hover:text-cornflower-blue-600"
-          >
-            Back to accounts
-          </Link>
+          />
         </div>
       </main>
     );
@@ -112,14 +111,9 @@ export default function AccountTransactionsPage({
     : account.name;
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-8">
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 py-6 sm:px-6 sm:py-8">
       <div>
-        <Link
-          href="/"
-          className="text-sm text-cornflower-blue-500 hover:text-cornflower-blue-600"
-        >
-          &larr; Back to accounts
-        </Link>
+        <BackButton fallbackHref="/" label="Back" />
       </div>
 
       <div>

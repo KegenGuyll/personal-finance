@@ -1,7 +1,6 @@
 "use client";
 
 import { use } from "react";
-import Link from "next/link";
 import { formatCurrency } from "@/src/utils/currency";
 import { formatDate } from "@/src/utils/date";
 import { useAppSelector } from "@/src/lib/hooks";
@@ -12,6 +11,7 @@ import TransactionItem from "@/src/components/TransactionItem";
 import SpendingTrend from "@/src/components/SpendingTrend";
 import CategoryEditor from "@/src/components/CategoryEditor";
 import LoadingSkeleton from "@/src/components/LoadingSkeleton";
+import BackButton from "@/src/components/BackButton";
 
 export default function TransactionDetailPage({
   params,
@@ -33,14 +33,9 @@ export default function TransactionDetailPage({
   const transaction = data?.transaction;
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-8">
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 py-6 sm:px-6 sm:py-8">
       <div>
-        <Link
-          href={`/accounts/${accountId}`}
-          className="text-sm text-cornflower-blue-500 hover:text-cornflower-blue-600"
-        >
-          &larr; Back to transactions
-        </Link>
+        <BackButton fallbackHref={`/accounts/${accountId}`} label="Back" />
         {account && (
           <p className="mt-1 text-sm text-space-indigo-400">
             {account.name}

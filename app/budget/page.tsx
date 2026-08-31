@@ -22,6 +22,7 @@ import IncomeBanner from "@/src/components/IncomeBanner";
 import IncomeSection from "@/src/components/IncomeSection";
 import CategoryMappingsManager from "@/src/components/CategoryMappingsManager";
 import BudgetCategoryModal from "@/src/components/BudgetCategoryModal";
+import BackButton from "@/src/components/BackButton";
 import { formatCurrency } from "@/src/utils/currency";
 
 function getCurrentMonth(): string {
@@ -508,12 +509,7 @@ export default function BudgetPage() {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-3 px-4 py-6 sm:px-6 sm:py-8">
       <div>
-        <Link
-          href="/"
-          className="text-xs font-semibold text-cornflower-blue-600 underline-offset-2 hover:text-cornflower-blue-700 hover:underline"
-        >
-          &larr; Back to accounts
-        </Link>
+        <BackButton fallbackHref="/" label="Back" />
         <h1 className="mt-1.5 text-2xl font-extrabold text-space-indigo-900 sm:text-3xl">
           Monthly Budget
         </h1>

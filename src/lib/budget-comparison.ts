@@ -44,9 +44,7 @@ export async function buildBudgetComparison(
   db: Db,
   months: string[]
 ): Promise<BudgetComparison> {
-  for (const month of months) {
-    await ensureMonthInitialized(db, month);
-  }
+  await Promise.all(months.map((month) => ensureMonthInitialized(db, month)));
 
   const [groups, mappings, registry, budgets, expenseByMonth, savingsByMonth] =
     await Promise.all([

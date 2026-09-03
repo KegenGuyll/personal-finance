@@ -20,7 +20,12 @@ export async function GET(request: NextRequest) {
     }
 
     const plannedAmount = Number(plannedAmountParam);
-    if (!MONTH_REGEX.test(month) || !category || isNaN(plannedAmount)) {
+    if (
+      !MONTH_REGEX.test(month) ||
+      !category ||
+      !Number.isFinite(plannedAmount) ||
+      plannedAmount < 0
+    ) {
       return Response.json({ error: "invalid parameters" }, { status: 400 });
     }
 

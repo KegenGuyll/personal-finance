@@ -3,6 +3,7 @@ import { connectToDatabase } from "@/src/lib/mongodb";
 import { buildBudgetComparison } from "@/src/lib/budget-comparison";
 
 const MONTH_REGEX = /^\d{4}-\d{2}$/;
+const MAX_MONTHS = 24;
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,10 +18,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const months = monthsParam.split(",").map((s) => s.trim()).filter(Boolean);
+    const rawMonths = monthsParam.split(",").map((s) => s.trim()).filter(Boolean);
+    const months = [...new Set(rawMonths)].sort();
+
     if (months.length < 2) {
       return Response.json(
         { error: "at least two months are required" },
+        { status: 400 }
+      );
+    }
+
+    if (months.length > MAX_MONTHS) {
+      return Response.json(
+        { error: `too many months (max ${MAX_MONTHS})` },
         { status: 400 }
       );
     }

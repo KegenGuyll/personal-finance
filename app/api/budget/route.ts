@@ -5,6 +5,8 @@ import { ensureMonthInitialized } from "@/src/lib/budget-pipeline";
 import { upsertBudgetCarryForward } from "@/src/lib/budget-carry-forward";
 import type { Budget } from "@/src/types/budget";
 
+const MONTH_REGEX = /^\d{4}-\d{2}$/;
+
 export async function GET(request: NextRequest) {
   try {
     const { db } = await connectToDatabase();
@@ -51,20 +53,50 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const affectedMonths: string[] = [];
+    if (!MONTH_REGEX.test(body.month)) {
+      return Response.json({ error: "invalid month format" }, { status: 400 });
+    }
+
+    for (const b of body.budgets) {
+      if (
+        !b.category ||
+        !b.groupId ||
+        typeof b.plannedAmount !== "number" ||
+        !Number.isFinite(b.plannedAmount) ||
+        b.plannedAmount < 0
+      ) {
+        return Response.json(
+          { error: "invalid budget item (category, groupId, and a finite non-negative plannedAmount are required)" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Avoid duplicate categories racing on the same anchor write when carrying forward.
+    const itemsByCategory = new Map<string, (typeof body.budgets)[number]>();
+    for (const b of body.budgets) {
+      itemsByCategory.set(b.category, b);
+    }
+    const uniqueItems = [...itemsByCategory.values()];
+
+    const affectedMonthSet = new Set<string>();
 
     if (body.applyToFutureMonths) {
-      for (const b of body.budgets) {
-        const result = await upsertBudgetCarryForward(db, {
-          month: body.month,
-          groupId: b.groupId,
-          category: b.category,
-          plannedAmount: b.plannedAmount,
-        });
-        affectedMonths.push(...result.affectedMonths);
-      }
+      await Promise.all(
+        uniqueItems.map(async (b) => {
+          const result = await upsertBudgetCarryForward(db, {
+            month: body.month,
+            groupId: b.groupId,
+            category: b.category,
+            plannedAmount: b.plannedAmount,
+          });
+          for (const m of result.affectedMonths) {
+            affectedMonthSet.add(m);
+          }
+        })
+      );
     } else {
-      const ops = body.budgets.map((b) => ({
+      const ops = uniqueItems.map((b) => ({
         updateOne: {
           filter: { month: body.month, category: b.category },
           update: {
@@ -93,7 +125,7 @@ export async function PUT(request: NextRequest) {
       .find({ month: body.month })
       .toArray();
 
-    return Response.json({ budgets, affectedMonths });
+    return Response.json({ budgets, affectedMonths: [...affectedMonthSet] });
   } catch (error) {
     console.error("Error updating budgets:", error);
     return Response.json(

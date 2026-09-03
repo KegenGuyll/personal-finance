@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { formatCurrency } from "@/src/utils/currency";
 import { useBudgetCarryForwardPreview } from "@/src/hooks/useBudgetCarryForwardPreview";
+import { useDebounce } from "@/src/hooks/useDebounce";
 
 interface BudgetCategoryModalProps {
   isOpen: boolean;
@@ -34,6 +35,8 @@ export default function BudgetCategoryModal({
 
   const parsed = Math.round(parseFloat(amountInput) * 100) / 100;
   const isValidAmount = !isNaN(parsed) && parsed >= 0;
+  const amountValue = isValidAmount ? parsed : currentAmount;
+  const debouncedAmount = useDebounce(amountValue, 300);
 
   const {
     data: preview,
@@ -41,7 +44,7 @@ export default function BudgetCategoryModal({
   } = useBudgetCarryForwardPreview({
     month: anchorMonth,
     category,
-    plannedAmount: isValidAmount ? parsed : 0,
+    plannedAmount: debouncedAmount,
     enabled: isOpen && isValidAmount,
   });
 

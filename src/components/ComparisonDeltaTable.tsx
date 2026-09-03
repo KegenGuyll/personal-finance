@@ -2,6 +2,8 @@
 
 import { formatCurrency } from "@/src/utils/currency";
 
+export type Direction = "up" | "down" | "stable" | "none";
+
 export interface CategoryDelta {
   category: string;
   groupName: string;
@@ -10,6 +12,9 @@ export interface CategoryDelta {
   actualAtAnchor: number;
   prevActual: number | null;
   firstActual: number;
+  projected: number;
+  direction: Direction;
+  limited: boolean;
   isVisible: boolean;
 }
 
@@ -57,17 +62,44 @@ function DeltaCell({ current, baseline }: { current: number; baseline: number | 
   );
 }
 
+function DirectionTag({ direction }: { direction: Direction }) {
+  if (direction === "up") {
+    return (
+      <span className="text-[10px] font-bold text-red-500" aria-label="Trending up">
+        ▲
+      </span>
+    );
+  }
+  if (direction === "down") {
+    return (
+      <span className="text-[10px] font-bold text-emerald-600" aria-label="Trending down">
+        ▼
+      </span>
+    );
+  }
+  if (direction === "stable") {
+    return (
+      <span className="text-[10px] text-space-indigo-400" aria-label="Stable">
+        ≈
+      </span>
+    );
+  }
+  return <span className="text-[10px] text-space-indigo-300">—</span>;
+}
+
 export default function ComparisonDeltaTable({
   rows,
   anchorMonth,
   prevMonth,
   firstMonth,
+  nextMonth,
   onEdit,
 }: {
   rows: CategoryDelta[];
   anchorMonth: string;
   prevMonth: string | null;
   firstMonth: string;
+  nextMonth: string;
   onEdit: (row: CategoryDelta) => void;
 }) {
   if (rows.length === 0) {
@@ -104,11 +136,11 @@ export default function ComparisonDeltaTable({
       <h3 className="mb-1 text-sm font-medium text-space-indigo-600">Category Changes</h3>
       <p className="text-xs text-space-indigo-400">{subtitle}</p>
       <p className="mt-1 text-[11px] text-space-indigo-400">
-        ▲ spending up · ▼ spending down
+        ▲ spending up · ▼ spending down · Projected = estimated next-month spend
       </p>
 
       <div className="mt-3 overflow-x-auto">
-        <table className="w-full min-w-[760px] border-collapse text-left text-xs">
+        <table className="w-full min-w-[880px] border-collapse text-left text-xs">
           <thead>
             <tr className="border-b border-space-indigo-100 text-[10px] uppercase tracking-wide text-space-indigo-400">
               <th className="sticky left-0 bg-white pr-3 py-2 font-semibold">
@@ -136,6 +168,12 @@ export default function ComparisonDeltaTable({
                 <span className="block">Δ vs</span>
                 <span className="block text-[9px] font-medium text-space-indigo-400">
                   {formatMonthShort(firstMonth)}
+                </span>
+              </th>
+              <th className="px-2 py-2 font-semibold">
+                <span className="block">Projected</span>
+                <span className="block text-[9px] font-medium text-space-indigo-400">
+                  {formatMonthShort(nextMonth)}
                 </span>
               </th>
               <th className="px-2 py-2 text-right font-semibold">Edit</th>
@@ -173,7 +211,7 @@ function GroupRow({
     <>
       <tr className="border-b border-space-indigo-50">
         <td
-          colSpan={6}
+          colSpan={7}
           className="sticky left-0 bg-space-indigo-50/60 px-3 py-1.5 font-semibold uppercase tracking-wide text-space-indigo-500"
         >
           {groupName}
@@ -200,6 +238,19 @@ function GroupRow({
           </td>
           <td className="px-2 py-2.5">
             <DeltaCell current={row.actualAtAnchor} baseline={row.firstActual} />
+          </td>
+          <td className="px-2 py-2.5">
+            <span className="inline-flex items-center gap-1.5">
+              <DirectionTag direction={row.direction} />
+              <span className="font-semibold text-space-indigo-900">
+                {row.projected > 0 ? formatCurrency(row.projected) : "—"}
+              </span>
+            </span>
+            {row.limited && (
+              <span className="mt-0.5 block text-[9px] font-medium text-space-indigo-400">
+                limited data
+              </span>
+            )}
           </td>
           <td className="px-2 py-2.5 text-right">
             <button

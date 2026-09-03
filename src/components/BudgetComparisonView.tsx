@@ -9,12 +9,14 @@ import CategoryComparisonChart from "@/src/components/CategoryComparisonChart";
 import PlannedVsActualChart from "@/src/components/PlannedVsActualChart";
 import ComparisonDeltaTable, {
   type CategoryDelta,
+  type Direction,
 } from "@/src/components/ComparisonDeltaTable";
 import BudgetCategoryModal from "@/src/components/BudgetCategoryModal";
+import BudgetInsightsCard from "@/src/components/BudgetInsightsCard";
 import { useAppSelector } from "@/src/lib/hooks";
 import { useBudgetComparison } from "@/src/hooks/useBudgetComparison";
 import { useMutateBudget } from "@/src/hooks/useMutateBudget";
-import { getLastMonths } from "@/src/lib/month-utils";
+import { getLastMonths, getMonthKey } from "@/src/lib/month-utils";
 import { CHART_COLORS } from "@/src/utils/chart-colors";
 import type { ComparisonCategory } from "@/src/types/budget";
 
@@ -36,6 +38,48 @@ function formatMonthShort(month: string): string {
 
 function totalActual(category: ComparisonCategory): number {
   return category.monthly.reduce((sum, m) => sum + m.actual, 0);
+}
+
+function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? Math.round((sorted[mid - 1] + sorted[mid]) / 2)
+    : sorted[mid];
+}
+
+interface Forecast {
+  projected: number;
+  min: number;
+  max: number;
+  limited: boolean;
+  direction: Direction;
+  changePct: number;
+  hasData: boolean;
+}
+
+function computeForecast(category: ComparisonCategory): Forecast {
+  const baseline = category.monthly.slice(-3);
+  const active = baseline.filter((m) => m.actual > 0).map((m) => m.actual);
+  const projected = median(active);
+  const min = active.length > 0 ? Math.min(...active) : 0;
+  const max = active.length > 0 ? Math.max(...active) : 0;
+  const limited = active.length < 3;
+
+  let direction: Direction = "none";
+  let changePct = 0;
+  if (active.length >= 2) {
+    const first = active[0];
+    const last = active[active.length - 1];
+    changePct =
+      first !== 0 ? ((last - first) / first) * 100 : last !== 0 ? 100 : 0;
+    if (changePct > 5) direction = "up";
+    else if (changePct < -5) direction = "down";
+    else direction = "stable";
+  }
+
+  return { projected, min, max, limited, direction, changePct, hasData: active.length > 0 };
 }
 
 function ComparisonBody({
@@ -99,11 +143,63 @@ function ComparisonBody({
   const prevMonth = anchorIndex > 0 ? months[anchorIndex - 1] : null;
   const firstMonth = months[0];
 
+  const nextMonth = useMemo(() => getMonthKey(months[months.length - 1], 1), [months]);
+  const nextMonthLabel = useMemo(() => formatMonthLong(nextMonth), [nextMonth]);
+
+  const forecasts = useMemo(() => {
+    const map = new Map<string, Forecast>();
+    for (const c of allCategories) map.set(c.category, computeForecast(c));
+    return map;
+  }, [allCategories]);
+
+  const insightUp = useMemo(
+    () =>
+      allCategories
+        .map((c) => {
+          const f = forecasts.get(c.category);
+          if (!f || !f.hasData || f.direction !== "up") return null;
+          return {
+            category: c.category,
+            groupName: c.groupName,
+            changePct: f.changePct,
+            projected: f.projected,
+            direction: "up" as const,
+            limited: f.limited,
+          };
+        })
+        .filter((x): x is NonNullable<typeof x> => Boolean(x))
+        .sort((a, b) => b.changePct - a.changePct)
+        .slice(0, 3),
+    [allCategories, forecasts]
+  );
+
+  const insightDown = useMemo(
+    () =>
+      allCategories
+        .map((c) => {
+          const f = forecasts.get(c.category);
+          if (!f || !f.hasData || f.direction !== "down") return null;
+          return {
+            category: c.category,
+            groupName: c.groupName,
+            changePct: f.changePct,
+            projected: f.projected,
+            direction: "down" as const,
+            limited: f.limited,
+          };
+        })
+        .filter((x): x is NonNullable<typeof x> => Boolean(x))
+        .sort((a, b) => a.changePct - b.changePct)
+        .slice(0, 3),
+    [allCategories, forecasts]
+  );
+
   const rows: CategoryDelta[] = useMemo(() => {
     return allCategories.map((c) => {
       const anchor = c.monthly.find((m) => m.month === selectedMonth);
       const prev = prevMonth ? c.monthly.find((m) => m.month === prevMonth) : null;
       const first = c.monthly.find((m) => m.month === firstMonth);
+      const f = forecasts.get(c.category);
       return {
         category: c.category,
         groupName: c.groupName,
@@ -112,10 +208,13 @@ function ComparisonBody({
         actualAtAnchor: anchor?.actual ?? 0,
         prevActual: prev ? prev.actual : null,
         firstActual: first?.actual ?? 0,
+        projected: f?.projected ?? 0,
+        direction: f?.direction ?? "none",
+        limited: f?.limited ?? false,
         isVisible: visibleNames.includes(c.category),
       };
     });
-  }, [allCategories, selectedMonth, prevMonth, firstMonth, visibleNames]);
+  }, [allCategories, selectedMonth, prevMonth, firstMonth, forecasts, visibleNames]);
 
   const series = useMemo(
     () =>
@@ -248,6 +347,13 @@ function ComparisonBody({
         </div>
       </div>
 
+      {/* Forecast & Insights */}
+      <BudgetInsightsCard
+        nextMonthLabel={nextMonthLabel}
+        up={insightUp}
+        down={insightDown}
+      />
+
       {/* Category toggle chips */}
       {allCategories.length > 0 && (
         <div className="rounded-xl border border-space-indigo-100 bg-white p-3 shadow-2xs">
@@ -294,6 +400,7 @@ function ComparisonBody({
         anchorMonth={selectedMonth}
         prevMonth={prevMonth}
         firstMonth={firstMonth}
+        nextMonth={nextMonth}
         onEdit={(row) =>
           setEditing({
             category: row.category,

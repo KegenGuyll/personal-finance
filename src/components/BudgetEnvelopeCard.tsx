@@ -7,7 +7,6 @@ import BudgetRingChart from "./BudgetRingChart";
 import SavingsGoalsSection from "./SavingsGoalsSection";
 import type { BudgetGroupSummary, Goal } from "@/src/types/budget";
 import { formatCurrency } from "@/src/utils/currency";
-import { CHART_COLORS } from "@/src/utils/chart-colors";
 
 interface BudgetEnvelopeCardProps {
   group: BudgetGroupSummary;
@@ -23,10 +22,10 @@ interface BudgetEnvelopeCardProps {
 }
 
 function getEnvelopeRingColor(pct: number): string {
-  if (pct < 50) return CHART_COLORS[0];
-  if (pct < 80) return CHART_COLORS[4];
-  if (pct <= 100) return CHART_COLORS[6];
-  return "#ef4444";
+  if (pct < 50) return "#10b981"; // emerald - on track
+  if (pct < 80) return "#f59e0b"; // amber - caution
+  if (pct <= 100) return "#f97316"; // orange - nearly full
+  return "#ef4444"; // red - over
 }
 
 function getEnvelopeBgColor(name: string): string {
@@ -118,7 +117,7 @@ export default function BudgetEnvelopeCard({
         <div className="relative h-18 w-18 shrink-0 sm:h-20 sm:w-20">
           <BudgetRingChart
             percent={ringPercent}
-            color={isSavings ? CHART_COLORS[4] : getEnvelopeRingColor(ringPercent)}
+            color={isSavings ? "#14b8a6" : getEnvelopeRingColor(ringPercent)}
           >
             {isSavings ? (
               <>

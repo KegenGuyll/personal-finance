@@ -13,7 +13,12 @@ All UI components that use Tailwind CSS for styling (e.g., buttons, inputs, card
 
 # Color Palette
 
-Use only the custom color tokens defined in `app/globals.css` under the `@theme` block: `space-indigo`, `ocean-deep`, `cornflower-blue`, `baby-blue-ice`, and `soft-periwinkle` (each with shades 50–950). Do not introduce arbitrary colors or Tailwind's default color palette.
+General UI styling must use only the custom color tokens defined in `app/globals.css` under the `@theme` block: `space-indigo`, `ocean-deep`, `cornflower-blue`, `baby-blue-ice`, and `soft-periwinkle` (each with shades 50–950). Do not introduce arbitrary colors or Tailwind's default color palette for general UI.
+
+**Allowed exceptions (kept behind shared sources so colors stay consistent):**
+
+- **Chart data series** use the shared `CHART_COLORS` array in `src/utils/chart-colors.ts`. That palette intentionally spans multiple hues so categorical charts (trend lines, pie slices) are visually distinguishable. It is the single source for chart colors.
+- **Semantic budget-health/trend colors** may use the red / emerald / amber (and orange) families to signal status, e.g. spending increased or over budget = red, decreased or under budget = emerald, near-limit / caution = amber. These make over/under and increase/decrease states legible and are used consistently across the budget and comparison views.
 
 # Verification Steps
 
@@ -50,5 +55,5 @@ All TanStack Query hooks (`useQuery`, `useInfiniteQuery`, `useMutation`) must be
 # Shared Logic & Utilities
 
 - **DRY server-side logic**: Duplicate logic (e.g., MongoDB aggregation pipelines) must be extracted into shared modules under `src/lib/` and imported where needed. Do not copy-paste pipeline definitions across API routes.
-- **Chart colors**: All chart components (`SpendingTrend`, `CategoryBreakdown`, etc.) must use the shared `CHART_COLORS` array from `src/utils/chart-colors.ts` instead of hardcoded hex values. These colors map to the custom Tailwind theme palette.
+- **Chart colors**: All chart components (`SpendingTrend`, `CategoryBreakdown`, etc.) must source their colors from the shared `CHART_COLORS` array in `src/utils/chart-colors.ts` instead of hardcoding hex values. That array is the single source for chart data-series colors (see the Color Palette exceptions above).
 - **Reusable hooks**: General-purpose hooks (e.g., `useDebounce`) must live in `src/hooks/` so they can be reused throughout the application.

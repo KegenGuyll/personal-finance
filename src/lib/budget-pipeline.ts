@@ -95,6 +95,56 @@ export async function getCategoryActuals(
   return map;
 }
 
+export async function getCategoryActualsByMonth(
+  db: Db,
+  months: string[],
+  isIncome: boolean,
+  useAbsoluteValue = false,
+  includeTransfers = false
+): Promise<Map<string, Map<string, { total: number; count: number }>>> {
+  const filter = isIncome ? INCOME_TRANSACTIONS_FILTER : EXPENSE_TRANSACTIONS_FILTER;
+  const monthRegex = `^(${months.join("|")})`;
+  const matchStage: Record<string, unknown> = {
+    $and: [
+      { date: { $regex: monthRegex } },
+      filter[0],
+    ],
+  };
+
+  if (!isIncome && !includeTransfers) {
+    matchStage.$and = [...(matchStage.$and as Record<string, unknown>[]), EXCLUDE_TRANSFERS_MATCH];
+  }
+
+  const results = await db
+    .collection("transactions")
+    .aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: {
+            month: { $substr: ["$date", 0, 7] },
+            leaf: LEAF_CATEGORY_EXPRESSION,
+          },
+          total: {
+            $sum: isIncome || useAbsoluteValue ? { $abs: "$amount" } : "$amount",
+          },
+          count: { $sum: 1 },
+        },
+      },
+    ])
+    .toArray();
+
+  const byMonth = new Map<string, Map<string, { total: number; count: number }>>();
+  for (const r of results) {
+    const id = r._id as { month: string; leaf: string };
+    if (!byMonth.has(id.month)) {
+      byMonth.set(id.month, new Map());
+    }
+    byMonth.get(id.month)!.set(id.leaf, { total: r.total as number, count: r.count as number });
+  }
+  return byMonth;
+}
+
 export async function getMappings(db: Db): Promise<CategoryMapping[]> {
   return db
     .collection<CategoryMapping>("category_group_mappings")

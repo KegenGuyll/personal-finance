@@ -132,3 +132,37 @@ export interface TransactionCategoryRule {
 }
 
 export type TransactionType = "expense" | "income" | "transfer";
+
+export interface CategoryMonthlyPoint {
+  month: string;
+  planned: number;
+  actual: number;
+  remaining: number;
+  percentUsed: number;
+}
+
+export interface ComparisonCategory {
+  category: string;
+  plaidLeaves: string[];
+  groupId: string;
+  groupName: string;
+  monthly: CategoryMonthlyPoint[];
+}
+
+export interface ComparisonGroup {
+  groupId: string;
+  name: string;
+  percentage: number;
+  categories: ComparisonCategory[];
+}
+
+export interface BudgetComparison {
+  months: string[];
+  groups: ComparisonGroup[];
+}
+
+export interface CarryForwardPreview {
+  anchorMonth: string;
+  category: string;
+  months: { month: string; currentAmount: number; wouldChange: boolean }[];
+}

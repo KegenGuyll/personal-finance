@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 interface UpsertBudgetInput {
   month: string;
   budgets: { groupId: string; category: string; plannedAmount: number }[];
+  applyToFutureMonths?: boolean;
 }
 
 export function useMutateBudget() {
@@ -22,6 +23,7 @@ export function useMutateBudget() {
       queryClient.invalidateQueries({ queryKey: ["budget", variables.month] });
       queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
       queryClient.invalidateQueries({ queryKey: ["budget-health"] });
+      queryClient.invalidateQueries({ queryKey: ["budget-comparison"] });
     },
   });
 }

@@ -174,6 +174,7 @@ function BudgetContent() {
           plannedAmount: amount,
         },
       ],
+      applyToFutureMonths: true,
     });
 
     setEditingBudget(null);
@@ -213,6 +214,12 @@ function BudgetContent() {
             className="rounded-lg bg-ocean-deep-500 px-3 py-1.5 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-ocean-deep-600 active:bg-ocean-deep-700"
           >
             Goals
+          </Link>
+          <Link
+            href="/budget/compare"
+            className="rounded-lg bg-ocean-deep-500 px-3 py-1.5 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-ocean-deep-600 active:bg-ocean-deep-700"
+          >
+            Compare
           </Link>
           <button
             onClick={() => setIsEditing(!isEditing)}
@@ -338,6 +345,7 @@ function BudgetContent() {
           isOpen={Boolean(editingBudget)}
           category={editingBudget.category}
           currentAmount={editingBudget.currentAmount}
+          anchorMonth={month}
           onSave={handleSaveBudget}
           onClose={() => setEditingBudget(null)}
           isPending={mutateBudget.isPending}

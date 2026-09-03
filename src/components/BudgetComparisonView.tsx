@@ -95,34 +95,27 @@ function ComparisonBody({
     [visibleNames, allCategories]
   );
 
+  const anchorIndex = months.indexOf(selectedMonth);
+  const prevMonth = anchorIndex > 0 ? months[anchorIndex - 1] : null;
+  const firstMonth = months[0];
+
   const rows: CategoryDelta[] = useMemo(() => {
-    const lastIdx = months.length - 1;
-    const prevIdx = lastIdx - 1;
     return allCategories.map((c) => {
-      const last = c.monthly[lastIdx] ?? { planned: 0, actual: 0 };
-      const prev = c.monthly[prevIdx] ?? { planned: 0, actual: 0 };
-      const delta = last.actual - prev.actual;
-      const pctChange =
-        prev.actual !== 0
-          ? (delta / prev.actual) * 100
-          : last.actual !== 0
-            ? 100
-            : 0;
       const anchor = c.monthly.find((m) => m.month === selectedMonth);
+      const prev = prevMonth ? c.monthly.find((m) => m.month === prevMonth) : null;
+      const first = c.monthly.find((m) => m.month === firstMonth);
       return {
         category: c.category,
         groupName: c.groupName,
         groupId: c.groupId,
-        latestPlanned: last.planned,
-        latestActual: last.actual,
-        prevActual: prev.actual,
-        delta,
-        pctChange,
         plannedAtAnchor: anchor?.planned ?? 0,
+        actualAtAnchor: anchor?.actual ?? 0,
+        prevActual: prev ? prev.actual : null,
+        firstActual: first?.actual ?? 0,
         isVisible: visibleNames.includes(c.category),
       };
     });
-  }, [allCategories, months, selectedMonth, visibleNames]);
+  }, [allCategories, selectedMonth, prevMonth, firstMonth, visibleNames]);
 
   const series = useMemo(
     () =>
@@ -298,7 +291,9 @@ function ComparisonBody({
       {/* Delta table */}
       <ComparisonDeltaTable
         rows={rows}
-        anchorMonthLabel={anchorLabel}
+        anchorMonth={selectedMonth}
+        prevMonth={prevMonth}
+        firstMonth={firstMonth}
         onEdit={(row) =>
           setEditing({
             category: row.category,

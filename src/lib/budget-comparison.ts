@@ -100,25 +100,27 @@ export async function buildBudgetComparison(
       return a.localeCompare(b);
     });
 
-    const categories: ComparisonCategory[] = sortedKeys.map((category) => {
-      const monthly: CategoryMonthlyPoint[] = months.map((month) => {
-        const budgetDoc = budgetByMonthCategory.get(`${month}|${category}`);
-        const planned = budgetDoc?.plannedAmount ?? 0;
-        const actual = groupActualsByMonth.get(month)?.get(category)?.total ?? 0;
-        const remaining = planned - actual;
-        const percentUsed = planned > 0 ? Math.round((actual / planned) * 100) : 0;
+    const categories: ComparisonCategory[] = sortedKeys
+      .map((category) => {
+        const monthly: CategoryMonthlyPoint[] = months.map((month) => {
+          const budgetDoc = budgetByMonthCategory.get(`${month}|${category}`);
+          const planned = budgetDoc?.plannedAmount ?? 0;
+          const actual = groupActualsByMonth.get(month)?.get(category)?.total ?? 0;
+          const remaining = planned - actual;
+          const percentUsed = planned > 0 ? Math.round((actual / planned) * 100) : 0;
 
-        return { month, planned, actual, remaining, percentUsed };
-      });
+          return { month, planned, actual, remaining, percentUsed };
+        });
 
-      return {
-        category,
-        plaidLeaves: plaidLeavesByBudgetCat.get(category) ?? [],
-        groupId: String(group._id),
-        groupName: group.name,
-        monthly,
-      };
-    });
+        return {
+          category,
+          plaidLeaves: plaidLeavesByBudgetCat.get(category) ?? [],
+          groupId: String(group._id),
+          groupName: group.name,
+          monthly,
+        };
+      })
+      .filter((c) => c.monthly.some((m) => m.planned > 0));
 
     groupSummaries.push({
       groupId: String(group._id),

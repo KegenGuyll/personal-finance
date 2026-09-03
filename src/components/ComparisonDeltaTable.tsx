@@ -6,33 +6,52 @@ export interface CategoryDelta {
   category: string;
   groupName: string;
   groupId: string;
-  latestPlanned: number;
-  latestActual: number;
-  prevActual: number;
-  delta: number;
-  pctChange: number | null;
   plannedAtAnchor: number;
+  actualAtAnchor: number;
+  prevActual: number | null;
+  firstActual: number;
   isVisible: boolean;
 }
 
-function TrendCell({ delta, pctChange }: { delta: number; pctChange: number | null }) {
+function formatMonthLong(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function formatMonthShort(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString("en-US", {
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function DeltaCell({ current, baseline }: { current: number; baseline: number | null }) {
+  if (baseline === null) {
+    return <span className="text-space-indigo-400">—</span>;
+  }
+  const delta = current - baseline;
   if (delta === 0) {
     return <span className="text-space-indigo-400">—</span>;
   }
   const up = delta > 0;
+  const pct = baseline !== 0 ? Math.abs((delta / baseline) * 100) : null;
+  const colorClass = up ? "text-red-500" : "text-emerald-600";
+  const subClass = up ? "text-red-400" : "text-emerald-500";
   return (
-    <span
-      className={`inline-flex items-center gap-1 font-semibold ${
-        up ? "text-red-500" : "text-emerald-600"
-      }`}
-    >
+    <span className={`inline-flex items-center gap-1 font-semibold ${colorClass}`}>
       <span aria-hidden="true">{up ? "▲" : "▼"}</span>
       {formatCurrency(Math.abs(delta))}
-      {pctChange !== null && (
-        <span className={`text-[11px] ${up ? "text-red-400" : "text-emerald-500"}`}>
+      {pct !== null ? (
+        <span className={`text-[11px] ${subClass}`}>
           ({up ? "+" : "-"}
-          {Math.abs(pctChange).toFixed(1)}%)
+          {pct.toFixed(1)}%)
         </span>
+      ) : (
+        <span className={`text-[11px] ${subClass}`}>(new)</span>
       )}
     </span>
   );
@@ -40,25 +59,35 @@ function TrendCell({ delta, pctChange }: { delta: number; pctChange: number | nu
 
 export default function ComparisonDeltaTable({
   rows,
-  anchorMonthLabel,
+  anchorMonth,
+  prevMonth,
+  firstMonth,
   onEdit,
 }: {
   rows: CategoryDelta[];
-  anchorMonthLabel: string;
+  anchorMonth: string;
+  prevMonth: string | null;
+  firstMonth: string;
   onEdit: (row: CategoryDelta) => void;
 }) {
   if (rows.length === 0) {
     return (
       <div className="rounded-lg border border-space-indigo-100 bg-white p-4">
-        <h3 className="mb-1 text-sm font-medium text-space-indigo-600">
-          Category Changes
-        </h3>
+        <h3 className="mb-1 text-sm font-medium text-space-indigo-600">Category Changes</h3>
         <p className="text-xs text-space-indigo-400">
-          No budget categories to compare yet.
+          No budgeted categories to compare in this window.
         </p>
       </div>
     );
   }
+
+  const anchorShort = formatMonthShort(anchorMonth);
+  const prevLong = prevMonth ? formatMonthLong(prevMonth) : null;
+  const anchorLong = formatMonthLong(anchorMonth);
+  const firstLong = formatMonthLong(firstMonth);
+  const subtitle = prevLong
+    ? `Actual spend in ${anchorLong} vs ${prevLong}, and vs ${firstLong}.`
+    : `Actual spend in ${anchorLong} — this is the first month in the window, so there is no earlier month to compare.`;
 
   const groupedRows: { groupName: string; rows: CategoryDelta[] }[] = [];
   const byGroup = new Map<string, CategoryDelta[]>();
@@ -73,20 +102,42 @@ export default function ComparisonDeltaTable({
   return (
     <div className="rounded-lg border border-space-indigo-100 bg-white p-4">
       <h3 className="mb-1 text-sm font-medium text-space-indigo-600">Category Changes</h3>
-      <p className="mb-3 text-xs text-space-indigo-400">
-        Latest vs previous month · {anchorMonthLabel}
+      <p className="text-xs text-space-indigo-400">{subtitle}</p>
+      <p className="mt-1 text-[11px] text-space-indigo-400">
+        ▲ spending up · ▼ spending down
       </p>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[620px] border-collapse text-left text-xs">
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full min-w-[760px] border-collapse text-left text-xs">
           <thead>
             <tr className="border-b border-space-indigo-100 text-[10px] uppercase tracking-wide text-space-indigo-400">
               <th className="sticky left-0 bg-white pr-3 py-2 font-semibold">
                 Category
               </th>
-              <th className="px-2 py-2 font-semibold">Planned</th>
-              <th className="px-2 py-2 font-semibold">Actual</th>
-              <th className="px-2 py-2 font-semibold">Δ vs prev</th>
+              <th className="px-2 py-2 font-semibold">
+                <span className="block">Planned</span>
+                <span className="block text-[9px] font-medium text-space-indigo-400">
+                  {anchorShort}
+                </span>
+              </th>
+              <th className="px-2 py-2 font-semibold">
+                <span className="block">Actual</span>
+                <span className="block text-[9px] font-medium text-space-indigo-400">
+                  {anchorShort}
+                </span>
+              </th>
+              <th className="px-2 py-2 font-semibold">
+                <span className="block">Δ vs</span>
+                <span className="block text-[9px] font-medium text-space-indigo-400">
+                  {prevMonth ? formatMonthShort(prevMonth) : "—"}
+                </span>
+              </th>
+              <th className="px-2 py-2 font-semibold">
+                <span className="block">Δ vs</span>
+                <span className="block text-[9px] font-medium text-space-indigo-400">
+                  {formatMonthShort(firstMonth)}
+                </span>
+              </th>
               <th className="px-2 py-2 text-right font-semibold">Edit</th>
             </tr>
           </thead>
@@ -96,6 +147,7 @@ export default function ComparisonDeltaTable({
                 key={groupName}
                 groupName={groupName}
                 rows={groupRows}
+                anchorShort={anchorShort}
                 onEdit={onEdit}
               />
             ))}
@@ -109,16 +161,21 @@ export default function ComparisonDeltaTable({
 function GroupRow({
   groupName,
   rows,
+  anchorShort,
   onEdit,
 }: {
   groupName: string;
   rows: CategoryDelta[];
+  anchorShort: string;
   onEdit: (row: CategoryDelta) => void;
 }) {
   return (
     <>
       <tr className="border-b border-space-indigo-50">
-        <td colSpan={5} className="sticky left-0 bg-space-indigo-50/60 px-3 py-1.5 font-semibold uppercase tracking-wide text-space-indigo-500">
+        <td
+          colSpan={6}
+          className="sticky left-0 bg-space-indigo-50/60 px-3 py-1.5 font-semibold uppercase tracking-wide text-space-indigo-500"
+        >
           {groupName}
         </td>
       </tr>
@@ -133,18 +190,22 @@ function GroupRow({
             {row.category}
           </td>
           <td className="px-2 py-2.5 text-space-indigo-700">
-            {formatCurrency(row.latestPlanned)}
+            {formatCurrency(row.plannedAtAnchor)}
           </td>
           <td className="px-2 py-2.5 font-semibold text-space-indigo-900">
-            {formatCurrency(row.latestActual)}
+            {formatCurrency(row.actualAtAnchor)}
           </td>
           <td className="px-2 py-2.5">
-            <TrendCell delta={row.delta} pctChange={row.pctChange} />
+            <DeltaCell current={row.actualAtAnchor} baseline={row.prevActual} />
+          </td>
+          <td className="px-2 py-2.5">
+            <DeltaCell current={row.actualAtAnchor} baseline={row.firstActual} />
           </td>
           <td className="px-2 py-2.5 text-right">
             <button
               type="button"
               onClick={() => onEdit(row)}
+              title={`Edit budget for ${anchorShort}`}
               className="rounded-md bg-space-indigo-600 px-2.5 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-space-indigo-700 active:bg-space-indigo-800"
             >
               Edit

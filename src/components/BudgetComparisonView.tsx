@@ -13,6 +13,7 @@ import ComparisonDeltaTable, {
 } from "@/src/components/ComparisonDeltaTable";
 import BudgetCategoryModal from "@/src/components/BudgetCategoryModal";
 import BudgetInsightsCard from "@/src/components/BudgetInsightsCard";
+import LoadingSkeleton from "@/src/components/LoadingSkeleton";
 import { useAppSelector } from "@/src/lib/hooks";
 import { useBudgetComparison } from "@/src/hooks/useBudgetComparison";
 import { useMutateBudget } from "@/src/hooks/useMutateBudget";
@@ -99,7 +100,7 @@ function ComparisonBody({
     currentAmount: number;
   } | null>(null);
 
-  const { data, isLoading } = useBudgetComparison(months);
+  const { data, isLoading, isError, refetch } = useBudgetComparison(months);
   const mutateBudget = useMutateBudget();
 
   const allCategories = useMemo(
@@ -263,20 +264,29 @@ function ComparisonBody({
   );
 
   if (!accountsLoaded) {
-    return (
-      <div className="flex-1 space-y-4">
-        <div className="h-8 w-40 animate-pulse rounded bg-space-indigo-100" />
-        <div className="h-64 animate-pulse rounded-xl bg-space-indigo-50" />
-      </div>
-    );
+    return <LoadingSkeleton count={3} className="space-y-4" />;
   }
 
   if (isLoading) {
+    return <LoadingSkeleton count={3} className="space-y-4" />;
+  }
+
+  if (isError) {
     return (
-      <div className="space-y-4">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="h-48 animate-pulse rounded-xl bg-space-indigo-50" />
-        ))}
+      <div className="rounded-2xl border border-space-indigo-100 bg-white p-8 py-16 text-center shadow-xs">
+        <p className="mb-2 text-lg font-bold text-space-indigo-800">
+          Couldn&apos;t load the comparison
+        </p>
+        <p className="max-w-md text-sm text-space-indigo-500">
+          There was a problem fetching your budget data. Please try again.
+        </p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="mt-6 rounded-xl bg-space-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-2xs transition-colors hover:bg-space-indigo-700"
+        >
+          Try again
+        </button>
       </div>
     );
   }
@@ -317,6 +327,7 @@ function ComparisonBody({
             <button
               key={opt}
               type="button"
+              aria-pressed={count === opt}
               onClick={() => onCountChange(opt)}
               className={`flex-1 rounded-lg px-3 py-1.5 text-center text-xs font-semibold transition-colors sm:flex-none ${
                 count === opt
@@ -334,6 +345,7 @@ function ComparisonBody({
             <button
               key={month}
               type="button"
+              aria-pressed={selectedMonth === month}
               onClick={() => setSelectedMonth(month)}
               className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
                 selectedMonth === month
@@ -376,6 +388,7 @@ function ComparisonBody({
                 <button
                   key={c.category}
                   type="button"
+                  aria-pressed={active}
                   onClick={() => toggleCategory(c.category)}
                   className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
                     active

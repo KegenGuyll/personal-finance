@@ -5,7 +5,7 @@ import { ensureMonthInitialized } from "@/src/lib/budget-pipeline";
 import { upsertBudgetCarryForward } from "@/src/lib/budget-carry-forward";
 import type { Budget } from "@/src/types/budget";
 
-const MONTH_REGEX = /^\d{4}-\d{2}$/;
+const MONTH_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 export async function GET(request: NextRequest) {
   try {
@@ -61,6 +61,7 @@ export async function PUT(request: NextRequest) {
       if (
         !b.category ||
         !b.groupId ||
+        !ObjectId.isValid(b.groupId) ||
         typeof b.plannedAmount !== "number" ||
         !Number.isFinite(b.plannedAmount) ||
         b.plannedAmount < 0

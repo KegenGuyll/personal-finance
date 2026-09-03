@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { formatCurrency } from "@/src/utils/currency";
 import { useBudgetCarryForwardPreview } from "@/src/hooks/useBudgetCarryForwardPreview";
-import { useDebounce } from "@/src/hooks/useDebounce";
+import type { CarryForwardPreview } from "@/src/types/budget";
 
 interface BudgetCategoryModalProps {
   isOpen: boolean;
@@ -32,36 +32,50 @@ export default function BudgetCategoryModal({
   const [amountInput, setAmountInput] = useState(String(currentAmount || ""));
   const [confirming, setConfirming] = useState(false);
   const [pendingAmount, setPendingAmount] = useState<number | null>(null);
+  const [confirmPreview, setConfirmPreview] = useState<CarryForwardPreview | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [previewError, setPreviewError] = useState(false);
 
   const parsed = Math.round(parseFloat(amountInput) * 100) / 100;
   const isValidAmount = !isNaN(parsed) && parsed >= 0;
-  const amountValue = isValidAmount ? parsed : currentAmount;
-  const debouncedAmount = useDebounce(amountValue, 300);
 
-  const {
-    data: preview,
-    isLoading: previewLoading,
-  } = useBudgetCarryForwardPreview({
+  const { refetch } = useBudgetCarryForwardPreview({
     month: anchorMonth,
     category,
-    plannedAmount: debouncedAmount,
-    enabled: isOpen && isValidAmount,
+    plannedAmount: isValidAmount ? parsed : 0,
+    enabled: false,
   });
-
-  const wouldChangeMonths = preview?.months.filter((m) => m.wouldChange) ?? [];
-  const wouldChangeCount = wouldChangeMonths.length;
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isValidAmount) return;
+    if (!isValidAmount || checking) return;
 
-    if (wouldChangeCount > 0) {
-      setPendingAmount(parsed);
-      setConfirming(true);
-    } else {
-      onSave(parsed);
+    setChecking(true);
+    setPreviewError(false);
+    try {
+      const result = await refetch();
+      if (result.isError) {
+        setPreviewError(true);
+        setChecking(false);
+        return;
+      }
+
+      const preview = result.data;
+      const wouldChangeMonths = preview?.months.filter((m) => m.wouldChange) ?? [];
+      setChecking(false);
+
+      if (wouldChangeMonths.length > 0) {
+        setConfirmPreview(preview ?? null);
+        setPendingAmount(parsed);
+        setConfirming(true);
+      } else {
+        onSave(parsed);
+      }
+    } catch {
+      setPreviewError(true);
+      setChecking(false);
     }
   };
 
@@ -73,7 +87,11 @@ export default function BudgetCategoryModal({
   const handleCancelConfirm = () => {
     setConfirming(false);
     setPendingAmount(null);
+    setConfirmPreview(null);
   };
+
+  const wouldChangeMonths = confirmPreview?.months.filter((m) => m.wouldChange) ?? [];
+  const wouldChangeCount = wouldChangeMonths.length;
 
   return (
     <div
@@ -121,6 +139,8 @@ export default function BudgetCategoryModal({
                   setAmountInput(e.target.value);
                   setConfirming(false);
                   setPendingAmount(null);
+                  setConfirmPreview(null);
+                  setPreviewError(false);
                 }}
                 placeholder="0.00"
                 autoFocus
@@ -157,9 +177,9 @@ export default function BudgetCategoryModal({
             </div>
           )}
 
-          {previewLoading && !confirming && isValidAmount && (
-            <p className="text-[11px] text-space-indigo-400">
-              Checking future months…
+          {previewError && !confirming && (
+            <p className="text-[11px] font-medium text-red-500">
+              Couldn&apos;t check future months. Please try again.
             </p>
           )}
 
@@ -186,15 +206,16 @@ export default function BudgetCategoryModal({
               <>
                 <button
                   type="submit"
-                  disabled={isPending || !isValidAmount}
+                  disabled={isPending || !isValidAmount || checking}
                   className="flex-1 rounded-xl bg-space-indigo-600 py-2.5 text-center text-sm font-semibold text-white shadow-2xs transition-colors hover:bg-space-indigo-700 active:bg-space-indigo-800 disabled:opacity-50"
                 >
-                  {isPending ? "Saving…" : "Save Budget"}
+                  {checking ? "Checking…" : isPending ? "Saving…" : "Save Budget"}
                 </button>
                 <button
                   type="button"
                   onClick={onClose}
-                  className="rounded-xl border border-space-indigo-200 px-4 py-2.5 text-sm font-semibold text-space-indigo-600 transition-colors hover:bg-space-indigo-50"
+                  disabled={checking}
+                  className="rounded-xl border border-space-indigo-200 px-4 py-2.5 text-sm font-semibold text-space-indigo-600 transition-colors hover:bg-space-indigo-50 disabled:opacity-50"
                 >
                   Cancel
                 </button>

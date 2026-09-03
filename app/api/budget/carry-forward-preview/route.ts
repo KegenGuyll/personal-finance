@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { connectToDatabase } from "@/src/lib/mongodb";
 import { getCarryForwardPreview } from "@/src/lib/budget-carry-forward";
 
-const MONTH_REGEX = /^\d{4}-\d{2}$/;
+const MONTH_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 export async function GET(request: NextRequest) {
   try {

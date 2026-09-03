@@ -20,7 +20,11 @@ export function useMutateBudget() {
       return res.json();
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["budget", variables.month] });
+      if (variables.applyToFutureMonths) {
+        queryClient.invalidateQueries({ queryKey: ["budget"] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["budget", variables.month] });
+      }
       queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
       queryClient.invalidateQueries({ queryKey: ["budget-health"] });
       queryClient.invalidateQueries({ queryKey: ["budget-comparison"] });

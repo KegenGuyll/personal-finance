@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { connectToDatabase } from "@/src/lib/mongodb";
 import { buildBudgetComparison } from "@/src/lib/budget-comparison";
 
-const MONTH_REGEX = /^\d{4}-\d{2}$/;
+const MONTH_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
 const MAX_MONTHS = 24;
 
 export async function GET(request: NextRequest) {

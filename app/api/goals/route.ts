@@ -71,10 +71,36 @@ export async function GET(request: NextRequest) {
       contributionsByGoal.set(key, list);
     }
 
+    const spendByGoal = new Map<string, { total: number; count: number }>();
+    if (goals.length > 0) {
+      const goalIds = goals.map((g) => String(g._id));
+      const spendRows = await db
+        .collection("transactions")
+        .aggregate([
+          { $match: { goalId: { $in: goalIds } } },
+          {
+            $group: {
+              _id: "$goalId",
+              total: { $sum: { $abs: "$amount" } },
+              count: { $sum: 1 },
+            },
+          },
+        ])
+        .toArray();
+
+      for (const r of spendRows) {
+        spendByGoal.set(r._id as string, {
+          total: r.total as number,
+          count: r.count as number,
+        });
+      }
+    }
+
     const enriched: Goal[] = goals.map((g) => {
       const monthly = calcMonthlyContribution(g);
       const goalContribs = contributionsByGoal.get(String(g._id)) ?? [];
       const allocatedThisMonth = goalContribs.reduce((sum, c) => sum + c.amount, 0);
+      const spend = spendByGoal.get(String(g._id));
       return {
         ...g,
         monthlyContribution: monthly,
@@ -89,6 +115,8 @@ export async function GET(request: NextRequest) {
           createdAt: c.createdAt,
         })),
         allocatedThisMonth,
+        spentAmount: spend?.total ?? 0,
+        spendCount: spend?.count ?? 0,
       };
     });
 

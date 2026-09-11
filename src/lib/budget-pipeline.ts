@@ -17,6 +17,11 @@ export const INCOME_TRANSACTIONS_FILTER = [
 
 export const SAVINGS_GROUP_NAME = "Savings";
 
+// Transactions marked as "spent from a goal" (goalId set) are drawn down from
+// that goal's savings rather than counted against a budget category, so every
+// expense aggregate must exclude them.
+export const EXCLUDE_GOAL_TRANSACTIONS_MATCH = { goalId: { $exists: false } };
+
 const EXCLUDED_LEAF_CATEGORIES = ["Credit Card", "Credit", "Debit", "Saving Transfers"];
 
 export const LEAF_CATEGORY_EXPRESSION = {
@@ -68,6 +73,10 @@ export async function getCategoryActuals(
     ],
   };
 
+  if (!isIncome) {
+    matchStage.$and = [...(matchStage.$and as Record<string, unknown>[]), EXCLUDE_GOAL_TRANSACTIONS_MATCH];
+  }
+
   if (!isIncome && !includeTransfers) {
     matchStage.$and = [...(matchStage.$and as Record<string, unknown>[]), EXCLUDE_TRANSFERS_MATCH];
   }
@@ -110,6 +119,10 @@ export async function getCategoryActualsByMonth(
       filter[0],
     ],
   };
+
+  if (!isIncome) {
+    matchStage.$and = [...(matchStage.$and as Record<string, unknown>[]), EXCLUDE_GOAL_TRANSACTIONS_MATCH];
+  }
 
   if (!isIncome && !includeTransfers) {
     matchStage.$and = [...(matchStage.$and as Record<string, unknown>[]), EXCLUDE_TRANSFERS_MATCH];
@@ -308,6 +321,7 @@ export async function getCarryoverAmounts(
             { date: { $gte: `${rangeStart}-01`, $lt: `${month}-01` } },
             EXPENSE_TRANSACTIONS_FILTER[0],
             EXCLUDE_TRANSFERS_MATCH,
+            EXCLUDE_GOAL_TRANSACTIONS_MATCH,
           ],
         },
       },

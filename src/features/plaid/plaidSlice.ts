@@ -16,6 +16,7 @@ export interface Transaction {
   userModified?: boolean;
   transaction_type?: "expense" | "income" | "transfer";
   income_category?: string;
+  goalId?: string;
 }
 
 export interface AccountBalance {

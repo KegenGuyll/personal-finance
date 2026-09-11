@@ -80,6 +80,11 @@ export default function TransactionItem({
           )}
         </div>
         <div className="ml-3 flex items-center gap-2">
+          {transaction.goalId && (
+            <span className="shrink-0 rounded-md bg-cornflower-blue-100 px-2 py-0.5 text-[10px] font-medium text-cornflower-blue-700">
+              Goal
+            </span>
+          )}
           {showIncomeButton && onMarkIncomeStart && (
             <IncomeButton
               transaction={transaction}

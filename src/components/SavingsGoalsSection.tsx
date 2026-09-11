@@ -83,6 +83,7 @@ export default function SavingsGoalsSection({
         const allocated = scaled(goal.allocatedThisMonth ?? 0);
         const current = scaled(goal.currentAmount);
         const target = scaled(goal.targetAmount);
+        const spent = scaled(goal.spentAmount ?? 0);
         const progressPercent =
           target > 0 ? Math.min((goal.currentAmount / goal.targetAmount) * 100, 100) : 0;
         const isAllocatingThis = allocateGoalId === String(goal._id);
@@ -120,6 +121,11 @@ export default function SavingsGoalsSection({
                   <span className="text-[11px] text-space-indigo-500">
                     {formatCurrency(current)} of {formatCurrency(target)}
                   </span>
+                  {spent > 0 && (
+                    <span className="text-[10px] text-red-500">
+                      · Spent {formatCurrency(spent)}
+                    </span>
+                  )}
                 </div>
 
                 {!isDeleted && !completed && (

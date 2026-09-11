@@ -28,6 +28,10 @@ export function useAssignTransactionGoal() {
       queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
       queryClient.invalidateQueries({ queryKey: ["budget-health"] });
       queryClient.invalidateQueries({ queryKey: ["budget"] });
+      queryClient.invalidateQueries({ queryKey: ["budget-comparison"] });
+      queryClient.invalidateQueries({
+        queryKey: ["budget-carry-forward-preview"],
+      });
       queryClient.invalidateQueries({ queryKey: ["all-category-stats"] });
       queryClient.invalidateQueries({ queryKey: ["category-name-stats"] });
       queryClient.invalidateQueries({ queryKey: ["spending-trend"] });

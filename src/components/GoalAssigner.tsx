@@ -62,6 +62,7 @@ export default function GoalAssigner({
   return (
     <span className="flex flex-wrap items-center gap-2">
       <select
+        aria-label="Spend from goal"
         value={selectedGoalId}
         onChange={(e) => setSelectedGoalId(e.target.value)}
         className="rounded-md border border-space-indigo-200 bg-white px-2 py-1 text-sm text-space-indigo-800 focus:border-space-indigo-400 focus:outline-none"

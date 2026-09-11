@@ -14,6 +14,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // A transaction cannot be both income and goal-funded spending, so any goal
+    // assignment is cleared here. Otherwise the goal aggregate would keep
+    // counting it as spending while income aggregates also include it.
     await db.collection("transactions").updateMany(
       { transaction_id: { $in: body.transactionIds } },
       {
@@ -21,6 +24,7 @@ export async function POST(request: NextRequest) {
           transaction_type: "income",
           income_category: "Income",
         },
+        $unset: { goalId: "" },
       }
     );
 

@@ -17,7 +17,7 @@ export default function GoalTransactionsModal({
   onClose,
 }: GoalTransactionsModalProps) {
   const goalId = String(goal._id);
-  const { data, isLoading } = useGoalTransactions(goalId);
+  const { data, isLoading, error } = useGoalTransactions(goalId);
   const unassignFromGoal = useUnassignTransactionGoal();
 
   const transactions = data?.transactions ?? [];
@@ -54,6 +54,10 @@ export default function GoalTransactionsModal({
           <div className="mt-4">
             <LoadingSkeleton count={4} className="space-y-2" />
           </div>
+        ) : error ? (
+          <p className="my-6 text-sm text-red-500">
+            Failed to load spending for this goal.
+          </p>
         ) : transactions.length === 0 ? (
           <p className="my-6 text-sm text-space-indigo-400">
             No transactions have been spent from this goal yet.

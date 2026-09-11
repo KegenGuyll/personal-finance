@@ -193,7 +193,9 @@ export default function GoalCard({ goal }: GoalCardProps) {
         )
       )}
 
-      {!isArchived && (
+      {/* Archived goals keep their goal-funded transactions, so their spending
+          must stay viewable/removable even though new assignments are blocked. */}
+      {(!isArchived || (goal.spendCount ?? 0) > 0) && (
         <button
           onClick={() => setShowTransactions(true)}
           className="mt-2 w-full rounded-md border border-cornflower-blue-200 bg-cornflower-blue-50 px-3 py-1.5 text-xs font-medium text-cornflower-blue-700 transition-colors hover:bg-cornflower-blue-100"

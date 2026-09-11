@@ -20,6 +20,14 @@ async function ensureIndexes(db: Db) {
     { transaction_id: 1 },
     { name: "transaction_id_idx", unique: true }
   );
+  // Serves both goal-funded lookups (goalId: <id> / $in) and the
+  // goalId: { $exists: false } exclusion used by every budget aggregate.
+  // Deliberately not sparse: a sparse index omits documents missing the field,
+  // so it could not serve the $exists: false queries.
+  await db.collection("transactions").createIndex(
+    { goalId: 1 },
+    { name: "transactions_goal_idx" }
+  );
   await db.collection("account_items").createIndex(
     { account_id: 1 },
     { name: "account_id_idx", unique: true }

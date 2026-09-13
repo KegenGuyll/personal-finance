@@ -28,6 +28,10 @@ export function useBulkMarkIncome() {
       queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
       queryClient.invalidateQueries({ queryKey: ["budget-health"] });
       queryClient.invalidateQueries({ queryKey: ["budget"] });
+      // Marking income clears any goal assignment, which changes the affected
+      // goals' spent totals and their transaction lists.
+      queryClient.invalidateQueries({ queryKey: ["goals"] });
+      queryClient.invalidateQueries({ queryKey: ["goal-transactions"] });
     },
   });
 }

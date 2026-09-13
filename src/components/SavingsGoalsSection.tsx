@@ -33,6 +33,10 @@ export default function SavingsGoalsSection({
   // showed the monthly figure in non-monthly views and left the limit out of
   // step with the displayed maximum.
   const unallocated = Math.max(0, scaled(unallocatedSavings));
+  // Unrounded period equivalent, used to validate what the user submits. The
+  // displayed value is rounded, and multiplying a rounded figure back by
+  // periodFactor can overshoot the real monthly buffer by up to half a period.
+  const unallocatedExact = Math.max(0, unallocatedSavings / periodFactor);
 
   const monthStart = `${month}-01`;
   const monthEnd = getEndOfMonth(month);
@@ -51,13 +55,17 @@ export default function SavingsGoalsSection({
     .sort((a, b) => a.targetDate.localeCompare(b.targetDate));
 
   const handleAllocate = (goalId: string) => {
-    const amount = Math.round(parseFloat(allocateAmount) * 100) / 100;
-    if (isNaN(amount) || amount <= 0) return;
-    if (amount > unallocated) return;
+    const periodAmount = Math.round(parseFloat(allocateAmount) * 100) / 100;
+    if (isNaN(periodAmount) || periodAmount <= 0) return;
+    if (periodAmount > unallocatedExact) return;
+
+    // The field is in the selected period's units, like every other figure in
+    // this section, but contributions are stored as actual dollars.
+    const actualAmount = Math.round(periodAmount * periodFactor * 100) / 100;
 
     contributeToGoal.mutate({
       id: goalId,
-      amount,
+      amount: actualAmount,
       date: new Date().toISOString().split("T")[0],
     });
     setAllocateAmount("");
@@ -196,7 +204,7 @@ export default function SavingsGoalsSection({
                         contributeToGoal.isPending ||
                         !allocateAmount ||
                         parseFloat(allocateAmount) <= 0 ||
-                        parseFloat(allocateAmount) > unallocated
+                        parseFloat(allocateAmount) > unallocatedExact
                       }
                       className="rounded bg-ocean-deep-500 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-ocean-deep-600 disabled:opacity-50"
                     >

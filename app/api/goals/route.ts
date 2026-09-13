@@ -3,6 +3,7 @@ import type { Document } from "mongodb";
 import { connectToDatabase } from "@/src/lib/mongodb";
 import { getCategoryActuals, getMappings, remapActuals, SAVINGS_GROUP_NAME } from "@/src/lib/budget-pipeline";
 import { getCurrentMonth, getEndOfMonth } from "@/src/lib/month-utils";
+import { goalIdInMatch } from "@/src/lib/goal-ids";
 import type { Goal } from "@/src/types/budget";
 
 function calcMonthlyContribution(goal: Goal): number {
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
     const contributions = await db
       .collection("goal_contributions")
       .find({
-        goalId: { $in: goals.map((g) => g._id) },
+        goalId: goalIdInMatch(goals.map((g) => String(g._id))),
         date: { $gte: `${month}-01`, $lte: getEndOfMonth(month) },
       })
       .toArray();

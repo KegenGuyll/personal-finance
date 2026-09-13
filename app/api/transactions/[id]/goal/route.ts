@@ -7,8 +7,11 @@ import { ObjectId } from "mongodb";
 // EXCLUDE_GOAL_TRANSACTIONS_MATCH in src/lib/budget-pipeline.ts) and instead
 // draws down the goal's saved balance.
 //
-// NOTE: `goalId` is intentionally never written by plaid-sync.ts ($set fields
-// there do not include or unset it), so the marker survives re-sync.
+// NOTE: `goalId` is never written or unset by plaid-sync.ts, so the marker
+// survives ordinary transaction updates. Plaid's pending -> posted replacement
+// is handled separately: syncItemTransactions copies the assignment onto the
+// posted transaction by matching `pending_transaction_id`. A pending row that
+// was removed in an earlier sync page cannot be recovered.
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -47,6 +50,17 @@ export async function POST(
     if (transaction.transaction_type === "income") {
       return Response.json(
         { error: "Income transactions cannot be spent from a goal" },
+        { status: 400 }
+      );
+    }
+
+    // Plaid reports money out as a positive amount, and imported inflows or
+    // refunds often carry no transaction_type at all. Reject them by sign: the
+    // goals aggregation sums $abs(amount), so an incoming refund would
+    // otherwise be counted as spending.
+    if (transaction.amount <= 0) {
+      return Response.json(
+        { error: "Only outgoing transactions can be spent from a goal" },
         { status: 400 }
       );
     }

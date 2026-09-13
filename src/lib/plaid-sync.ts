@@ -77,8 +77,37 @@ export async function syncItemTransactions(
       rules.map((r) => [`${r.account_id}::${r.name}`, r.category])
     );
 
+    // Plaid replaces a pending transaction with a posted one carrying a new
+    // transaction_id, and the removed loop below deletes the pending row. Copy
+    // any goal assignment across before that happens, keyed by
+    // pending_transaction_id. Read before bulkWrite, which orders added ->
+    // modified -> removed.
+    const pendingIds = added
+      .map((t) => t.pending_transaction_id)
+      .filter((id): id is string => Boolean(id));
+
+    const pendingGoalIds = new Map<string, string>();
+    if (pendingIds.length > 0) {
+      const pendingDocs = await db
+        .collection("transactions")
+        .find(
+          { transaction_id: { $in: pendingIds } },
+          { projection: { transaction_id: 1, goalId: 1 } }
+        )
+        .toArray();
+
+      for (const doc of pendingDocs) {
+        if (doc.goalId) {
+          pendingGoalIds.set(doc.transaction_id as string, doc.goalId as string);
+        }
+      }
+    }
+
     for (const txn of added) {
       const ruleCategory = ruleByKey.get(`${txn.account_id}::${txn.name}`);
+      const carriedGoalId = txn.pending_transaction_id
+        ? pendingGoalIds.get(txn.pending_transaction_id)
+        : undefined;
 
       bulkOps.push({
         updateOne: {
@@ -92,11 +121,13 @@ export async function syncItemTransactions(
               merchant_name: txn.merchant_name,
               category: ruleCategory ?? txn.category,
               ...(ruleCategory ? { userModified: true } : {}),
+              ...(carriedGoalId ? { goalId: carriedGoalId } : {}),
               pending: txn.pending,
               payment_channel: txn.payment_channel,
               iso_currency_code: txn.iso_currency_code,
               datetime: txn.datetime,
               authorized_date: txn.authorized_date,
+              pending_transaction_id: txn.pending_transaction_id ?? null,
             },
           },
           upsert: true,
@@ -123,6 +154,7 @@ export async function syncItemTransactions(
         iso_currency_code: txn.iso_currency_code,
         datetime: txn.datetime,
         authorized_date: txn.authorized_date,
+        pending_transaction_id: txn.pending_transaction_id ?? null,
       };
 
       if (!existing?.userModified) {

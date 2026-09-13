@@ -26,7 +26,13 @@ export default function SavingsGoalsSection({
   const contributeToGoal = useContributeToGoal();
 
   const scaled = (n: number) => Math.round(n / periodFactor);
-  const realUnallocated = Math.max(0, Math.round(unallocatedSavings * periodFactor));
+  // unallocatedSavings arrives as a monthly figure, but every other amount in
+  // this section is scaled to the selected period, so the buffer and the
+  // allocate limit have to use those same units. The previous
+  // `unallocatedSavings * periodFactor` was then re-scaled on render, which
+  // showed the monthly figure in non-monthly views and left the limit out of
+  // step with the displayed maximum.
+  const unallocated = Math.max(0, scaled(unallocatedSavings));
 
   const monthStart = `${month}-01`;
   const monthEnd = getEndOfMonth(month);
@@ -47,7 +53,7 @@ export default function SavingsGoalsSection({
   const handleAllocate = (goalId: string) => {
     const amount = Math.round(parseFloat(allocateAmount) * 100) / 100;
     if (isNaN(amount) || amount <= 0) return;
-    if (amount > realUnallocated) return;
+    if (amount > unallocated) return;
 
     contributeToGoal.mutate({
       id: goalId,
@@ -58,7 +64,7 @@ export default function SavingsGoalsSection({
     setAllocateGoalId(null);
   };
 
-  if (rows.length === 0 && realUnallocated === 0) {
+  if (rows.length === 0 && unallocated === 0) {
     return (
       <div className="py-4 text-center">
         <p className="text-xs text-space-indigo-400">
@@ -169,7 +175,7 @@ export default function SavingsGoalsSection({
                         type="number"
                         step="0.01"
                         min="0"
-                        max={realUnallocated}
+                        max={unallocated}
                         value={allocateAmount}
                         onChange={(e) => setAllocateAmount(e.target.value)}
                         onKeyDown={(e) => {
@@ -190,7 +196,7 @@ export default function SavingsGoalsSection({
                         contributeToGoal.isPending ||
                         !allocateAmount ||
                         parseFloat(allocateAmount) <= 0 ||
-                        parseFloat(allocateAmount) > realUnallocated
+                        parseFloat(allocateAmount) > unallocated
                       }
                       className="rounded bg-ocean-deep-500 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-ocean-deep-600 disabled:opacity-50"
                     >
@@ -206,9 +212,9 @@ export default function SavingsGoalsSection({
                   </div>
                 </div>
 
-                {realUnallocated > 0 && (
+                {unallocated > 0 && (
                   <p className="mt-1 text-[10px] text-ocean-deep-600">
-                    Max available from unallocated: {formatCurrency(scaled(realUnallocated))}
+                    Max available from unallocated: {formatCurrency(unallocated)}
                   </p>
                 )}
               </div>
@@ -217,7 +223,7 @@ export default function SavingsGoalsSection({
         );
       })}
 
-      {realUnallocated > 0 && (
+      {unallocated > 0 && (
         <div className="mt-3 border-t border-space-indigo-100 pt-2">
           <button
             type="button"
@@ -231,7 +237,7 @@ export default function SavingsGoalsSection({
               Unallocated Savings Buffer
             </span>
             <span className="font-bold text-ocean-deep-600">
-              {formatCurrency(scaled(realUnallocated))}
+              {formatCurrency(unallocated)}
             </span>
           </button>
           {showUnallocated && (

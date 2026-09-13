@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       .toArray();
 
     const [savingsRawActuals, mappings] = await Promise.all([
-      getCategoryActuals(db, month, false, true, true),
+      getCategoryActuals(db, month, false, true),
       getMappings(db),
     ]);
 

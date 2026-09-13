@@ -55,7 +55,7 @@ export async function buildBudgetComparison(
       getBudgetCategoryRegistry(db),
       db.collection<Budget>("budgets").find({ month: { $in: months } }).toArray(),
       getCategoryActualsByMonth(db, months, false),
-      getCategoryActualsByMonth(db, months, false, true, true),
+      getCategoryActualsByMonth(db, months, false, true),
     ]);
 
   const budgetByMonthCategory = new Map<string, Budget>();

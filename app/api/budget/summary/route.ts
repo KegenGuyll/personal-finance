@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       db.collection<Budget>("budgets").find({ month }).toArray(),
       getCategoryActuals(db, month, false),
       getCategoryActuals(db, month, true),
-      getCategoryActuals(db, month, false, true, true),
+      getCategoryActuals(db, month, false, true),
       getMappings(db),
       db.collection("budget_settings").findOne({ month }) as Promise<{ expectedIncome?: number } | null>,
       getBudgetCategoryRegistry(db),

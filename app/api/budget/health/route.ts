@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const [incomeActuals, expenseActuals, savingsRawActuals, mappings, settings] = await Promise.all([
       getCategoryActuals(db, month, true),
       getCategoryActuals(db, month, false),
-      getCategoryActuals(db, month, false, true, true),
+      getCategoryActuals(db, month, false, true),
       getMappings(db),
       db.collection("budget_settings").findOne({ month }) as Promise<{ expectedIncome?: number } | null>,
     ]);

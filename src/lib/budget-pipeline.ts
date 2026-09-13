@@ -57,29 +57,62 @@ export async function getBudgetGroups(db: Db): Promise<BudgetGroup[]> {
     .toArray();
 }
 
+/**
+ * Builds the `$match` stage shared by the single-month and multi-month actuals
+ * aggregations.
+ *
+ * Goal-funded transactions never count against expense aggregates. Transfer
+ * leaf categories are excluded from spending, but kept for the Savings group,
+ * because moving money into savings *is* the saving being measured.
+ */
+function buildActualsMatchStage(
+  dateMatch: Record<string, unknown>,
+  isIncome: boolean,
+  isSavings: boolean
+): Record<string, unknown> {
+  const filter = isIncome ? INCOME_TRANSACTIONS_FILTER : EXPENSE_TRANSACTIONS_FILTER;
+  const and: Record<string, unknown>[] = [dateMatch, filter[0]];
+
+  if (!isIncome) {
+    and.push(EXCLUDE_GOAL_TRANSACTIONS_MATCH);
+    if (!isSavings) {
+      and.push(EXCLUDE_TRANSFERS_MATCH);
+    }
+  }
+
+  return { $and: and };
+}
+
+/**
+ * Plaid reports money entering an account as a negative amount, so each mode
+ * needs a different sign convention:
+ *
+ * - income: absolute value, so inflows read as positive income;
+ * - savings: negate, so deposits add to savings and withdrawals draw it down
+ *   (previously `$abs` made withdrawals count as savings, inflating the
+ *   Savings envelope and the unallocated buffer);
+ * - spending: the raw amount, which is already positive for money going out.
+ */
+function buildActualsSumExpression(
+  isIncome: boolean,
+  isSavings: boolean
+): string | Record<string, unknown> {
+  if (isIncome) return { $abs: "$amount" };
+  if (isSavings) return { $multiply: ["$amount", -1] };
+  return "$amount";
+}
+
 export async function getCategoryActuals(
   db: Db,
   month: string,
   isIncome: boolean,
-  useAbsoluteValue = false,
-  includeTransfers = false
+  isSavings = false
 ): Promise<Map<string, { total: number; count: number }>> {
-  const filter = isIncome ? INCOME_TRANSACTIONS_FILTER : EXPENSE_TRANSACTIONS_FILTER;
-
-  const matchStage: Record<string, unknown> = {
-    $and: [
-      { date: { $regex: `^${month}` } },
-      filter[0],
-    ],
-  };
-
-  if (!isIncome) {
-    matchStage.$and = [...(matchStage.$and as Record<string, unknown>[]), EXCLUDE_GOAL_TRANSACTIONS_MATCH];
-  }
-
-  if (!isIncome && !includeTransfers) {
-    matchStage.$and = [...(matchStage.$and as Record<string, unknown>[]), EXCLUDE_TRANSFERS_MATCH];
-  }
+  const matchStage = buildActualsMatchStage(
+    { date: { $regex: `^${month}` } },
+    isIncome,
+    isSavings
+  );
 
   const results = await db
     .collection("transactions")
@@ -89,7 +122,7 @@ export async function getCategoryActuals(
         $group: {
           _id: LEAF_CATEGORY_EXPRESSION,
           total: {
-            $sum: isIncome || useAbsoluteValue ? { $abs: "$amount" } : "$amount",
+            $sum: buildActualsSumExpression(isIncome, isSavings),
           },
           count: { $sum: 1 },
         },
@@ -108,25 +141,14 @@ export async function getCategoryActualsByMonth(
   db: Db,
   months: string[],
   isIncome: boolean,
-  useAbsoluteValue = false,
-  includeTransfers = false
+  isSavings = false
 ): Promise<Map<string, Map<string, { total: number; count: number }>>> {
-  const filter = isIncome ? INCOME_TRANSACTIONS_FILTER : EXPENSE_TRANSACTIONS_FILTER;
   const monthRegex = `^(${months.join("|")})`;
-  const matchStage: Record<string, unknown> = {
-    $and: [
-      { date: { $regex: monthRegex } },
-      filter[0],
-    ],
-  };
-
-  if (!isIncome) {
-    matchStage.$and = [...(matchStage.$and as Record<string, unknown>[]), EXCLUDE_GOAL_TRANSACTIONS_MATCH];
-  }
-
-  if (!isIncome && !includeTransfers) {
-    matchStage.$and = [...(matchStage.$and as Record<string, unknown>[]), EXCLUDE_TRANSFERS_MATCH];
-  }
+  const matchStage = buildActualsMatchStage(
+    { date: { $regex: monthRegex } },
+    isIncome,
+    isSavings
+  );
 
   const results = await db
     .collection("transactions")
@@ -139,7 +161,7 @@ export async function getCategoryActualsByMonth(
             leaf: LEAF_CATEGORY_EXPRESSION,
           },
           total: {
-            $sum: isIncome || useAbsoluteValue ? { $abs: "$amount" } : "$amount",
+            $sum: buildActualsSumExpression(isIncome, isSavings),
           },
           count: { $sum: 1 },
         },

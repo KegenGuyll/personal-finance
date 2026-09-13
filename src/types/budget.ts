@@ -58,6 +58,8 @@ export interface Goal {
   updatedAt: Date;
   contributions?: GoalContribution[];
   allocatedThisMonth?: number;
+  spentAmount?: number;
+  spendCount?: number;
 }
 
 export interface BudgetCategorySummary {

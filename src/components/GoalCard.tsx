@@ -5,6 +5,7 @@ import { formatCurrency } from "@/src/utils/currency";
 import { useContributeToGoal } from "@/src/hooks/useContributeToGoal";
 import { useDeleteGoal } from "@/src/hooks/useDeleteGoal";
 import { useDeleteContribution } from "@/src/hooks/useDeleteContribution";
+import GoalTransactionsModal from "@/src/components/GoalTransactionsModal";
 import type { Goal } from "@/src/types/budget";
 
 interface GoalCardProps {
@@ -14,11 +15,14 @@ interface GoalCardProps {
 export default function GoalCard({ goal }: GoalCardProps) {
   const [showContribute, setShowContribute] = useState(false);
   const [contributeAmount, setContributeAmount] = useState("");
+  const [showTransactions, setShowTransactions] = useState(false);
   const contributeToGoal = useContributeToGoal();
   const deleteGoal = useDeleteGoal();
   const deleteContribution = useDeleteContribution();
 
   const isArchived = Boolean(goal.deletedAt);
+  const spent = goal.spentAmount ?? 0;
+  const available = goal.currentAmount - spent;
   const progressPercent = goal.targetAmount > 0
     ? Math.min((goal.currentAmount / goal.targetAmount) * 100, 100)
     : 0;
@@ -64,6 +68,14 @@ export default function GoalCard({ goal }: GoalCardProps) {
           <p className="text-xs text-space-indigo-400">
             {formatCurrency(goal.currentAmount)} of {formatCurrency(goal.targetAmount)}
           </p>
+          {spent > 0 && (
+            <p className="mt-0.5 text-[11px] text-space-indigo-400">
+              Spent {formatCurrency(spent)} · Available{" "}
+              <span className={available < 0 ? "font-semibold text-red-500" : ""}>
+                {formatCurrency(available)}
+              </span>
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-1">
           {isArchived ? (
@@ -181,6 +193,17 @@ export default function GoalCard({ goal }: GoalCardProps) {
         )
       )}
 
+      {/* Archived goals keep their goal-funded transactions, so their spending
+          must stay viewable/removable even though new assignments are blocked. */}
+      {(!isArchived || (goal.spendCount ?? 0) > 0) && (
+        <button
+          onClick={() => setShowTransactions(true)}
+          className="mt-2 w-full rounded-md border border-cornflower-blue-200 bg-cornflower-blue-50 px-3 py-1.5 text-xs font-medium text-cornflower-blue-700 transition-colors hover:bg-cornflower-blue-100"
+        >
+          View spending ({goal.spendCount ?? 0})
+        </button>
+      )}
+
       {contributions.length > 0 && (
         <div className="mt-3 border-t border-space-indigo-50 pt-2">
           <p className="mb-1 text-[10px] text-space-indigo-400">
@@ -213,6 +236,13 @@ export default function GoalCard({ goal }: GoalCardProps) {
               ))}
           </div>
         </div>
+      )}
+
+      {showTransactions && (
+        <GoalTransactionsModal
+          goal={goal}
+          onClose={() => setShowTransactions(false)}
+        />
       )}
     </div>
   );

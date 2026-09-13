@@ -1,4 +1,4 @@
-import { EXCLUDE_TRANSFERS_MATCH } from "./budget-pipeline";
+import { EXCLUDE_TRANSFERS_MATCH, EXCLUDE_GOAL_TRANSACTIONS_MATCH } from "./budget-pipeline";
 
 export function buildCategoryStatsPipeline(useAbsoluteValue: boolean) {
   return [
@@ -81,6 +81,7 @@ export function buildTransactionStatsMatch({
         { transaction_type: { $exists: false } },
       ],
     });
+    matchConditions.push(EXCLUDE_GOAL_TRANSACTIONS_MATCH);
     if (!category) {
       matchConditions.push(EXCLUDE_TRANSFERS_MATCH);
     }

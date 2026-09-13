@@ -41,7 +41,10 @@ export default function BudgetProgressBar({
   onMoveDown,
 }: BudgetProgressBarProps) {
   const effectiveLimit = limit + (carryover ?? 0);
-  const percent = effectiveLimit > 0 ? Math.min((spent / effectiveLimit) * 100, 100) : 0;
+  const percent =
+    effectiveLimit > 0
+      ? Math.max(0, Math.min((spent / effectiveLimit) * 100, 100))
+      : 0;
   const remaining = effectiveLimit - spent;
   const isOver = remaining < 0;
 

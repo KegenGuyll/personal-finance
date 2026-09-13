@@ -10,6 +10,7 @@ import { useRelatedTransactions } from "@/src/hooks/useRelatedTransactions";
 import TransactionItem from "@/src/components/TransactionItem";
 import SpendingTrend from "@/src/components/SpendingTrend";
 import CategoryEditor from "@/src/components/CategoryEditor";
+import GoalAssigner from "@/src/components/GoalAssigner";
 import LoadingSkeleton from "@/src/components/LoadingSkeleton";
 import BackButton from "@/src/components/BackButton";
 
@@ -155,6 +156,20 @@ export default function TransactionDetailView({
                     currentCategory={null}
                     transactionName={transaction.name}
                     initialAutoApply={!!data.categoryRule}
+                  />
+                </dd>
+              </div>
+            )}
+
+            {transaction.transaction_type !== "income" && (
+              <div className="col-span-2">
+                <dt className="text-xs font-medium text-space-indigo-400">
+                  Spend from goal
+                </dt>
+                <dd className="text-sm text-space-indigo-800">
+                  <GoalAssigner
+                    transactionId={transactionId}
+                    currentGoalId={transaction.goalId}
                   />
                 </dd>
               </div>

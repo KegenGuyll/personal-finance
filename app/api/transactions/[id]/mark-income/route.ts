@@ -21,6 +21,9 @@ export async function POST(
       );
     }
 
+    // A transaction cannot be both income and goal-funded spending, so any goal
+    // assignment is cleared here. Otherwise the goal aggregate would keep
+    // counting it as spending while income aggregates also include it.
     await db.collection("transactions").updateOne(
       { transaction_id: id },
       {
@@ -28,6 +31,7 @@ export async function POST(
           transaction_type: "income",
           income_category: "Income",
         },
+        $unset: { goalId: "" },
       }
     );
 

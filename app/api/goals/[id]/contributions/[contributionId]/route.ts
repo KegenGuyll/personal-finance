@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { connectToDatabase } from "@/src/lib/mongodb";
+import { goalIdInMatch } from "@/src/lib/goal-ids";
 import type { GoalContribution } from "@/src/types/budget";
 import { ObjectId } from "mongodb";
 
@@ -23,7 +24,7 @@ export async function DELETE(
       .collection("goal_contributions")
       .findOne({
         _id: new ObjectId(contributionId),
-        goalId: id,
+        goalId: goalIdInMatch([id]),
       })) as GoalContribution | null;
 
     if (!contribution) {

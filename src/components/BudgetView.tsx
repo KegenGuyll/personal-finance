@@ -501,7 +501,7 @@ function BudgetContent() {
                 <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-space-indigo-100">
                   <div
                     className="h-full rounded-full bg-ocean-deep-500 transition-all duration-300"
-                    style={{ width: `${Math.min(health.savingsRate, 100)}%` }}
+                    style={{ width: `${Math.max(0, Math.min(health.savingsRate, 100))}%` }}
                   />
                 </div>
               </div>

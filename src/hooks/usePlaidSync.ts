@@ -48,6 +48,14 @@ export function usePlaidSync(enabled: boolean) {
       queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
       queryClient.invalidateQueries({ queryKey: ["budget-health"] });
       queryClient.invalidateQueries({ queryKey: ["budget"] });
+      // A sync can change or remove a goal-funded transaction, which moves the
+      // derived goal spending totals and the goal's transaction list.
+      queryClient.invalidateQueries({ queryKey: ["goals"] });
+      queryClient.invalidateQueries({ queryKey: ["goal-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["budget-comparison"] });
+      queryClient.invalidateQueries({
+        queryKey: ["budget-carry-forward-preview"],
+      });
       queryClient.invalidateQueries({ queryKey: ["spending-trend"] });
       queryClient.invalidateQueries({ queryKey: ["all-category-stats"] });
       queryClient.invalidateQueries({ queryKey: ["category-name-stats"] });

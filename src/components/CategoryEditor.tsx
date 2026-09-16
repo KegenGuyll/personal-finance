@@ -28,7 +28,9 @@ export default function CategoryEditor({
 
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState(currentValue);
-  const [applyToAll, setApplyToAll] = useState(true);
+  // Off by default: applying a category to every same-named transaction is a
+  // bulk change, so it has to be asked for rather than opted out of.
+  const [applyToAll, setApplyToAll] = useState(false);
   const [autoApply, setAutoApply] = useState(initialAutoApply);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
@@ -40,6 +42,9 @@ export default function CategoryEditor({
   const handleOpen = () => {
     setInputValue(currentValue);
     setAutoApply(initialAutoApply);
+    // Reset per open (like autoApply) so a previous session's tick does not
+    // silently turn the next edit into a bulk update.
+    setApplyToAll(false);
     setIsOpen(true);
   };
 

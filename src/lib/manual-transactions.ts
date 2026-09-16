@@ -128,13 +128,16 @@ function parseAmount(value: unknown): ParseResult<number> {
   if (typeof amount !== "number" || !Number.isFinite(amount)) {
     return { ok: false, error: "Amount must be a number" };
   }
-  if (amount <= 0) {
-    return { ok: false, error: "Amount must be greater than zero" };
-  }
   if (amount > MAX_AMOUNT) {
     return { ok: false, error: `Amount must be at most ${MAX_AMOUNT}` };
   }
-  return { ok: true, value: Math.round(amount * 100) / 100 };
+  // Round before judging positivity: 0.001 would otherwise pass a `> 0` check and
+  // be stored as a zero-value transaction.
+  const rounded = Math.round(amount * 100) / 100;
+  if (rounded < 0.01) {
+    return { ok: false, error: "Amount must be at least 0.01" };
+  }
+  return { ok: true, value: rounded };
 }
 
 function parseDate(value: unknown): ParseResult<string> {

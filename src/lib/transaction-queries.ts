@@ -22,7 +22,14 @@ const TRANSACTION_QUERY_KEYS = [
   "budget",
   "budget-summary",
   "budget-health",
+  // Budget comparison and the carry-forward preview both read category actuals,
+  // and manual entries can be goal-funded spending, so the goal views move too.
+  // These are the same roots the existing goal mutations invalidate (see
+  // useAssignTransactionGoal).
+  "budget-comparison",
+  "budget-carry-forward-preview",
   "goals",
+  "goal-transactions",
   "income-status",
 ] as const;
 

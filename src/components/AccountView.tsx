@@ -299,6 +299,7 @@ export default function AccountView({
           mode="create"
           accounts={accounts}
           defaultAccountId={accountId}
+          fallbackAccount={account}
           onClose={() => setIsAddingManual(false)}
         />
       )}

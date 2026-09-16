@@ -11,7 +11,8 @@ import {
  *
  * A manual entry is deleted as soon as it is linked to a synced transaction
  * (see app/api/transactions/[id]/link-manual), so everything returned here is
- * still awaiting a match.
+ * still awaiting a match. `total` accompanies the page so callers can tell when
+ * the list was truncated rather than silently showing a subset.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -20,21 +21,24 @@ export async function GET(request: NextRequest) {
     const accountIds = (url.searchParams.get("accountIds") ?? "")
       .split(",")
       .filter(Boolean);
-    const limit = Math.min(Number(url.searchParams.get("limit")) || 100, 500);
+    const limit = Math.min(Number(url.searchParams.get("limit")) || 500, 500);
 
     const filter: Record<string, unknown> = { manual: true };
     if (accountIds.length > 0) {
       filter.account_id = { $in: accountIds };
     }
 
-    const transactions = await db
-      .collection("transactions")
-      .find(filter)
-      .sort({ date: -1, createdAt: -1 })
-      .limit(limit)
-      .toArray();
+    const [total, transactions] = await Promise.all([
+      db.collection("transactions").countDocuments(filter),
+      db
+        .collection("transactions")
+        .find(filter)
+        .sort({ date: -1, createdAt: -1 })
+        .limit(limit)
+        .toArray(),
+    ]);
 
-    return Response.json({ transactions });
+    return Response.json({ transactions, total });
   } catch (error) {
     console.error("Error fetching manual transactions:", error);
     return Response.json(

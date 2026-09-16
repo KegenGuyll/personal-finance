@@ -7,20 +7,32 @@ import { describeAge } from "@/src/lib/manual-transactions";
 /**
  * Nudges the user to match the temporary transactions they added before Plaid
  * synced them. Hidden entirely when there is nothing waiting.
+ *
+ * Deliberate deviation from the loading-skeleton convention in AGENTS.md: this
+ * banner is absence-triggered, so rendering a skeleton would flash a placeholder
+ * on every dashboard load for a nudge that usually has nothing to say. Nothing
+ * else depends on its height, so it renders nothing until it has something to
+ * report.
  */
 export default function ManualEntriesBanner() {
   const { data, isLoading } = useManualTransactions();
   const entries = data?.transactions ?? [];
+  const total = data?.total ?? entries.length;
 
-  if (isLoading || entries.length === 0) return null;
+  if (isLoading || total === 0) return null;
 
-  const oldest = entries.reduce<string | null>((earliest, entry) => {
-    if (!entry.createdAt) return earliest;
-    if (!earliest) return entry.createdAt;
-    return entry.createdAt < earliest ? entry.createdAt : earliest;
-  }, null);
+  // With more entries than the fetched page, the oldest is unknown, so the age
+  // hint is dropped rather than reported wrongly.
+  const truncated = total > entries.length;
+  const oldest = truncated
+    ? null
+    : entries.reduce<string | null>((earliest, entry) => {
+        if (!entry.createdAt) return earliest;
+        if (!earliest) return entry.createdAt;
+        return entry.createdAt < earliest ? entry.createdAt : earliest;
+      }, null);
 
-  const label = entries.length === 1 ? "1 manual entry" : `${entries.length} manual entries`;
+  const label = total === 1 ? "1 manual entry" : `${total} manual entries`;
 
   return (
     <Link

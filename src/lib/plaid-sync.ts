@@ -34,6 +34,8 @@ interface PendingCarryOver {
   manualEntryId?: string;
   manualEntry?: unknown;
   manualEntryMergedAt?: Date;
+  transaction_type?: string;
+  income_category?: string;
 }
 
 /**
@@ -95,6 +97,13 @@ export async function syncItemTransactions(
     // the fields the app owns across before that happens, keyed by
     // pending_transaction_id. Read before bulkWrite, which orders added ->
     // modified -> removed.
+    //
+    // Known race (documented, not yet fixed): this snapshot is read before the
+    // write below, so a link request that lands on a pending row in between is
+    // not seen here — the posted row is upserted from the stale snapshot and the
+    // pending row is then deleted, dropping that link. Closing it needs the
+    // pending row claimed atomically before the carry-over is decided; see the
+    // sync notes on PR #15.
     const pendingIds = added
       .map((t) => t.pending_transaction_id)
       .filter((id): id is string => Boolean(id));
@@ -114,6 +123,8 @@ export async function syncItemTransactions(
               manualEntryId: 1,
               manualEntry: 1,
               manualEntryMergedAt: 1,
+              transaction_type: 1,
+              income_category: 1,
             },
           }
         )
@@ -131,6 +142,14 @@ export async function syncItemTransactions(
             doc.manualEntryMergedAt instanceof Date
               ? doc.manualEntryMergedAt
               : undefined,
+          transaction_type:
+            typeof doc.transaction_type === "string"
+              ? doc.transaction_type
+              : undefined,
+          income_category:
+            typeof doc.income_category === "string"
+              ? doc.income_category
+              : undefined,
         });
       }
     }
@@ -141,8 +160,12 @@ export async function syncItemTransactions(
         ? carriedByPendingId.get(txn.pending_transaction_id)
         : undefined;
 
-      // A category set by hand outranks the rule and Plaid's category; one that
-      // merely came from a rule is re-applied by the rule lookup anyway.
+      // A category the pending row already carried wins over the rule lookup, so
+      // a rule edited while a charge was pending does not take effect on posting.
+      // That matches the rest of the app, where rules are only applied when a
+      // transaction is first seen rather than retroactively. Note `userModified`
+      // is set for rule-applied categories too, so this deliberately cannot tell
+      // a hand-picked category from a rule-derived one — see issue #16.
       const carriedCategory =
         carried?.userModified && carried.category ? carried.category : undefined;
 
@@ -159,6 +182,16 @@ export async function syncItemTransactions(
               category: carriedCategory ?? ruleCategory ?? txn.category,
               ...(carriedCategory || ruleCategory ? { userModified: true } : {}),
               ...(carried?.goalId ? { goalId: carried.goalId } : {}),
+              // Income classification is app-owned too: without this a manual
+              // income entry linked to a still-pending charge would post as an
+              // expense, and nothing re-classifies it (linking registers no
+              // income pattern).
+              ...(carried?.transaction_type
+                ? { transaction_type: carried.transaction_type }
+                : {}),
+              ...(carried?.income_category
+                ? { income_category: carried.income_category }
+                : {}),
               ...(carried?.manualEntryId
                 ? {
                     manualEntryId: carried.manualEntryId,

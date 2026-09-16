@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Transaction } from "@/src/features/plaid/plaidSlice";
 import { useAppSelector } from "@/src/lib/hooks";
+import { useAccount } from "@/src/hooks/useAccount";
 import { useDeleteManualTransaction } from "@/src/hooks/useDeleteManualTransaction";
 import ManualTransactionModal from "@/src/components/ManualTransactionModal";
 
@@ -19,6 +20,9 @@ export default function ManualEntryActions({
 }) {
   const router = useRouter();
   const accounts = useAppSelector((state) => state.plaid.accounts);
+  // Redux is empty on a deep link until AccountProvider resolves; this is the
+  // same query the detail page already runs, so it comes from cache.
+  const { data: accountData } = useAccount(transaction.account_id);
   const deleteManual = useDeleteManualTransaction();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -29,6 +33,17 @@ export default function ManualEntryActions({
       router.push(`/accounts/${transaction.account_id}`);
     } catch {
       // The mutation state carries the message shown below.
+    }
+  };
+
+  // The modal allows moving an entry to another account, which leaves this page
+  // pointing at the old one (header, related transactions and the Back link all
+  // read the account from the URL).
+  const handleSaved = (saved: Transaction) => {
+    if (saved.account_id !== transaction.account_id) {
+      router.replace(
+        `/accounts/${saved.account_id}/transactions/${saved.transaction_id}`
+      );
     }
   };
 
@@ -67,7 +82,9 @@ export default function ManualEntryActions({
           mode="edit"
           transaction={transaction}
           accounts={accounts}
+          fallbackAccount={accountData?.account ?? null}
           onClose={() => setIsEditing(false)}
+          onSaved={handleSaved}
         />
       )}
     </div>

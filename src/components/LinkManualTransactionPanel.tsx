@@ -44,6 +44,7 @@ export default function LinkManualTransactionPanel({
   const linkManual = useLinkManualTransaction();
 
   const entries = data?.transactions ?? [];
+  const total = data?.total ?? entries.length;
   const ranked = rankManualEntriesForTransaction(transaction, entries);
   const selected = ranked.find(
     (candidate) => candidate.entry.transaction_id === selectedId
@@ -129,6 +130,13 @@ export default function LinkManualTransactionPanel({
                   No manual transactions to link. Add one from an account page or
                   from the All Transactions page when a purchase has not synced
                   yet.
+                </p>
+              )}
+
+              {!isLoading && total > entries.length && (
+                <p className="mb-2 text-xs text-space-indigo-400">
+                  Showing the newest {entries.length} of {total} manual
+                  transactions.
                 </p>
               )}
 

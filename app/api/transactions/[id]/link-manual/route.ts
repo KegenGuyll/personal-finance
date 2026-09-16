@@ -48,8 +48,15 @@ function toLinkTarget(doc: Record<string, unknown>): LinkTarget {
  *   4. restore the claimed manual entry if step 3 lost the race.
  *
  * We deliberately avoid a multi-document transaction: the app cannot assume the
- * configured MongoDB deployment is a replica set. Every failure path above
- * leaves the manual entry either fully linked or fully intact.
+ * configured MongoDB deployment is a replica set.
+ *
+ * Known limitation: steps 2 and 3 are two separate writes, so a process that
+ * dies between them — or a merge call that throws after the claim succeeded —
+ * loses that manual entry. Nothing is double counted (the entry is gone and the
+ * synced row is untouched, so only Plaid's own data remains) and the purchase
+ * can be re-categorized directly on the synced row. Closing this needs either a
+ * replica set or a recoverable claim; it is documented rather than fixed on
+ * purpose — see the notes on PR #15.
  */
 export async function POST(
   request: NextRequest,
@@ -79,6 +86,25 @@ export async function POST(
       .findOne({ transaction_id: manualTransactionId });
 
     if (!manual) {
+      // The entry is gone, which usually means it was already linked here. Say
+      // so rather than reporting a bare 404 for what the user just did twice.
+      const alreadyLinked = await db
+        .collection("transactions")
+        .findOne(
+          { transaction_id: id, manualEntryId: manualTransactionId },
+          { projection: { _id: 1 } }
+        );
+
+      if (alreadyLinked) {
+        return Response.json(
+          {
+            error:
+              "This manual transaction is already linked to this transaction",
+          },
+          { status: 409 }
+        );
+      }
+
       return Response.json(
         { error: "Manual transaction not found" },
         { status: 404 }

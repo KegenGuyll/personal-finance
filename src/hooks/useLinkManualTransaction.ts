@@ -48,5 +48,12 @@ export function useLinkManualTransaction() {
     onSuccess: () => {
       invalidateTransactionQueries(queryClient);
     },
+    // A failed link can still have changed the data underneath us (the entry may
+    // have been consumed by another request, or the merge may have landed before
+    // the error surfaced), so refresh rather than leaving a picker that offers
+    // an entry which no longer exists.
+    onError: () => {
+      invalidateTransactionQueries(queryClient);
+    },
   });
 }

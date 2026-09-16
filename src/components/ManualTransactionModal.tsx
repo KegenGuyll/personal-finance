@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { Account, Transaction } from "@/src/features/plaid/plaidSlice";
 import { useCategories } from "@/src/hooks/useCategories";
 import { useCreateManualTransaction } from "@/src/hooks/useCreateManualTransaction";
@@ -19,6 +19,12 @@ interface ManualTransactionModalProps {
   transaction?: Transaction;
   accounts: Account[];
   defaultAccountId?: string;
+  /**
+   * The account already fetched by the page that opened this modal. Redux only
+   * holds the account list once AccountProvider has resolved, so a deep link
+   * would otherwise open the modal with nothing to choose from.
+   */
+  fallbackAccount?: Account | null;
   onClose: () => void;
   onSaved?: (transaction: Transaction) => void;
 }
@@ -38,6 +44,7 @@ export default function ManualTransactionModal({
   transaction,
   accounts,
   defaultAccountId,
+  fallbackAccount,
   onClose,
   onSaved,
 }: ManualTransactionModalProps) {
@@ -47,8 +54,22 @@ export default function ManualTransactionModal({
   const createManual = useCreateManualTransaction();
   const updateManual = useUpdateManualTransaction();
 
+  // The fallback keeps a deep-linked page usable before AccountProvider resolves.
+  const accountOptions = useMemo(() => {
+    if (!fallbackAccount) return accounts;
+    if (accounts.some((a) => a.account_id === fallbackAccount.account_id)) {
+      return accounts;
+    }
+    return [fallbackAccount, ...accounts];
+  }, [accounts, fallbackAccount]);
+
   const [accountId, setAccountId] = useState(
-    () => transaction?.account_id ?? defaultAccountId ?? accounts[0]?.account_id ?? ""
+    () =>
+      transaction?.account_id ??
+      defaultAccountId ??
+      fallbackAccount?.account_id ??
+      accounts[0]?.account_id ??
+      ""
   );
   const [type, setType] = useState<ManualTransactionType>(() =>
     transaction && (transaction.transaction_type === "income" || transaction.amount < 0)
@@ -68,9 +89,18 @@ export default function ManualTransactionModal({
   const mutationError = createManual.error ?? updateManual.error;
   const isSaving = createManual.isPending || updateManual.isPending;
   const parsedAmount = Number(amount);
+
+  // Falls back when the stored id is empty because the account list had not
+  // loaded yet when this modal mounted.
+  const effectiveAccountId =
+    accountId || defaultAccountId || fallbackAccount?.account_id || accountOptions[0]?.account_id || "";
+  const selectedAccount = accountOptions.find(
+    (account) => account.account_id === effectiveAccountId
+  );
+
   const canSave =
     !isSaving &&
-    accountId.length > 0 &&
+    effectiveAccountId.length > 0 &&
     name.trim().length > 0 &&
     Number.isFinite(parsedAmount) &&
     parsedAmount > 0;
@@ -92,7 +122,7 @@ export default function ManualTransactionModal({
           ? await updateManual.mutateAsync({
               transactionId: transaction.transaction_id,
               patch: {
-                accountId,
+                accountId: effectiveAccountId,
                 name: name.trim(),
                 amount: parsedAmount,
                 type,
@@ -101,13 +131,15 @@ export default function ManualTransactionModal({
               },
             })
           : await createManual.mutateAsync({
-              accountId,
+              accountId: effectiveAccountId,
               name: name.trim(),
               amount: parsedAmount,
               type,
               date,
               category: parsedCategory.value,
-              isoCurrencyCode: "",
+              // Match the account's currency instead of always assuming USD; an
+              // empty code falls back to the API's default.
+              isoCurrencyCode: selectedAccount?.balances?.iso_currency_code ?? "",
             });
 
       onSaved?.(saved.transaction);
@@ -129,7 +161,7 @@ export default function ManualTransactionModal({
             : "Track a purchase before Plaid syncs it. It counts in your budgets right away, and you link it to the real transaction later."}
         </p>
 
-        {accounts.length === 0 ? (
+        {accountOptions.length === 0 ? (
           <div className="mt-4">
             <p className="text-sm text-space-indigo-600">
               Link an account before adding manual transactions.
@@ -205,11 +237,11 @@ export default function ManualTransactionModal({
               Account
             </label>
             <select
-              value={accountId}
+              value={effectiveAccountId}
               onChange={(e) => setAccountId(e.target.value)}
               className="mt-1 w-full rounded-lg border border-space-indigo-200 bg-white px-3 py-2 text-sm text-space-indigo-800 outline-none focus:border-space-indigo-400"
             >
-              {accounts.map((account) => (
+              {accountOptions.map((account) => (
                 <option key={account.account_id} value={account.account_id}>
                   {accountLabel(account)}
                 </option>

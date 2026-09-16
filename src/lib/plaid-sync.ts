@@ -24,6 +24,19 @@ export interface SyncProgress {
 }
 
 /**
+ * Fields the app owns that must survive Plaid replacing a pending transaction
+ * with the posted one that carries a new transaction_id.
+ */
+interface PendingCarryOver {
+  category?: string[];
+  userModified?: boolean;
+  goalId?: unknown;
+  manualEntryId?: string;
+  manualEntry?: unknown;
+  manualEntryMergedAt?: Date;
+}
+
+/**
  * Incrementally syncs a single Plaid item's transactions into MongoDB.
  *
  * Rate-limited by SYNC_TTL_MS: if the item was synced recently it is skipped
@@ -78,36 +91,60 @@ export async function syncItemTransactions(
     );
 
     // Plaid replaces a pending transaction with a posted one carrying a new
-    // transaction_id, and the removed loop below deletes the pending row. Copy
-    // any goal assignment across before that happens, keyed by
+    // transaction_id, and the `removed` loop below deletes the pending row. Copy
+    // the fields the app owns across before that happens, keyed by
     // pending_transaction_id. Read before bulkWrite, which orders added ->
     // modified -> removed.
     const pendingIds = added
       .map((t) => t.pending_transaction_id)
       .filter((id): id is string => Boolean(id));
 
-    const pendingGoalIds = new Map<string, string>();
+    const carriedByPendingId = new Map<string, PendingCarryOver>();
     if (pendingIds.length > 0) {
       const pendingDocs = await db
         .collection("transactions")
         .find(
           { transaction_id: { $in: pendingIds } },
-          { projection: { transaction_id: 1, goalId: 1 } }
+          {
+            projection: {
+              transaction_id: 1,
+              category: 1,
+              userModified: 1,
+              goalId: 1,
+              manualEntryId: 1,
+              manualEntry: 1,
+              manualEntryMergedAt: 1,
+            },
+          }
         )
         .toArray();
 
       for (const doc of pendingDocs) {
-        if (doc.goalId) {
-          pendingGoalIds.set(doc.transaction_id as string, doc.goalId as string);
-        }
+        carriedByPendingId.set(String(doc.transaction_id), {
+          category: Array.isArray(doc.category) ? (doc.category as string[]) : undefined,
+          userModified: doc.userModified === true,
+          goalId: doc.goalId,
+          manualEntryId:
+            typeof doc.manualEntryId === "string" ? doc.manualEntryId : undefined,
+          manualEntry: doc.manualEntry,
+          manualEntryMergedAt:
+            doc.manualEntryMergedAt instanceof Date
+              ? doc.manualEntryMergedAt
+              : undefined,
+        });
       }
     }
 
     for (const txn of added) {
       const ruleCategory = ruleByKey.get(`${txn.account_id}::${txn.name}`);
-      const carriedGoalId = txn.pending_transaction_id
-        ? pendingGoalIds.get(txn.pending_transaction_id)
+      const carried = txn.pending_transaction_id
+        ? carriedByPendingId.get(txn.pending_transaction_id)
         : undefined;
+
+      // A category set by hand outranks the rule and Plaid's category; one that
+      // merely came from a rule is re-applied by the rule lookup anyway.
+      const carriedCategory =
+        carried?.userModified && carried.category ? carried.category : undefined;
 
       bulkOps.push({
         updateOne: {
@@ -119,9 +156,20 @@ export async function syncItemTransactions(
               date: txn.date,
               name: txn.name,
               merchant_name: txn.merchant_name,
-              category: ruleCategory ?? txn.category,
-              ...(ruleCategory ? { userModified: true } : {}),
-              ...(carriedGoalId ? { goalId: carriedGoalId } : {}),
+              category: carriedCategory ?? ruleCategory ?? txn.category,
+              ...(carriedCategory || ruleCategory ? { userModified: true } : {}),
+              ...(carried?.goalId ? { goalId: carried.goalId } : {}),
+              ...(carried?.manualEntryId
+                ? {
+                    manualEntryId: carried.manualEntryId,
+                    ...(carried.manualEntry
+                      ? { manualEntry: carried.manualEntry }
+                      : {}),
+                    ...(carried.manualEntryMergedAt
+                      ? { manualEntryMergedAt: carried.manualEntryMergedAt }
+                      : {}),
+                  }
+                : {}),
               pending: txn.pending,
               payment_channel: txn.payment_channel,
               iso_currency_code: txn.iso_currency_code,

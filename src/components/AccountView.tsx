@@ -1,6 +1,6 @@
 "use client";
 
-import { use, Suspense } from "react";
+import { use, Suspense, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAppSelector } from "@/src/lib/hooks";
@@ -17,6 +17,7 @@ import SpendingTrend from "@/src/components/SpendingTrend";
 import ChartCarousel from "@/src/components/ChartCarousel";
 import SearchInput from "@/src/components/SearchInput";
 import DateRangeFilter, { getStartDate } from "@/src/components/DateRangeFilter";
+import ManualTransactionModal from "@/src/components/ManualTransactionModal";
 import BackButton from "@/src/components/BackButton";
 
 function AccountTransactionList({
@@ -189,9 +190,11 @@ export default function AccountView({
   params: Promise<{ accountId: string }>;
 }) {
   const { accountId } = use(params);
+  const accounts = useAppSelector((state) => state.plaid.accounts);
   const reduxAccount = useAppSelector((state) =>
     state.plaid.accounts.find((a) => a.account_id === accountId)
   );
+  const [isAddingManual, setIsAddingManual] = useState(false);
 
   const { data: accountData, isLoading: isAccountLoading } =
     useAccount(accountId);
@@ -237,9 +240,17 @@ export default function AccountView({
       </div>
 
       <div>
-        <h1 className="text-xl font-bold text-space-indigo-800">
-          {displayName}
-        </h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="text-xl font-bold text-space-indigo-800">
+            {displayName}
+          </h1>
+          <button
+            onClick={() => setIsAddingManual(true)}
+            className="shrink-0 rounded-lg bg-space-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-space-indigo-700"
+          >
+            Add transaction
+          </button>
+        </div>
         <p className="text-sm text-space-indigo-400">
           {account.mask && <>···{account.mask} · </>}
           {account.subtype}
@@ -282,6 +293,15 @@ export default function AccountView({
       <Suspense fallback={null}>
         <AccountTransactionList accountId={accountId} />
       </Suspense>
+
+      {isAddingManual && (
+        <ManualTransactionModal
+          mode="create"
+          accounts={accounts}
+          defaultAccountId={accountId}
+          onClose={() => setIsAddingManual(false)}
+        />
+      )}
     </main>
   );
 }

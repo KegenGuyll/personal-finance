@@ -1,4 +1,5 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import type { ManualEntrySnapshot } from "@/src/lib/manual-transactions";
 
 export interface Transaction {
   transaction_id: string;
@@ -17,6 +18,14 @@ export interface Transaction {
   transaction_type?: "expense" | "income" | "transfer";
   income_category?: string;
   goalId?: string;
+  /** Set on manual entries — transactions typed in before Plaid synced them. */
+  manual?: boolean;
+  /** When a manual entry was created (manual entries only). */
+  createdAt?: string;
+  /** Set on a synced transaction that a manual entry was linked into. */
+  manualEntryId?: string;
+  manualEntry?: ManualEntrySnapshot;
+  manualEntryMergedAt?: string;
 }
 
 export interface AccountBalance {

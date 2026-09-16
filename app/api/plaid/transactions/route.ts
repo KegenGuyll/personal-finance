@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
     const startDate = url.searchParams.get("startDate") ?? "";
     const endDate = url.searchParams.get("endDate") ?? "";
     const transactionType = url.searchParams.get("transactionType") ?? "";
+    const manual = url.searchParams.get("manual") ?? "";
     const limit = Math.min(Number(url.searchParams.get("limit")) || 50, 500);
     const offset = Number(url.searchParams.get("offset")) || 0;
 
@@ -71,6 +72,13 @@ export async function GET(request: NextRequest) {
           { transaction_type: { $exists: false } },
         ],
       });
+    }
+
+    // Opt-in filter for manually entered transactions. It composes with every
+    // other filter above instead of replacing them; without it the list keeps
+    // showing manual entries alongside synced ones.
+    if (manual === "1" || manual === "true") {
+      conditions.push({ manual: true });
     }
 
     if (conditions.length > 0) {

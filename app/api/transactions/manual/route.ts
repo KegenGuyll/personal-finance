@@ -1,8 +1,10 @@
 import { NextRequest } from "next/server";
 import { connectToDatabase } from "@/src/lib/mongodb";
+import { validateGoalAssignment } from "@/src/lib/goal-assignment";
 import {
   buildManualTransactionDoc,
   parseManualTransactionInput,
+  toSignedAmount,
 } from "@/src/lib/manual-transactions";
 
 /**
@@ -73,6 +75,22 @@ export async function POST(request: NextRequest) {
 
     if (!accountItem) {
       return Response.json({ error: "Unknown account" }, { status: 400 });
+    }
+
+    // A goal can be chosen up front, using the same rules as the goal route.
+    if (parsed.value.goalId) {
+      const assignment = await validateGoalAssignment(db, parsed.value.goalId, {
+        amount: toSignedAmount(parsed.value.amount, parsed.value.type),
+        transactionType:
+          parsed.value.type === "income" ? "income" : undefined,
+      });
+
+      if (!assignment.ok) {
+        return Response.json(
+          { error: assignment.error },
+          { status: assignment.status }
+        );
+      }
     }
 
     const doc = buildManualTransactionDoc(parsed.value);

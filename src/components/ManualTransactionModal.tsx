@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import type { Account, Transaction } from "@/src/features/plaid/plaidSlice";
 import { useCategories } from "@/src/hooks/useCategories";
+import { useGoals } from "@/src/hooks/useGoals";
+import GoalSelect from "@/src/components/GoalSelect";
 import { useCreateManualTransaction } from "@/src/hooks/useCreateManualTransaction";
 import { useUpdateManualTransaction } from "@/src/hooks/useUpdateManualTransaction";
 import {
@@ -51,8 +53,11 @@ export default function ManualTransactionModal({
   const isEdit = mode === "edit" && !!transaction;
 
   const { data: categoryData } = useCategories();
+  const { data: goalsData } = useGoals();
   const createManual = useCreateManualTransaction();
   const updateManual = useUpdateManualTransaction();
+
+  const goals = useMemo(() => goalsData?.goals ?? [], [goalsData]);
 
   // The fallback keeps a deep-linked page usable before AccountProvider resolves.
   const accountOptions = useMemo(() => {
@@ -84,6 +89,7 @@ export default function ManualTransactionModal({
   const [category, setCategory] = useState(
     () => transaction?.category?.join(" > ") ?? ""
   );
+  const [goalId, setGoalId] = useState(() => transaction?.goalId ?? "");
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const mutationError = createManual.error ?? updateManual.error;
@@ -128,6 +134,8 @@ export default function ManualTransactionModal({
                 type,
                 date,
                 category: parsedCategory.value,
+                // "" clears the assignment.
+                goalId: goalId || null,
               },
             })
           : await createManual.mutateAsync({
@@ -140,6 +148,7 @@ export default function ManualTransactionModal({
               // Match the account's currency instead of always assuming USD; an
               // empty code falls back to the API's default.
               isoCurrencyCode: selectedAccount?.balances?.iso_currency_code ?? "",
+              goalId: goalId || null,
             });
 
       onSaved?.(saved.transaction);
@@ -186,7 +195,12 @@ export default function ManualTransactionModal({
               ).map((option) => (
                 <button
                   key={option.value}
-                  onClick={() => setType(option.value)}
+                  onClick={() => {
+                    setType(option.value);
+                    // Income cannot be goal-funded, so a chosen goal is dropped
+                    // rather than silently kept and rejected on save.
+                    if (option.value === "income") setGoalId("");
+                  }}
                   className={`flex-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
                     type === option.value
                       ? option.value === "income"
@@ -268,6 +282,36 @@ export default function ManualTransactionModal({
               Use &ldquo;Parent &gt; Child&rdquo; to nest a category. Leave it
               empty to keep the purchase uncategorized for now.
             </p>
+
+            {type === "expense" && (
+              <>
+                <label className="mt-3 block text-xs font-medium text-space-indigo-600">
+                  Spend from goal (optional)
+                </label>
+                {goals.length === 0 && !goalId ? (
+                  <p className="mt-1 text-xs text-space-indigo-400">
+                    No goals yet.
+                  </p>
+                ) : (
+                  <>
+                    <div className="mt-1">
+                      <GoalSelect
+                        aria-label="Spend from goal"
+                        goals={goals}
+                        value={goalId}
+                        onChange={setGoalId}
+                        emptyOptionLabel="No goal"
+                      />
+                    </div>
+                    <p className="mt-1 text-[10px] text-space-indigo-400">
+                      Drops out of your category spending and draws down the goal
+                      instead. Linking carries the assignment onto the synced
+                      transaction.
+                    </p>
+                  </>
+                )}
+              </>
+            )}
 
             {errorMessage && (
               <p className="mt-3 rounded-md border border-soft-periwinkle-200 bg-soft-periwinkle-50 px-3 py-2 text-xs text-soft-periwinkle-800">

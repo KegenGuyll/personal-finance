@@ -1,8 +1,10 @@
 import { NextRequest } from "next/server";
 import { connectToDatabase } from "@/src/lib/mongodb";
+import { validateGoalAssignment } from "@/src/lib/goal-assignment";
 import {
   buildManualTransactionUpdate,
   parseManualTransactionPatch,
+  toSignedAmount,
 } from "@/src/lib/manual-transactions";
 
 /**
@@ -58,9 +60,39 @@ export async function PATCH(
       }
     }
 
+    // Optional goal assignment, using the same rules as the goal route — but
+    // only when it actually changes, so an entry whose goal was archived in the
+    // meantime stays editable instead of failing on an untouched field.
+    const existingAmount = typeof existing.amount === "number" ? existing.amount : 0;
+    if (
+      parsed.value.goalId !== undefined &&
+      parsed.value.goalId &&
+      parsed.value.goalId !== existing.goalId
+    ) {
+      const nextType =
+        parsed.value.type ??
+        (existing.transaction_type === "income" ? "income" : "expense");
+      const nextAmount =
+        parsed.value.amount !== undefined
+          ? toSignedAmount(parsed.value.amount, nextType)
+          : existingAmount;
+
+      const assignment = await validateGoalAssignment(db, parsed.value.goalId, {
+        amount: nextAmount,
+        transactionType: nextType === "income" ? "income" : undefined,
+      });
+
+      if (!assignment.ok) {
+        return Response.json(
+          { error: assignment.error },
+          { status: assignment.status }
+        );
+      }
+    }
+
     const { set, unset } = buildManualTransactionUpdate(
       {
-        amount: typeof existing.amount === "number" ? existing.amount : 0,
+        amount: existingAmount,
         transaction_type: existing.transaction_type,
       },
       parsed.value

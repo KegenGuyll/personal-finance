@@ -41,6 +41,11 @@ export interface ManualTransactionInput {
   date: string;
   category: string[] | null;
   isoCurrencyCode: string;
+  /**
+   * Optional "spend from goal" assignment, validated by the route against the
+   * same rules the goal route uses. `null` means no goal.
+   */
+  goalId: string | null;
 }
 
 export type ManualTransactionPatch = Partial<ManualTransactionInput>;
@@ -176,6 +181,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/**
+ * Structural check for a goal assignment. `null`, `""` and absent all mean "no
+ * goal"; whether the goal exists is the route's business.
+ */
+function parseGoalId(value: unknown): ParseResult<string | null> {
+  if (value === undefined || value === null || value === "") {
+    return { ok: true, value: null };
+  }
+  if (typeof value !== "string") {
+    return { ok: false, error: "Goal id must be text" };
+  }
+  return { ok: true, value: value.trim() };
+}
+
 export function parseManualTransactionInput(
   body: unknown
 ): ParseResult<ManualTransactionInput> {
@@ -203,6 +222,11 @@ export function parseManualTransactionInput(
   const currency = parseCurrency(body.isoCurrencyCode);
   if (!currency.ok) return currency;
 
+  // Presence and existence of the goal are checked by the route, which has the
+  // database handle; here it only has to be text or absent.
+  const goalId = parseGoalId(body.goalId);
+  if (!goalId.ok) return goalId;
+
   return {
     ok: true,
     value: {
@@ -213,6 +237,7 @@ export function parseManualTransactionInput(
       date: date.value,
       category: category.value,
       isoCurrencyCode: currency.value,
+      goalId: goalId.value,
     },
   };
 }
@@ -279,6 +304,13 @@ export function parseManualTransactionPatch(
     hasField = true;
   }
 
+  if ("goalId" in body) {
+    const goalId = parseGoalId(body.goalId);
+    if (!goalId.ok) return goalId;
+    patch.goalId = goalId.value;
+    hasField = true;
+  }
+
   if (!hasField) return { ok: false, error: "No fields to update" };
   return { ok: true, value: patch };
 }
@@ -323,6 +355,8 @@ export interface ManualTransactionDoc {
   pending_transaction_id: null;
   transaction_type?: "income";
   income_category?: string;
+  /** "Spend from goal" assignment, when the entry was given one up front. */
+  goalId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -355,6 +389,11 @@ export function buildManualTransactionDoc(
   if (input.type === "income") {
     doc.transaction_type = "income";
     doc.income_category = "Income";
+  }
+
+  // Validated against the shared goal rules by the route before we get here.
+  if (input.goalId) {
+    doc.goalId = input.goalId;
   }
 
   return doc;
@@ -396,9 +435,21 @@ export function buildManualTransactionUpdate(
     set.amount = toSignedAmount(magnitude, patch.type ?? existingType);
   }
 
+  // An empty string clears the assignment. Skipped for income below, which must
+  // never carry a goal — setting and unsetting the same path would make Mongo
+  // reject the update.
+  if (patch.goalId !== undefined && patch.type !== "income") {
+    if (patch.goalId) {
+      set.goalId = patch.goalId;
+    } else {
+      unset.goalId = "";
+    }
+  }
+
   if (patch.type === "income") {
     set.transaction_type = "income";
     set.income_category = "Income";
+    delete set.goalId;
     unset.goalId = "";
   } else if (patch.type === "expense") {
     unset.transaction_type = "";

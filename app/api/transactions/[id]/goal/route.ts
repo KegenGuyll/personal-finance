@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { connectToDatabase } from "@/src/lib/mongodb";
-import { ObjectId } from "mongodb";
+import { validateGoalAssignment } from "@/src/lib/goal-assignment";
 
 // Marks a transaction as "spent from a goal". The transaction keeps its Plaid
 // category but is excluded from all budget/category aggregates (see
@@ -22,20 +22,6 @@ export async function POST(
     const { db } = await connectToDatabase();
     const body: { goalId: string } = await request.json();
 
-    if (!body.goalId) {
-      return Response.json(
-        { error: "goalId is required" },
-        { status: 400 }
-      );
-    }
-
-    if (!ObjectId.isValid(body.goalId)) {
-      return Response.json(
-        { error: "Invalid goalId" },
-        { status: 400 }
-      );
-    }
-
     const transaction = await db
       .collection("transactions")
       .findOne({ transaction_id: id });
@@ -47,42 +33,25 @@ export async function POST(
       );
     }
 
-    if (transaction.transaction_type === "income") {
-      return Response.json(
-        { error: "Income transactions cannot be spent from a goal" },
-        { status: 400 }
-      );
-    }
-
-    // Plaid reports money out as a positive amount, and imported inflows or
-    // refunds often carry no transaction_type at all. Reject them by sign: the
-    // goals aggregation sums $abs(amount), so an incoming refund would
-    // otherwise be counted as spending.
-    if (transaction.amount <= 0) {
-      return Response.json(
-        { error: "Only outgoing transactions can be spent from a goal" },
-        { status: 400 }
-      );
-    }
-
-    const goal = await db.collection("goals").findOne({
-      _id: new ObjectId(body.goalId),
-      deletedAt: { $exists: false },
+    // Shared with the manual-transaction routes so the rules cannot drift.
+    const assignment = await validateGoalAssignment(db, body.goalId, {
+      amount: typeof transaction.amount === "number" ? transaction.amount : 0,
+      transactionType: transaction.transaction_type,
     });
 
-    if (!goal) {
+    if (!assignment.ok) {
       return Response.json(
-        { error: "Goal not found" },
-        { status: 404 }
+        { error: assignment.error },
+        { status: assignment.status }
       );
     }
 
     await db.collection("transactions").updateOne(
       { transaction_id: id },
-      { $set: { goalId: body.goalId } }
+      { $set: { goalId: assignment.goalId } }
     );
 
-    return Response.json({ success: true, goalId: body.goalId });
+    return Response.json({ success: true, goalId: assignment.goalId });
   } catch (error) {
     console.error("Error assigning transaction to goal:", error);
     return Response.json(

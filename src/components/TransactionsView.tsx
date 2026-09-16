@@ -16,6 +16,8 @@ import ChartCarousel from "@/src/components/ChartCarousel";
 import SearchInput from "@/src/components/SearchInput";
 import DateRangeFilter, { getStartDate } from "@/src/components/DateRangeFilter";
 import BulkMarkIncomeModal from "@/src/components/BulkMarkIncomeModal";
+import ManualTransactionFilterToggle from "@/src/components/ManualTransactionFilterToggle";
+import ManualTransactionModal from "@/src/components/ManualTransactionModal";
 import BackButton from "@/src/components/BackButton";
 
 const TYPE_OPTIONS = [
@@ -120,6 +122,7 @@ function AllTransactionList({
   const startDate = dateFilter || urlStartDate || getStartDate(range);
   const endDate = dateFilter || urlEndDate || null;
   const markIncome = searchParams.get("markIncome") === "true";
+  const manualOnly = searchParams.get("manual") === "1";
 
   const {
     data,
@@ -128,7 +131,15 @@ function AllTransactionList({
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useAllTransactions(accountIds, query, category, startDate, endDate, urlTransactionType || null);
+  } = useAllTransactions(
+    accountIds,
+    query,
+    category,
+    startDate,
+    endDate,
+    urlTransactionType || null,
+    manualOnly
+  );
 
   const transactions = data?.pages.flatMap((p) => p.transactions) ?? [];
 
@@ -141,9 +152,11 @@ function AllTransactionList({
       isFetchingNextPage={isFetchingNextPage}
       onLoadMore={() => fetchNextPage()}
       emptyMessage={
-        query || category
-          ? "No transactions match your filters."
-          : "No transactions found."
+        manualOnly
+          ? "No manual transactions yet."
+          : query || category
+            ? "No transactions match your filters."
+            : "No transactions found."
       }
       showIncomeButtons={markIncome}
       onMarkIncomeStart={onMarkIncomeStart}
@@ -349,7 +362,10 @@ function AllTransactionsContent() {
       )}
 
       <AccountTypeTabs />
-      <TransactionTypeTabs />
+      <div className="flex flex-wrap items-center gap-2">
+        <TransactionTypeTabs />
+        <ManualTransactionFilterToggle />
+      </div>
       <SearchInput />
       <DateRangeFilter />
 
@@ -392,18 +408,37 @@ function AllTransactionsContent() {
 }
 
 export default function TransactionsView() {
+  const accounts = useAppSelector((state) => state.plaid.accounts);
+  const [isAddingManual, setIsAddingManual] = useState(false);
+
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 py-6 sm:px-6 sm:py-8">
       <div>
         <BackButton fallbackHref="/" label="Back" />
-        <h1 className="mt-2 text-xl font-bold text-space-indigo-800">
-          All Transactions
-        </h1>
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <h1 className="text-xl font-bold text-space-indigo-800">
+            All Transactions
+          </h1>
+          <button
+            onClick={() => setIsAddingManual(true)}
+            className="shrink-0 rounded-lg bg-space-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-space-indigo-700"
+          >
+            Add transaction
+          </button>
+        </div>
       </div>
 
       <Suspense fallback={null}>
         <AllTransactionsContent />
       </Suspense>
+
+      {isAddingManual && (
+        <ManualTransactionModal
+          mode="create"
+          accounts={accounts}
+          onClose={() => setIsAddingManual(false)}
+        />
+      )}
     </main>
   );
 }

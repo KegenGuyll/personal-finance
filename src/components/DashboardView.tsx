@@ -6,6 +6,7 @@ import PlaidLinkButton from "@/src/components/PlaidLinkButton";
 import AccountCard from "@/src/components/AccountCard";
 import LoadingSkeleton from "@/src/components/LoadingSkeleton";
 import SyncIndicator from "@/src/components/SyncIndicator";
+import ManualEntriesBanner from "@/src/components/ManualEntriesBanner";
 import { useAppDispatch, useAppSelector } from "@/src/lib/hooks";
 import { setAccounts, setLinked } from "@/src/features/plaid/plaidSlice";
 import type { Account } from "@/src/features/plaid/plaidSlice";
@@ -81,6 +82,8 @@ export default function DashboardView() {
       )}
 
       <PlaidLinkButton />
+
+      <ManualEntriesBanner />
 
       {isAccountsLoading && (
         <div className="w-full max-w-4xl">

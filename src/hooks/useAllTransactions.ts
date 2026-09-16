@@ -13,7 +13,8 @@ export function useAllTransactions(
   category: string,
   startDate: string | null,
   endDate: string | null = null,
-  transactionType: string | null = null
+  transactionType: string | null = null,
+  manualOnly: boolean = false
 ) {
   return useInfiniteQuery({
     queryKey: [
@@ -24,6 +25,7 @@ export function useAllTransactions(
       startDate,
       endDate,
       transactionType,
+      manualOnly,
     ],
     queryFn: async ({ pageParam = 0 }) => {
       const params = new URLSearchParams();
@@ -34,6 +36,7 @@ export function useAllTransactions(
       if (startDate) params.set("startDate", startDate);
       if (endDate) params.set("endDate", endDate);
       if (transactionType) params.set("transactionType", transactionType);
+      if (manualOnly) params.set("manual", "1");
       if (pageParam) params.set("offset", String(pageParam));
       const res = await fetch(`/api/plaid/transactions?${params}`);
       if (!res.ok) throw new Error("Failed to fetch transactions");

@@ -24,6 +24,21 @@ export interface SyncProgress {
 }
 
 /**
+ * Fields the app owns that must survive Plaid replacing a pending transaction
+ * with the posted one that carries a new transaction_id.
+ */
+interface PendingCarryOver {
+  category?: string[];
+  userModified?: boolean;
+  goalId?: unknown;
+  manualEntryId?: string;
+  manualEntry?: unknown;
+  manualEntryMergedAt?: Date;
+  transaction_type?: string;
+  income_category?: string;
+}
+
+/**
  * Incrementally syncs a single Plaid item's transactions into MongoDB.
  *
  * Rate-limited by SYNC_TTL_MS: if the item was synced recently it is skipped
@@ -78,36 +93,81 @@ export async function syncItemTransactions(
     );
 
     // Plaid replaces a pending transaction with a posted one carrying a new
-    // transaction_id, and the removed loop below deletes the pending row. Copy
-    // any goal assignment across before that happens, keyed by
+    // transaction_id, and the `removed` loop below deletes the pending row. Copy
+    // the fields the app owns across before that happens, keyed by
     // pending_transaction_id. Read before bulkWrite, which orders added ->
     // modified -> removed.
+    //
+    // Known race (documented, not yet fixed): this snapshot is read before the
+    // write below, so a link request that lands on a pending row in between is
+    // not seen here — the posted row is upserted from the stale snapshot and the
+    // pending row is then deleted, dropping that link. Closing it needs the
+    // pending row claimed atomically before the carry-over is decided; see the
+    // sync notes on PR #15.
     const pendingIds = added
       .map((t) => t.pending_transaction_id)
       .filter((id): id is string => Boolean(id));
 
-    const pendingGoalIds = new Map<string, string>();
+    const carriedByPendingId = new Map<string, PendingCarryOver>();
     if (pendingIds.length > 0) {
       const pendingDocs = await db
         .collection("transactions")
         .find(
           { transaction_id: { $in: pendingIds } },
-          { projection: { transaction_id: 1, goalId: 1 } }
+          {
+            projection: {
+              transaction_id: 1,
+              category: 1,
+              userModified: 1,
+              goalId: 1,
+              manualEntryId: 1,
+              manualEntry: 1,
+              manualEntryMergedAt: 1,
+              transaction_type: 1,
+              income_category: 1,
+            },
+          }
         )
         .toArray();
 
       for (const doc of pendingDocs) {
-        if (doc.goalId) {
-          pendingGoalIds.set(doc.transaction_id as string, doc.goalId as string);
-        }
+        carriedByPendingId.set(String(doc.transaction_id), {
+          category: Array.isArray(doc.category) ? (doc.category as string[]) : undefined,
+          userModified: doc.userModified === true,
+          goalId: doc.goalId,
+          manualEntryId:
+            typeof doc.manualEntryId === "string" ? doc.manualEntryId : undefined,
+          manualEntry: doc.manualEntry,
+          manualEntryMergedAt:
+            doc.manualEntryMergedAt instanceof Date
+              ? doc.manualEntryMergedAt
+              : undefined,
+          transaction_type:
+            typeof doc.transaction_type === "string"
+              ? doc.transaction_type
+              : undefined,
+          income_category:
+            typeof doc.income_category === "string"
+              ? doc.income_category
+              : undefined,
+        });
       }
     }
 
     for (const txn of added) {
       const ruleCategory = ruleByKey.get(`${txn.account_id}::${txn.name}`);
-      const carriedGoalId = txn.pending_transaction_id
-        ? pendingGoalIds.get(txn.pending_transaction_id)
+      const carried = txn.pending_transaction_id
+        ? carriedByPendingId.get(txn.pending_transaction_id)
         : undefined;
+
+      // A category the pending row already carried wins over the rule lookup, so
+      // a rule edited while a charge was pending does not take effect on posting.
+      // That matches the rest of the app, where rules are only applied when a
+      // transaction is first seen rather than retroactively. Note `userModified`
+      // is set for rule-applied categories too, so this deliberately cannot tell
+      // a hand-picked category from a rule-derived one — see issue #16.
+      const carriedCategory =
+        carried?.userModified && carried.category ? carried.category : undefined;
 
       bulkOps.push({
         updateOne: {
@@ -119,9 +179,30 @@ export async function syncItemTransactions(
               date: txn.date,
               name: txn.name,
               merchant_name: txn.merchant_name,
-              category: ruleCategory ?? txn.category,
-              ...(ruleCategory ? { userModified: true } : {}),
-              ...(carriedGoalId ? { goalId: carriedGoalId } : {}),
+              category: carriedCategory ?? ruleCategory ?? txn.category,
+              ...(carriedCategory || ruleCategory ? { userModified: true } : {}),
+              ...(carried?.goalId ? { goalId: carried.goalId } : {}),
+              // Income classification is app-owned too: without this a manual
+              // income entry linked to a still-pending charge would post as an
+              // expense, and nothing re-classifies it (linking registers no
+              // income pattern).
+              ...(carried?.transaction_type
+                ? { transaction_type: carried.transaction_type }
+                : {}),
+              ...(carried?.income_category
+                ? { income_category: carried.income_category }
+                : {}),
+              ...(carried?.manualEntryId
+                ? {
+                    manualEntryId: carried.manualEntryId,
+                    ...(carried.manualEntry
+                      ? { manualEntry: carried.manualEntry }
+                      : {}),
+                    ...(carried.manualEntryMergedAt
+                      ? { manualEntryMergedAt: carried.manualEntryMergedAt }
+                      : {}),
+                  }
+                : {}),
               pending: txn.pending,
               payment_channel: txn.payment_channel,
               iso_currency_code: txn.iso_currency_code,

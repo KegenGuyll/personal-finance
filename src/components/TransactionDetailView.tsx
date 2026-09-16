@@ -12,6 +12,8 @@ import SpendingTrend from "@/src/components/SpendingTrend";
 import CategoryEditor from "@/src/components/CategoryEditor";
 import GoalAssigner from "@/src/components/GoalAssigner";
 import LoadingSkeleton from "@/src/components/LoadingSkeleton";
+import ManualEntryActions from "@/src/components/ManualEntryActions";
+import LinkManualTransactionPanel from "@/src/components/LinkManualTransactionPanel";
 import BackButton from "@/src/components/BackButton";
 
 export default function TransactionDetailView({
@@ -175,6 +177,18 @@ export default function TransactionDetailView({
               </div>
             )}
 
+            {transaction.manualEntryId && transaction.manualEntry && (
+              <div className="col-span-2">
+                <dt className="text-xs font-medium text-space-indigo-400">
+                  Matched from a manual entry
+                </dt>
+                <dd className="text-sm text-space-indigo-800">
+                  {transaction.manualEntry.name} ·{" "}
+                  {formatDate(transaction.manualEntry.date)}
+                </dd>
+              </div>
+            )}
+
             {transaction.authorized_date && (
               <div>
                 <dt className="text-xs font-medium text-space-indigo-400">
@@ -187,6 +201,14 @@ export default function TransactionDetailView({
             )}
           </dl>
         </div>
+      )}
+
+      {transaction && transaction.manual && (
+        <ManualEntryActions transaction={transaction} />
+      )}
+
+      {transaction && !transaction.manual && (
+        <LinkManualTransactionPanel transaction={transaction} />
       )}
 
       {transaction && (

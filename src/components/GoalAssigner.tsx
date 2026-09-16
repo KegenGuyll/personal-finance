@@ -5,7 +5,7 @@ import { useGoals } from "@/src/hooks/useGoals";
 import { useAssignTransactionGoal } from "@/src/hooks/useAssignTransactionGoal";
 import { useUnassignTransactionGoal } from "@/src/hooks/useUnassignTransactionGoal";
 import LoadingSkeleton from "@/src/components/LoadingSkeleton";
-import { formatCurrency } from "@/src/utils/currency";
+import GoalSelect from "@/src/components/GoalSelect";
 
 interface GoalAssignerProps {
   transactionId: string;
@@ -61,25 +61,13 @@ export default function GoalAssigner({
 
   return (
     <span className="flex flex-wrap items-center gap-2">
-      <select
+      <GoalSelect
         aria-label="Spend from goal"
+        goals={goals}
         value={selectedGoalId}
-        onChange={(e) => setSelectedGoalId(e.target.value)}
-        className="rounded-md border border-space-indigo-200 bg-white px-2 py-1 text-sm text-space-indigo-800 focus:border-space-indigo-400 focus:outline-none"
-      >
-        <option value="" disabled>
-          Select a goal…
-        </option>
-        {goals.map((goal) => {
-          const available =
-            goal.currentAmount - (goal.spentAmount ?? 0);
-          return (
-            <option key={String(goal._id)} value={String(goal._id)}>
-              {goal.name} · {formatCurrency(available)} available
-            </option>
-          );
-        })}
-      </select>
+        onChange={setSelectedGoalId}
+        size="compact"
+      />
       <button
         onClick={handleAssign}
         disabled={assignToGoal.isPending || !selectedGoalId}

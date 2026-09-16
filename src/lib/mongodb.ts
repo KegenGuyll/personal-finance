@@ -28,6 +28,21 @@ async function ensureIndexes(db: Db) {
     { goalId: 1 },
     { name: "transactions_goal_idx" }
   );
+  // Manually entered transactions carry `manual: true`; nothing else does, so a
+  // sparse index serves the "manual transactions only" filter and the
+  // awaiting-a-sync lookup without indexing the rest of the collection.
+  //
+  // There is deliberately no unique index on `manualEntryId`: linking a manual
+  // entry to a still-pending transaction copies that id onto the pending row,
+  // and when Plaid posts it the sync upserts the same id onto the posted row
+  // before deleting the pending one — a unique index would reject that write
+  // mid-sync. "A manual entry can only be linked once" is instead enforced
+  // atomically by the confirm step in
+  // app/api/transactions/[id]/link-manual/route.ts.
+  await db.collection("transactions").createIndex(
+    { manual: 1 },
+    { name: "manual_entries_idx", sparse: true }
+  );
   await db.collection("account_items").createIndex(
     { account_id: 1 },
     { name: "account_id_idx", unique: true }

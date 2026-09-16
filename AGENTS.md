@@ -20,6 +20,19 @@ General UI styling must use only the custom color tokens defined in `app/globals
 - **Chart data series** use the shared `CHART_COLORS` array in `src/utils/chart-colors.ts`. That palette intentionally spans multiple hues so categorical charts (trend lines, pie slices) are visually distinguishable. It is the single source for chart colors.
 - **Semantic budget-health/trend colors** may use the red / emerald / amber (and orange) families to signal status, e.g. spending increased or over budget = red, decreased or under budget = emerald, near-limit / caution = amber. These make over/under and increase/decrease states legible and are used consistently across the budget and comparison views.
 
+# Comments
+
+Comment the *why*, not the *what*. A comment earns its place when it records a decision, a non-obvious constraint, or a consequence a reader could not infer from the code — such as why `plaid-sync` copies app-owned fields across the pending → posted handoff, or why the link route claims an entry before merging it.
+
+Do not write comments that:
+
+- restate the line below them (`// Reset per open` above `setApplyToAll(false)`);
+- explain a name that already says it (`// Off by default` above `useState(false)`);
+- narrate the diff ("changed X to Y", "added Z") — that belongs in the commit message;
+- pad a small change. If a one-line change needs two comments to justify itself, delete the comments.
+
+Prefer one comment over a block that needs it to a comment per line, and keep comments proportionate to the change: a two-line fix should carry none. When in doubt, leave it out — a stale comment is worse than no comment, and prose that describes behaviour the code does not have has already had to be corrected once (`userModified` in `src/lib/plaid-sync.ts`).
+
 # Verification Steps
 
 Before considering a task complete, all of the following must pass with **no warnings or errors**:

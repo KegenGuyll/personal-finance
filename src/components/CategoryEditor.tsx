@@ -28,7 +28,7 @@ export default function CategoryEditor({
 
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState(currentValue);
-  const [applyToAll, setApplyToAll] = useState(true);
+  const [applyToAll, setApplyToAll] = useState(false);
   const [autoApply, setAutoApply] = useState(initialAutoApply);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
@@ -40,6 +40,7 @@ export default function CategoryEditor({
   const handleOpen = () => {
     setInputValue(currentValue);
     setAutoApply(initialAutoApply);
+    setApplyToAll(false);
     setIsOpen(true);
   };
 

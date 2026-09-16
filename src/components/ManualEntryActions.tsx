@@ -28,6 +28,8 @@ export default function ManualEntryActions({
   const [isEditing, setIsEditing] = useState(false);
 
   const handleDelete = async () => {
+    if (!confirm("Discard this manual transaction?")) return;
+
     try {
       await deleteManual.mutateAsync(transaction.transaction_id);
       router.push(`/accounts/${transaction.account_id}`);

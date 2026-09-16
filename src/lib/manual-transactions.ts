@@ -404,6 +404,36 @@ export interface ManualUpdateSpec {
   unset: Record<string, "">;
 }
 
+export interface ResolvedManualUpdate {
+  /** The signed amount the entry will hold after the patch. */
+  amount: number;
+  type: ManualTransactionType;
+  /** False when the patch leaves the stored amount alone. */
+  writesAmount: boolean;
+}
+
+/**
+ * The amount and type a patch resolves to.
+ *
+ * Shared so goal validation judges the same amount `buildManualTransactionUpdate`
+ * writes: flipping income to expense without supplying an amount has to be
+ * validated against the positive magnitude, not the negative amount still stored.
+ */
+export function resolveManualUpdate(
+  existing: { amount: number; transaction_type?: unknown },
+  patch: ManualTransactionPatch
+): ResolvedManualUpdate {
+  const type: ManualTransactionType =
+    patch.type ?? (existing.transaction_type === "income" ? "income" : "expense");
+  const writesAmount = patch.amount !== undefined || patch.type !== undefined;
+
+  if (!writesAmount) return { amount: existing.amount, type, writesAmount };
+
+  const magnitude =
+    patch.amount !== undefined ? patch.amount : Math.abs(existing.amount);
+  return { amount: toSignedAmount(magnitude, type), type, writesAmount };
+}
+
 /**
  * Turns a validated patch into `$set`/`$unset` operations.
  *
@@ -427,13 +457,8 @@ export function buildManualTransactionUpdate(
     set.iso_currency_code = patch.isoCurrencyCode;
   }
 
-  const existingType: ManualTransactionType =
-    existing.transaction_type === "income" ? "income" : "expense";
-  if (patch.amount !== undefined || patch.type !== undefined) {
-    const magnitude =
-      patch.amount !== undefined ? patch.amount : Math.abs(existing.amount);
-    set.amount = toSignedAmount(magnitude, patch.type ?? existingType);
-  }
+  const resolved = resolveManualUpdate(existing, patch);
+  if (resolved.writesAmount) set.amount = resolved.amount;
 
   // An empty string clears the assignment. Skipped for income below, which must
   // never carry a goal — setting and unsetting the same path would make Mongo

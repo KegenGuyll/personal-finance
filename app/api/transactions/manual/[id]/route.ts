@@ -4,7 +4,7 @@ import { validateGoalAssignment } from "@/src/lib/goal-assignment";
 import {
   buildManualTransactionUpdate,
   parseManualTransactionPatch,
-  toSignedAmount,
+  resolveManualUpdate,
 } from "@/src/lib/manual-transactions";
 
 /**
@@ -63,23 +63,20 @@ export async function PATCH(
     // Optional goal assignment, using the same rules as the goal route — but
     // only when it actually changes, so an entry whose goal was archived in the
     // meantime stays editable instead of failing on an untouched field.
-    const existingAmount = typeof existing.amount === "number" ? existing.amount : 0;
+    const existingFields = {
+      amount: typeof existing.amount === "number" ? existing.amount : 0,
+      transaction_type: existing.transaction_type,
+    };
+    const resolved = resolveManualUpdate(existingFields, parsed.value);
+
     if (
       parsed.value.goalId !== undefined &&
       parsed.value.goalId &&
       parsed.value.goalId !== existing.goalId
     ) {
-      const nextType =
-        parsed.value.type ??
-        (existing.transaction_type === "income" ? "income" : "expense");
-      const nextAmount =
-        parsed.value.amount !== undefined
-          ? toSignedAmount(parsed.value.amount, nextType)
-          : existingAmount;
-
       const assignment = await validateGoalAssignment(db, parsed.value.goalId, {
-        amount: nextAmount,
-        transactionType: nextType === "income" ? "income" : undefined,
+        amount: resolved.amount,
+        transactionType: resolved.type === "income" ? "income" : undefined,
       });
 
       if (!assignment.ok) {
@@ -91,21 +88,31 @@ export async function PATCH(
     }
 
     const { set, unset } = buildManualTransactionUpdate(
-      {
-        amount: existingAmount,
-        transaction_type: existing.transaction_type,
-      },
+      existingFields,
       parsed.value
     );
 
-    await db.collection("transactions").updateOne(
-      { transaction_id: id },
+    // `manual: true` keeps this atomic with the link/discard claim: if the entry
+    // was consumed since the read above, nothing is written.
+    const updated = await db.collection("transactions").updateOne(
+      { transaction_id: id, manual: true },
       Object.keys(unset).length > 0 ? { $set: set, $unset: unset } : { $set: set }
     );
+
+    if (updated.matchedCount !== 1) {
+      return Response.json(
+        { error: "This manual transaction has already been linked or discarded" },
+        { status: 409 }
+      );
+    }
 
     const transaction = await db
       .collection("transactions")
       .findOne({ transaction_id: id });
+
+    if (!transaction) {
+      return Response.json({ error: "Transaction not found" }, { status: 404 });
+    }
 
     return Response.json({ transaction });
   } catch (error) {

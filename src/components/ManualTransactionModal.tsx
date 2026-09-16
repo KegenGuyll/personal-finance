@@ -136,6 +136,14 @@ export default function ManualTransactionModal({
                 category: parsedCategory.value,
                 // "" clears the assignment.
                 goalId: goalId || null,
+                // Only when the account changes; otherwise an unrelated edit
+                // would rewrite the stored currency from the account's value.
+                ...(effectiveAccountId !== transaction.account_id
+                  ? {
+                      isoCurrencyCode:
+                        selectedAccount?.balances?.iso_currency_code ?? "",
+                    }
+                  : {}),
               },
             })
           : await createManual.mutateAsync({

@@ -7,7 +7,6 @@ before Plaid catches up, envelope budgets, and savings goals.
 
 ```bash
 npm install
-npm run models:fetch   # one-time: receipt-scanning text detector (~17MB)
 npm run dev
 ```
 
@@ -23,13 +22,13 @@ first — nothing loads accounts without them.
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Unit tests for the pure parser, layout and image maths |
-| `npm run models:fetch` | Fetches and verifies the receipt OCR models into `public/receipt-ocr/` |
 
 ## Notes
 
-- **Receipt scanning** reads a photographed receipt in the browser and pre-fills
-  the manual-transaction form. Setup, accuracy expectations and the model
-  upgrade path are in [`docs/receipt-scanning.md`](docs/receipt-scanning.md).
+- **Receipt scanning** reads a receipt photo on the device and pre-fills the
+  manual-transaction form. No setup step: the model downloads in the browser on
+  first use. Accuracy expectations and limits are in
+  [`docs/receipt-scanning.md`](docs/receipt-scanning.md).
 - **Manual transactions** are real rows in the same `transactions` collection,
   flagged `manual: true`, and are linked to the Plaid transaction they turn out
   to be once it syncs. Budgets, trends and goals count them with no special

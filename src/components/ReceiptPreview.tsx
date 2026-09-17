@@ -3,14 +3,8 @@
 /**
  * Shows the photo the model was given.
  *
- * Previously this showed a preprocessed copy, because the old pipeline rescaled
- * and contrast-normalised the image before recognising text and a wrong value was
- * often explained by the preprocessing. That step no longer exists: the model
- * receives the original bytes, so the useful reference is the photo itself.
- *
- * It stays because it answers the question a user actually has when a value looks
- * wrong — "did it even see my receipt?" — which the image answers instantly and
- * no error message can.
+ * Answers the question a user actually has when a value looks wrong — "did it even
+ * see my receipt?" — which the image settles instantly and no error message can.
  */
 export default function ReceiptPreview({
   dataUrl,

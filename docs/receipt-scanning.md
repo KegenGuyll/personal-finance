@@ -15,9 +15,8 @@ photo / upload
   → review form → POST /api/transactions/manual          the only request
 ```
 
-One vision-language model does the whole job. There is no text-detection stage, no
-line recognition, and no rule-based parser: the model is given the image and
-answers with the transaction.
+A single vision-language model does the whole job: it is given the image and answers
+with the transaction.
 
 ## Which model, and why
 
@@ -43,15 +42,13 @@ Architecture mattered more than parameter count — changing family moved total
 accuracy from 42% to 75%, while adding parameters inside the SmolVLM family did
 much less.
 
-### Why the previous pipeline was replaced
+### Licence
 
-It ran, but in use the values came out wrong and dates essentially never worked.
-Those failures lived in *recognition*, and no amount of downstream parsing can
-recover a misread character. A single model that reads the image removes the stage
-where the information was being lost.
+Not OSI-approved, which is worth knowing. The clause that matters grants
+commercial use below **$10M annual revenue**.
 
-The licence is not OSI-approved, which is worth knowing. The clause that matters
-grants commercial use below **$10M annual revenue**.
+The model is also not asked to classify income versus expense, and a receipt is an
+expense far more often than anything else, so entries default to expense.
 
 ## One-time setup
 
@@ -100,12 +97,11 @@ either way, and at 316MB a cancelled transfer would discard a lot of progress.
 | Name | The model's `merchant` | "check" when present |
 | Category | Never suggested | Always "missing" |
 
-**Confidence means presence here, not accuracy.** The previous rule-based parser
-derived genuine per-field confidence — whether a `TOTAL` row was labelled, whether a
-date was ambiguous. A vision-language model reports nothing of the kind, so a
-returned field reads 0.5 ("check") and an absent one 0 ("missing"). Every field
-reading "check" rather than "read" is deliberate at 74% overall accuracy, and the
-form always carries a note saying the amount and date are worth checking.
+**Confidence means presence here, not accuracy.** A vision-language model reports no
+per-field confidence, so a returned field reads 0.5 ("check") and an absent one 0
+("missing"). Every field reading "check" rather than "read" is deliberate at 74%
+overall accuracy, and the form always carries a note saying the amount and date are
+worth checking.
 
 The prompt does not ask for a category, so that field is never pre-filled.
 

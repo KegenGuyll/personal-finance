@@ -94,10 +94,9 @@ export async function areVlmWeightsCached(): Promise<boolean> {
 /**
  * Asks the browser to persist this origin's storage, and reports what it said.
  *
- * A refusal matters more here than for the previous 69MB model: at 316MB the
- * weights are far likelier to be reclaimed, and re-downloading them is a much
- * bigger cost. WebKit has been reported as always refusing, which is why the
- * answer is surfaced rather than assumed.
+ * A refusal means the weights can be reclaimed and re-downloaded at 316MB.
+ * WebKit has been reported as always refusing, which is why the answer is
+ * surfaced rather than assumed.
  */
 export async function requestPersistentStorage(): Promise<boolean> {
   try {

@@ -6,8 +6,6 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY package.json package-lock.json ./
 RUN npm ci
-# No model step: the receipt model is downloaded by the browser from Hugging Face
-# and cached on the device, so the image carries no weights.
 COPY . .
 RUN npm run build
 

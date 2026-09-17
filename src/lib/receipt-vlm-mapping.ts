@@ -1,11 +1,8 @@
 /**
  * Maps the model's extraction onto the review form's contract.
  *
- * The visibility model changed shape here, which is worth recording. The
- * previous pipeline produced a draft plus genuine per-field confidence: whether a
- * `TOTAL` row was labelled, whether a date was ambiguous. A vision-language model
- * answers in one shot and reports no such signal, so there is nothing to derive
- * real confidence from.
+ * A vision-language model answers in one shot and reports no per-field signal, so
+ * there is no real confidence to derive.
  *
  * Rather than invent numbers, confidence is reduced to presence:
  *
@@ -28,9 +25,8 @@ import type { ExtractedReceipt } from "@/src/lib/receipt-vlm-prompt";
 /**
  * What the review form renders.
  *
- * Declared here rather than imported from the parser these replaced: the review
- * form is the only consumer, and keeping the types beside the mapping means
- * deleting the old pipeline cannot leave the form with a dangling import.
+ * Declared here rather than shared from elsewhere because the review form is the
+ * only consumer.
  */
 export interface ReceiptDraft {
   name: string;
@@ -121,8 +117,8 @@ export function mapExtractionToDraft(extraction: ExtractedReceipt): MappedExtrac
       category: ABSENT,
     },
     notes,
-    // Photo-quality warnings came from analysing the image during preparation,
-    // which this path no longer does; the model's own failures surface as notes.
+    // Nothing analyses the photo, so there are no quality warnings to report;
+    // the model's own failures surface as notes.
     quality: { lineCount: 0, meanConfidence: 0, warnings: [] },
   };
 }

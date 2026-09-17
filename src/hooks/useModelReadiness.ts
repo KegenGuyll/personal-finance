@@ -39,9 +39,8 @@ export interface ModelReadinessState {
  *
  * Deliberately not a TanStack Query: preparing asks the browser for persistent
  * storage, which is a side effect on the origin, so it must run only when the
- * user asks and never on a refetch, focus or remount. That matters more at 316MB
- * than it did for the previous model, because a refusal is what makes those bytes
- * reclaimable.
+ * user asks and never on a refetch, focus or remount. A refusal is what makes the
+ * 316MB of weights reclaimable.
  *
  * A download already under way is not cancelled when the scanner closes — the
  * bytes are wanted either way, and aborting would discard everything transferred.

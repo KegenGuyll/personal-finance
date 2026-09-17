@@ -14,9 +14,7 @@
  *   SmolVLM-256M-Instruct   22.4%   255MB   5.2s
  *
  * Per field it is the strongest at what a transaction needs: total 75%,
- * currency 92%, merchant 69%, date 61%. It replaces the previous two-stage
- * pipeline (a text detector plus a line recogniser plus rule-based parsing) with
- * one model that reads the image and emits the transaction directly.
+ * currency 92%, merchant 69%, date 61%.
  *
  * 74% is a suggestion engine, not an authority: this only pre-fills a form the
  * user confirms, and the total is the field most often wrong.

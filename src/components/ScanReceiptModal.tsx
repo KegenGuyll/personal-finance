@@ -10,7 +10,6 @@ import ModelDownloadProgress from "@/src/components/ModelDownloadProgress";
 
 export interface ScanReceiptModalProps {
   accounts: Account[];
-  defaultAccountId?: string;
   fallbackAccount?: Account | null;
   onClose: () => void;
   onSaved: (transaction: Transaction) => void;
@@ -32,7 +31,6 @@ export interface ScanReceiptModalProps {
  */
 export default function ScanReceiptModal({
   accounts,
-  defaultAccountId,
   fallbackAccount,
   onClose,
   onSaved,
@@ -190,7 +188,6 @@ export default function ScanReceiptModal({
               notes={scan.result.notes}
               quality={scan.result.quality}
               accounts={accounts}
-              defaultAccountId={defaultAccountId}
               fallbackAccount={fallbackAccount}
               onSaved={handleSaved}
               onBack={scan.reset}

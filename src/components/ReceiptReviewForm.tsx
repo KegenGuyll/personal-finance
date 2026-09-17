@@ -27,7 +27,7 @@ export interface ReceiptReviewFormProps {
   notes: string[];
   quality: ReceiptPhotoQuality;
   accounts: Account[];
-  defaultAccountId?: string;
+
   fallbackAccount?: Account | null;
   onSaved: (transaction: Transaction) => void;
   onBack: () => void;
@@ -53,7 +53,6 @@ export default function ReceiptReviewForm({
   notes,
   quality,
   accounts,
-  defaultAccountId,
   fallbackAccount,
   onSaved,
   onBack,
@@ -72,16 +71,12 @@ export default function ReceiptReviewForm({
     return [fallbackAccount, ...accounts];
   }, [accounts, fallbackAccount]);
 
-  // Deliberately not defaulted to `accounts[0]`. The list is ordered by whatever
-  // the API returned, so falling back to it silently booked a scanned
-  // transaction against an account the user never chose — and a wrong account is
-  // invisible in the form once the select shows a name.
-  //
-  // `defaultAccountId` is still honoured because the only callers that set it are
-  // the account pages, where the account is what the page is about.
-  const [accountId, setAccountId] = useState(
-    () => defaultAccountId ?? fallbackAccount?.account_id ?? ""
-  );
+  // Starts empty and stays empty until the user picks. Nothing about a scanned
+  // receipt identifies the account it came from, so any pre-filled value would be
+  // a guess — and a wrong one is invisible in the form, because the select
+  // displays a name either way. The account is required, so an unset field blocks
+  // saving rather than silently booking against the wrong account.
+  const [accountId, setAccountId] = useState("");
   const [type, setType] = useState<ManualTransactionType>(draft.type);
   const [amount, setAmount] = useState(() =>
     draft.amount === null ? "" : String(draft.amount)

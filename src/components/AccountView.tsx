@@ -340,7 +340,6 @@ export default function AccountView({
       {isScanning && (
         <ScanReceiptModal
           accounts={accounts}
-          defaultAccountId={accountId}
           fallbackAccount={account}
           onClose={() => setIsScanning(false)}
           onSaved={setSavedTransaction}

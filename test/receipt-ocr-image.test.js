@@ -155,14 +155,22 @@ test("pads a box outwards without leaving the image", () => {
 test("scales a crop to the recognition height", () => {
   const size = computeRecognitionCropSize({ x: 0, y: 0, width: 200, height: 25, confidence: 1 });
 
-  assert.equal(size.height, 48);
-  assert.equal(size.width, 320);
+  assert.equal(size.height, 128);
+  // Width follows the source aspect ratio, up to the cap.
+  assert.equal(size.width, 1024);
 });
 
 test("keeps a very wide line within the recognition width", () => {
   const size = computeRecognitionCropSize({ x: 0, y: 0, width: 4000, height: 30, confidence: 1 });
 
-  assert.equal(size.width, 320);
+  assert.equal(size.width, 1024);
+});
+
+test("preserves a normal line's aspect ratio", () => {
+  const size = computeRecognitionCropSize({ x: 0, y: 0, width: 300, height: 60, confidence: 1 });
+
+  assert.equal(size.height, 128);
+  assert.equal(size.width, 640);
 });
 
 test("bridges single-pixel gaps in a mask", () => {

@@ -2,93 +2,117 @@
 
 Photograph or upload a receipt and the app pre-fills the manual-transaction
 form, so you verify a few numbers instead of typing six. Everything runs in the
-browser: the OCR models are downloaded once and served from this app's own
-`public/` directory, and the photo is never uploaded anywhere.
+browser and the photo is never uploaded anywhere — the only request this feature
+makes is the one that saves the transaction you confirm.
 
 ## What happens to the photo
 
 ```
 photo / upload
-  → canvas prep (downscale, greyscale, contrast stretch)      on device
-  → text detection (DBNet-style ONNX)                          on device
-  → per-line recognition (CRNN/CTC ONNX)                       on device
-  → rows recovered from box positions                          on device
-  → draft + per-field confidence                               on device
-  → review form → POST /api/transactions/manual               the only request
+  → canvas prep (downscale, greyscale, contrast stretch)          on device
+  → text detection (PP-OCRv3 DBNet, ONNX)                         on device
+  → per-line recognition (TrOCR-small-printed)                    on device
+  → rows recovered from box positions                             on device
+  → draft + per-field confidence                                  on device
+  → review form → POST /api/transactions/manual            the only request
 ```
 
-The image and the recognised text stay in the browser. The only network traffic
-the feature causes is the one-time model download, and the only thing that ever
-reaches the server is the transaction you confirm — through the same route the
-hand-typed form already used.
+## Which models, and why
+
+| Stage | Model | Size | Served from |
+|---|---|---|---|
+| Text detection | PP-OCRv3 DBNet | 2.4MB | this app (`public/receipt-ocr/`) |
+| Line recognition | `Xenova/trocr-small-printed` (q8) | ~70MB | Hugging Face, cached in the browser |
+| Runtime | `onnxruntime-web` WASM | 14MB | this app (`public/receipt-ocr/ort/`) |
+
+**Detection** uses the PP-OCR ONNX detector because it works and is small: it
+returns a probability map whose connected regions give the text boxes, and those
+box positions are what let the parser tell a `TOTAL` label from the number beside
+it. All DBNet models published on Hugging Face are gated (they return 401), which
+is why this one is fetched by script and served from this app.
+
+**Recognition** uses TrOCR *because the PaddleOCR recognisers do not work*. Every
+variant tested — `SWHL/RapidOCR` and `Kiuyha/paddleocr-onnx`, PP-OCRv3 and v4,
+English and Chinese — reads glyphs correctly but decodes them as the wrong
+characters:
+
+```
+en_PP-OCRv3_rec  "TOTAL" -> "0U0P0U0B0M0"
+ch_PP-OCRv3_rec  "TOTAL" -> Chinese garbage
+ch_PP-OCRv4_rec  "TOTAL" -> Chinese garbage
+english (Kiuyha) "TOTAL" -> "0U0P0U0B0M0"
+```
+
+The offset is not constant across the alphabet, so it cannot be corrected with a
+mapping table; those exports are simply broken. TrOCR ships its own tokenizer and
+reads printed lines correctly, which is why it is here despite being much larger.
 
 ## One-time setup
 
-The model weights are not committed. Fetch and verify them once:
-
 ```bash
+npm install
 npm run models:fetch
 ```
 
-That downloads PP-OCRv3 detection and recognition models (converted to ONNX by
-[RapidOCR](https://huggingface.co/SWHL/RapidOCR)), verifies each against the
-SHA-256 recorded in `scripts/receipt-ocr-models.lock.json`, extracts the
-recogniser's character dictionary from its ONNX metadata, and stages the ONNX
-runtime's WASM build. Everything lands in `public/receipt-ocr/`, which is
-gitignored.
+That downloads the detector, verifies it against the SHA-256 in
+`scripts/receipt-ocr-models.lock.json`, and stages the ONNX runtime's WASM build
+out of `node_modules`. Both land in `public/receipt-ocr/`, which is gitignored —
+the script is the only supported way to populate it, and it fails loudly on a
+checksum mismatch rather than serving an unverified asset. `Dockerfile` runs it
+during the image build.
 
-The script is the only supported way to populate that directory: it fails loudly
-on a checksum mismatch and leaves the bad file out, because these are assets the
-browser trusts. Pinning by revision and hash is what stops an upstream change
-from silently altering what the scanner reads.
-
-Bumping a model means editing the lock file's `source`/`sha256` and re-running it.
-
-`Dockerfile` runs this during the image build, so a deployment has the models
-without a manual step.
+The TrOCR weights need no setup step: the browser downloads them on first scan.
 
 ## First scan on a device
 
-The first scan offers a "Download the OCR model" button (~25MB) and stores the
-result in the Cache API, so later scans work offline. If the download is refused
-or the Cache API is unavailable, the scanner still works — the assets are simply
-re-fetched from the app each time.
+The first scan offers a **"Download the OCR model"** button (~72MB, one time) and
+stores the result in the Cache API, so later scans work offline. If the download
+is refused or the Cache API is unavailable the scanner still works — the assets
+are re-fetched from the app or Hugging Face each time.
 
 ## What each field is worth
 
 | Field | Source | Confidence |
 |---|---|---|
-| Amount | The row labelled `TOTAL` (never `SUBTOTAL`, `TAX`, `TIP`, `CHANGE`); falls back to the largest plausible price in the lower half | High when labelled, low on a fallback |
+| Amount | The row labelled `TOTAL` (never `SUBTOTAL`, `TAX`, `TIP`, `CHANGE`); falls back to the most total-shaped value in the lower half | High when labelled, low on a fallback |
 | Date | The first labelled date line. `MM/DD` is assumed where both numbers are ≤ 12 | High, or flagged ambiguous |
 | Name | Earliest short, letter-bearing line that is not an address or receipt furniture | Advisory |
 | Category | Keyword match against categories you already have, so a suggestion is always a value the field accepts | Advisory |
 
 Fields the parser cannot establish are left **empty** rather than guessed, and
-every field carries a marker in the review form: green (read), amber (check),
-red (missing). The amount and the date are the two that matter — the rest are
-advisory and cheap to correct.
+every field carries a marker in the review form: green (read), amber (check), red
+(missing). The amount and date are the two that matter; the rest are advisory and
+cheap to correct.
 
-The review form also shows a downscaled preview of the image **as the scanner
-read it**, which is the fastest way to explain a wrong value: if the preview is
-grey and washed out, the photo was the problem.
+The review form also shows a downscaled preview of the image **as the scanner read
+it**, which is the fastest explanation for a wrong value: a grey, washed-out
+preview means the photo was the problem.
 
 ## Known limits
 
+- **Our synthetic-fixture accuracy is not your accuracy.** The pipeline is
+  verified end-to-end against real model weights with rendered receipts: detection
+  finds every line, and TrOCR returns real values (`TOTAL 4.5`, `TOTAL 101.47`,
+  `SUBTOTAL 4.00`, `38.86`). It has **not** been run against your real photographs
+  — see the acceptance run below. Synthetic fixtures also showed a repeated digit
+  error: `03/04/2026` reads as `03/04/2018`. Check dates.
+- **Amounts near a misread glyph fail closed.** When OCR returns `4.MM`, the
+  amount resolves to `4` or nothing rather than a plausible-but-wrong figure, so
+  the failure is visible as an empty or flagged amount.
 - **One transaction per scan.** A bank screenshot listing five rows yields one
-  draft, not five. Multi-candidate extraction is a follow-up.
-- **Printed Latin text.** The recogniser is the English/Latin one, 95 tokens
-  covering digits, letters, currency symbols and punctuation. Handwriting is not
-  supported and neither is non-Latin script.
+  draft, not five.
+- **Printed Latin text.** TrOCR-small-printed handles printed English; handwriting
+  and non-Latin scripts are not supported.
 - **Photos are the weak case.** Detection quality on a skewed, dim or crumpled
   photo is the most likely reason a scan comes back empty. The form says what it
   thinks went wrong (blur, low contrast, dark) and offers a retry, manual entry,
   or pasting text instead.
+- **Recognition runs on the main thread.** The pipeline yields between lines so
+  progress updates, but a long receipt (many lines × autoregressive decoding) will
+  make the page sluggish. WebGPU would help and is not wired up.
 - **A refund is guessed, not known.** Text matching `refund`, `credit`,
-  `reversal` or `deposit` without a total line selects "Income", always at low
+  `reversal` or `deposit` without a total row selects "Income", always at low
   confidence.
-- **Scanning runs on the main thread.** The UI is not frozen solid — the pipeline
-  yields between recognition batches so progress text updates — but a very long
-  receipt will make the page sluggish while it reads. See below for why.
 
 ## Why there is no Web Worker
 
@@ -98,47 +122,16 @@ to be reachable through an asset URL, and Next's bundler rewrites that URL into 
 path the ONNX runtime rejects (`Invalid URL`), which surfaced as a prerender
 failure on `/transactions` — nowhere near the change that caused it.
 
-The runtime import is now lazy (it must be: its module body resolves its own WASM
-path when evaluated, which is what broke the server render), and scans run in
-batches on the main thread with a yield between them. If the responsiveness ever
-becomes the thing that hurts, the seam to revisit is
-`src/lib/receipt-ocr-runtime.ts`: it has no React or DOM dependency beyond
-`setTimeout`, so it can move back into a worker once the bundling question has a
-reliable answer.
-
-## Upgrading the OCR engine
-
-The engines that give structural understanding of a receipt — rather than boxes
-of text — are vision models like
-[LightOnOCR-1B-1025](https://huggingface.co/lightonai/LightOnOCR-1B-1025)
-(Apache-2.0, 1B parameters, trained on documents and receipts). It is the
-documented upgrade path if the acceptance run below shows the current pipeline
-missing amounts or dates on real photos.
-
-**Why it is not the default.** Its output is markdown text, not JSON, so it
-replaces the OCR stage and not the parsing stage. It is also not in Ollama's
-library — multimodal import via two `FROM` lines in a Modelfile
-[hangs](https://github.com/ollama/ollama/issues/17491) — so it runs as its own
-pinned `llama-server` process with the vision projector, and llama.cpp's `mtmd`
-path has had a
-[degenerate-output regression](https://github.com/ggml-org/llama.cpp/issues/25652)
-for this architecture. That is a second service, a version pin, and a tunnel if
-the app is not on the same machine.
-
-**Why it is reachable.** The seam is `runScan(image) → lines with coordinates` in
-`src/lib/receipt-ocr-runtime.ts`. Layout grouping, the parser, the confidence
-model, the review form and the save path are all downstream of that and would not
-change. Shipping it means adding one module that posts the image to the service
-and maps its markdown back into lines.
-
-It also removes the 25MB in-browser download and the main-thread compute, which
-is worth weighing on a phone.
+Scans now run in batches on the main thread with a yield between lines. The seam
+to revisit is `src/lib/receipt-ocr-runtime.ts`: it has no React or DOM dependency
+beyond `setTimeout`, so it can move back into a worker once the bundling question
+has a reliable answer.
 
 ## Acceptance run
 
-Run this after any change to the model, the thresholds or the parser. Photograph
-five real receipts — one skewed, one dim, one crumpled, one thermal — plus one
-bank screenshot, and record per field:
+Run this after any change to the models, thresholds or parser. Photograph five
+real receipts — one skewed, one dim, one crumpled, one thermal — plus one bank
+screenshot, and record per field:
 
 | Receipt | Amount | Date | Name | Category | Seconds |
 |---|---|---|---|---|---|
@@ -149,12 +142,12 @@ bank screenshot, and record per field:
 | screenshot | | | | | |
 
 **The bar is amount and date correct on all five photos.** Merchant and category
-are advisory by design; the review form is what makes them cheap to correct.
+are advisory; the review form is what makes them cheap to correct.
 
-If amounts or dates miss on the skewed or dim photos, that is the measured signal
-to move to the LightOnOCR engine above — the failure mode the current pipeline
-cannot fix is detection quality on a bad photo, and a vision model sidesteps
-detection entirely.
+If amounts or dates miss, the recorded next steps are, in order: raise
+`REC_HEIGHT` in `src/lib/receipt-ocr-image.ts`, try `trocr-base-printed`, then
+move recognition to WebGPU. If detection is what fails (the form reports "no text
+recognised"), the fix is a better detector, not a better recogniser.
 
 ## Tests
 
@@ -162,8 +155,12 @@ detection entirely.
 npm test
 ```
 
-Covers the layout grouping (including a tilted receipt, where a fixed y-bucket
-would split a row), the parser (printed receipt, gas pump, tip, refund, ambiguous
-date, no-total, garbage), the image maths, and the CTC decoder. The fixtures are
-built from box positions, so a change in grouping behaviour shows up as a parser
-failure rather than a silently different draft.
+Covers layout grouping (including a tilted receipt, where a fixed y-bucket would
+split a row), the parser (printed receipt, gas pump, tip, refund, ambiguous date,
+no-total, garbage), the image maths and the CTC decoder, which is still used for
+any future CTC recogniser. The fixtures are built from box positions, so a change
+in grouping behaviour surfaces as a parser failure rather than a silently
+different draft.
+
+The end-to-end model check is not part of `npm test` — it needs the ONNX weights
+and a native runtime — so it is run manually when the models change.

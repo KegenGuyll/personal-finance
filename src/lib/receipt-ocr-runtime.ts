@@ -1,10 +1,10 @@
 /**
- * The receipt OCR pipeline: ONNX sessions plus detection and recognition.
+ * The receipt OCR pipeline: text detection through ONNX, line recognition
+ * through TrOCR.
  *
- * Separate from the worker that calls it so the same code can run on the main
- * thread when a worker cannot be created, and so the session handling stays out
- * of the React layer. Only the ONNX calls are impure; the maths they call into
- * (`receipt-ocr-image.ts`) is unit-tested.
+ * All of it runs on the main thread in batches — see `receipt-ocr-client.ts` for
+ * why the worker was removed. Only the model calls are impure; the maths they
+ * call into (`receipt-ocr-image.ts`) is unit-tested.
  */
 
 import type * as OrtNamespace from "onnxruntime-web/wasm";
@@ -12,7 +12,6 @@ import type * as OrtNamespace from "onnxruntime-web/wasm";
 import {
   computeDetectionSize,
   computeRecognitionCropSize,
-  decodeCtc,
   probabilityMapToBoxes,
   PADDLE_MEAN,
   PADDLE_STD,
@@ -21,6 +20,7 @@ import {
   type Box,
   type Size,
 } from "./receipt-ocr-image";
+import { loadRecogniser, recogniseLine } from "./receipt-ocr-recogniser";
 
 export interface OcrLine {
   text: string;
@@ -74,8 +74,6 @@ type Ort = typeof OrtNamespace;
 
 interface Sessions {
   detector: OrtNamespace.InferenceSession;
-  recogniser: OrtNamespace.InferenceSession;
-  characters: string[];
 }
 
 /**
@@ -120,6 +118,14 @@ function configureRuntime(ort: Ort, basePath: string): void {
   runtimeConfigured = true;
 }
 
+/**
+ * Creates the detection session and loads the line recogniser.
+ *
+ * The detector runs through onnxruntime-web; lines are read by TrOCR through
+ * @huggingface/transformers. Both load together so the "loading" phase the UI
+ * reports covers everything the first scan waits on, and both are cached for
+ * the life of the page.
+ */
 export async function loadSessions(
   basePath: string,
   onProgress?: RunScanOptions["onProgress"],
@@ -131,73 +137,34 @@ export async function loadSessions(
   configureRuntime(ort, basePath);
   onProgress?.("loading");
 
-  const options: OrtNamespace.InferenceSession.SessionOptions = {
-    executionProviders,
-    graphOptimizationLevel: "all",
-  };
-
-  const [detector, recogniser, dictText] = await Promise.all([
-    ort.InferenceSession.create(`${basePath}/det.onnx`, options),
-    ort.InferenceSession.create(`${basePath}/rec.onnx`, options),
-    fetch(`${basePath}/rec-dict.txt`).then((response) => {
-      if (!response.ok) {
-        throw new Error(`Could not load the OCR dictionary (HTTP ${response.status}).`);
-      }
-      return response.text();
+  const [detector] = await Promise.all([
+    ort.InferenceSession.create(basePath + "/det.onnx", {
+      executionProviders,
+      graphOptimizationLevel: "all",
     }),
+    loadRecogniser(),
   ]);
 
-  // The recogniser encodes text as indices into this list, with the CTC blank as
-  // the final entry — which is why the trailing newline becomes a real token
-  // rather than being trimmed away.
-  const characters = dictText.split("\n");
-  if (characters[characters.length - 1] === "") characters.pop();
-
-  cached = { detector, recogniser, characters };
+  cached = { detector };
   return cached;
 }
-
 /**
- * Picks the model's input and output names.
+ * Picks a session's input and output names.
  *
- * The exported graphs name outputs after the op that produced them
- * ("sigmoid_0", "softmax_0"), and those names are an artefact of the conversion
- * rather than a contract, so they are read from the session instead of
- * hardcoded. Where a graph exposes several outputs, shape is the tiebreaker: the
- * detector emits a single 4-D probability map, the recogniser a 3-D logit cube
- * whose last dimension is the dictionary size.
+ * The exported detector names its output after the op that produced it
+ * ("sigmoid_0.tmp_0"), which is an artefact of the conversion rather than a
+ * contract, so the name is read from the session instead of hardcoded.
  */
-/**
- * Picks the model's input and output names.
- *
- * The exported graphs name their outputs by the op that produced them
- * ("sigmoid_0.tmp_0", "softmax_2.tmp_0"), and those names are an artefact of the
- * conversion rather than a contract, so they are read from the session instead
- * of hardcoded. When a graph exposes several outputs, the one with the expected
- * rank wins: the detector emits a single 4-D probability map, the recogniser a
- * 3-D probability cube.
- *
- * Matching on shape is not an option — every dimension of the recogniser's
- * output is symbolic in the exported metadata, so the class count is only known
- * from the tensor returned at run time.
- */
-function resolveIo(
-  session: OrtNamespace.InferenceSession,
-  options: { outputRank: number }
-): { input: string; output: string } {
+function resolveIo(session: OrtNamespace.InferenceSession): {
+  input: string;
+  output: string;
+} {
   const input = session.inputNames[0];
+  const output = session.outputNames[0];
   if (!input) throw new Error("OCR model exposes no inputs");
+  if (!output) throw new Error("OCR model exposes no outputs");
 
-  const outputs = session.outputMetadata.map((metadata) => ({
-    name: metadata.name,
-    rank: metadata.isTensor ? metadata.shape.length : 0,
-  }));
-
-  const ranked = outputs.filter((entry) => entry.rank === options.outputRank);
-  const output = ranked[0] ?? outputs[0] ?? { name: session.outputNames[0] };
-  if (!output?.name) throw new Error("OCR model exposes no outputs");
-
-  return { input, output: output.name };
+  return { input, output };
 }
 
 function tensorToFloatArray(output: OrtNamespace.Tensor): Float32Array {
@@ -206,20 +173,19 @@ function tensorToFloatArray(output: OrtNamespace.Tensor): Float32Array {
 }
 
 /**
- * Crops one detected line and packs it as an RGB recognition input.
+ * Crops one detected line out of the prepared image.
  *
- * Cropping by index into the prepared image is deliberate: the boxes are already
- * in that image's coordinates, and going back to the canvas would mean keeping a
- * second copy of a multi-megabyte bitmap alive for the whole scan.
+ * The crop keeps its own aspect ratio: TrOCR's processor resizes and pads to the
+ * model's square input, so squashing a line to a fixed width here would distort
+ * the glyph shapes before the model ever saw them.
  */
-function cropToTensor(
+function cropToRgba(
   pixels: Uint8ClampedArray,
   image: Size,
   box: Box
-): { data: Float32Array; width: number; height: number } {
+): { data: Uint8ClampedArray; width: number; height: number } {
   const crop = computeRecognitionCropSize(box);
-  const plane = crop.width * crop.height;
-  const data = new Float32Array(plane * 3);
+  const data = new Uint8ClampedArray(crop.width * crop.height * 4);
 
   const scaleX = box.width / crop.width;
   const scaleY = box.height / crop.height;
@@ -228,64 +194,41 @@ function cropToTensor(
     const sourceY = Math.min(image.height - 1, Math.max(0, Math.round(box.y + y * scaleY)));
     for (let x = 0; x < crop.width; x++) {
       const sourceX = Math.min(image.width - 1, Math.max(0, Math.round(box.x + x * scaleX)));
-      const offset = (sourceY * image.width + sourceX) * 4;
-      const index = y * crop.width + x;
+      const from = (sourceY * image.width + sourceX) * 4;
+      const to = (y * crop.width + x) * 4;
 
-      data[index] = (pixels[offset] / 255 - PADDLE_MEAN[0]) / PADDLE_STD[0];
-      data[plane + index] = (pixels[offset + 1] / 255 - PADDLE_MEAN[1]) / PADDLE_STD[1];
-      data[plane * 2 + index] = (pixels[offset + 2] / 255 - PADDLE_MEAN[2]) / PADDLE_STD[2];
+      data[to] = pixels[from];
+      data[to + 1] = pixels[from + 1];
+      data[to + 2] = pixels[from + 2];
+      data[to + 3] = 255;
     }
   }
 
   return { data, width: crop.width, height: crop.height };
 }
-
 async function recogniseBoxes(
-  ort: Ort,
   sessions: Sessions,
   pixels: Uint8ClampedArray,
   image: Size,
   boxes: Box[],
   options: RunScanOptions
 ): Promise<OcrLine[]> {
-  const io = resolveIo(sessions.recogniser, { outputRank: 3 });
   const lines: OcrLine[] = [];
-  // The model's last class is the CTC blank; the dictionary holds only the
-  // characters before it.
-  const blankIndex = sessions.characters.length;
 
   for (const [index, box] of boxes.entries()) {
     throwIfAborted(options.signal);
 
-    const crop = cropToTensor(pixels, image, box);
-    const output = await sessions.recogniser.run({
-      [io.input]: new ort.Tensor("float32", crop.data, [
-        1,
-        3,
-        crop.height,
-        crop.width,
-      ]),
+    const crop = cropToRgba(pixels, image, box);
+    const decoded = await recogniseLine(crop.data, {
+      width: crop.width,
+      height: crop.height,
     });
 
-    const result = output[io.output];
-    const dims = result.dims;
-    const timeSteps = Number(dims[dims.length - 2]);
-    const classes = Number(dims[dims.length - 1]);
-
-    // The graph ends in a softmax, so the values are already probabilities.
-    const decoded = decodeCtc(
-      tensorToFloatArray(result),
-      timeSteps,
-      classes,
-      sessions.characters,
-      blankIndex
-    );
-
-    if (decoded.text.trim().length > 0) {
+    if (decoded.text.length > 0) {
       lines.push({
-        text: decoded.text.trim(),
-        // The detector's box score and the recogniser's per-character score are
-        // both evidence, so the lower of the two is the honest single number.
+        text: decoded.text,
+        // The detector's box score and the recogniser's score are both
+        // evidence, so the lower of the two is the honest single number.
         confidence: Math.min(box.confidence, decoded.confidence),
         x: box.x,
         y: box.y,
@@ -304,7 +247,6 @@ async function recogniseBoxes(
 
   return lines;
 }
-
 /**
  * Reads every text line in a prepared receipt image, with positions.
  *
@@ -326,7 +268,7 @@ export async function runScan(
   const detectionSize = computeDetectionSize(image.size);
   options.onProgress?.("detecting");
 
-  const detectorIo = resolveIo(sessions.detector, { outputRank: 4 });
+  const detectorIo = resolveIo(sessions.detector);
   // Both models are declared as 3-channel RGB, so the greyscale a reader might
   // expect here would be rejected outright by the runtime.
   const detectionOutput = await sessions.detector.run({
@@ -355,14 +297,10 @@ export async function runScan(
 
   if (boxes.length === 0) return [];
 
-  return recogniseBoxes(ort, sessions, image.pixels, image.size, boxes, options);
+  return recogniseBoxes(sessions, image.pixels, image.size, boxes, options);
 }
 
 export const RECEIPT_OCR_BASE_PATH = "/receipt-ocr";
 
 /** Assets the scanner downloads on first use. */
-export const RECEIPT_OCR_ASSETS = [
-  `${RECEIPT_OCR_BASE_PATH}/det.onnx`,
-  `${RECEIPT_OCR_BASE_PATH}/rec.onnx`,
-  `${RECEIPT_OCR_BASE_PATH}/rec-dict.txt`,
-];
+export const RECEIPT_OCR_ASSETS = [`${RECEIPT_OCR_BASE_PATH}/det.onnx`];

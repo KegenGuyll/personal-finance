@@ -7,7 +7,7 @@ before Plaid catches up, envelope budgets, and savings goals.
 
 ```bash
 npm install
-npm run models:fetch   # one-time: receipt-scanning OCR models (~25MB)
+npm run models:fetch   # one-time: receipt-scanning text detector (~17MB)
 npm run dev
 ```
 

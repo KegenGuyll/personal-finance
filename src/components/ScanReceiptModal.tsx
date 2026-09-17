@@ -66,7 +66,7 @@ export default function ScanReceiptModal({
             {needsDownload && (
               <div className="mt-4 rounded-lg border border-soft-periwinkle-200 bg-soft-periwinkle-50 px-3 py-3">
                 <p className="text-xs font-medium text-soft-periwinkle-800">
-                  One-time setup: download the on-device OCR model (~25MB)
+                  One-time setup: download the on-device OCR model (~72MB)
                 </p>
                 <p className="mt-1 text-[10px] text-soft-periwinkle-700">
                   Stored in this browser and reused for every later scan, including

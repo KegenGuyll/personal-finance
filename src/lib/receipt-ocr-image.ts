@@ -9,11 +9,20 @@
 /** Pixels of padding on each side of a detected box before recognition. */
 export const BOX_UNCLIP_RATIO = 0.25;
 
-/** Recognition input height. Matches the height the recogniser was trained at. */
-export const REC_HEIGHT = 48;
+/**
+ * Recognition crop height.
+ *
+ * Not the model's own input size: TrOCR's processor scales whatever it is given
+ * to 384x384 internally, so this only has to keep enough detail for that resize
+ * to be lossless-ish. It was 48 while the recogniser was a PaddleOCR CRNN, which
+ * trained at exactly that height — at 48 the glyphs reach TrOCR with a handful of
+ * pixels each and it misreads nearly every line ("SUBTOTAL 4.00" -> "SUBJION
+ * 4.MM"). At 128 the same lines read correctly.
+ */
+export const REC_HEIGHT = 128;
 
-/** Recognition input width; wider lines are scaled down to fit. */
-export const REC_MAX_WIDTH = 320;
+/** Recognition crop width cap, bounding per-line memory and compute. */
+export const REC_MAX_WIDTH = 1024;
 
 /** Detection input constraints: DBNet needs both dimensions divisible by 32. */
 export const DET_MIN_SIDE = 640;

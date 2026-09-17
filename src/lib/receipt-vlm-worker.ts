@@ -383,6 +383,13 @@ async function runReceipt(request: VlmRunRequest): Promise<VlmResultMessage> {
     callback_function: (token: string) => {
       outputText += token;
       outputTokens++;
+      // The kill lands somewhere inside generation, and where decides the fix: a
+      // death before the first token is a prefill allocation, one after hundreds
+      // is sustained pressure. A count this sparse still localises it to 32
+      // tokens without the log growing by a line per token.
+      if (outputTokens === 1 || outputTokens % 32 === 0) {
+        breadcrumb("run:token", "n=" + outputTokens);
+      }
       post({ type: "token", token });
     },
   });
@@ -404,7 +411,10 @@ async function runReceipt(request: VlmRunRequest): Promise<VlmResultMessage> {
   });
 
   const generateMs = performance.now() - started;
-  breadcrumb("run:generate:ok", "ms=" + Math.round(generateMs));
+  breadcrumb(
+    "run:generate:ok",
+    "ms=" + Math.round(generateMs) + " tokens=" + outputTokens
+  );
 
   // The streamer normally supplies the text; decoding the raw ids is the
   // fallback for a generation that produced no streamed tokens.

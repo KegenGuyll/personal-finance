@@ -172,6 +172,18 @@ export function currentBreadcrumbSessionId(): number {
 }
 
 /**
+ * Removes every stored page load, including ones this page load never wrote.
+ *
+ * Deliberately not scoped like `startScanLog`, which spares other page loads so a
+ * crash stays readable. This is the discard the reader asked for: it exists so a
+ * spent run stops showing up, and holding back sessions the button appears to
+ * remove would defeat that.
+ */
+export function clearBreadcrumbs(): void {
+  write([]);
+}
+
+/**
  * Describes the GPU adapter, including the buffer limits that bound what the
  * device can upload at all.
  *

@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import {
+  clearBreadcrumbs,
   currentBreadcrumbSessionId,
   readBreadcrumbSessions,
   type BreadcrumbSession,
@@ -29,8 +30,9 @@ import {
  */
 export default function ScanFailureDiagnostics() {
   // Read once, synchronously: the log is already durable by the time this renders.
-  const [sessions] = useState(() => readBreadcrumbSessions());
+  const [sessions, setSessions] = useState(() => readBreadcrumbSessions());
   const [copied, setCopied] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   if (sessions.length === 0) return null;
 
@@ -64,6 +66,19 @@ export default function ScanFailureDiagnostics() {
     }
   };
 
+  // Two taps. This store holds the only copy of what a crash did, and on a phone a
+  // stray tap on a 10px target would destroy it with nothing to restore from.
+  const clear = () => {
+    if (!clearing) {
+      setClearing(true);
+      setTimeout(() => setClearing(false), 3000);
+      return;
+    }
+
+    clearBreadcrumbs();
+    setSessions([]);
+  };
+
   return (
     <details className="mt-3 rounded-md border border-space-indigo-100 bg-space-indigo-50 px-3 py-2">
       <summary className="cursor-pointer text-[10px] font-medium text-space-indigo-500">
@@ -86,13 +101,22 @@ export default function ScanFailureDiagnostics() {
         <span className="text-[10px] text-space-indigo-400">
           Last line = last step that completed
         </span>
-        <button
-          type="button"
-          onClick={copy}
-          className="text-[10px] font-medium text-cornflower-blue-600 hover:text-cornflower-blue-700"
-        >
-          {copied ? "Copied" : "Copy"}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={copy}
+            className="text-[10px] font-medium text-cornflower-blue-600 hover:text-cornflower-blue-700"
+          >
+            {copied ? "Copied" : "Copy"}
+          </button>
+          <button
+            type="button"
+            onClick={clear}
+            className="text-[10px] font-medium text-amber-700 hover:text-amber-800"
+          >
+            {clearing ? "Clear?" : "Clear"}
+          </button>
+        </div>
       </div>
     </details>
   );

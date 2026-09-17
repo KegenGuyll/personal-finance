@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   breadcrumb,
+  clearBreadcrumbs,
   currentBreadcrumbSessionId,
   readBreadcrumbSessions,
   startScanLog,
@@ -137,4 +138,22 @@ test("reports no stored session as this page load until it logs something", () =
 
   assert.equal(sessions.length, 2);
   assert.equal(sessions[sessions.length - 1].id, currentBreadcrumbSessionId());
+});
+
+test("clearing removes every page load, including ones this one did not write", () => {
+  seedPreviousLoad(1, [{ at: 394, step: "worker:run:generate:begin" }]);
+  breadcrumb("worker:load:begin");
+
+  assert.equal(readBreadcrumbSessions().length, 2);
+
+  clearBreadcrumbs();
+
+  assert.deepEqual(readBreadcrumbSessions(), []);
+
+  breadcrumb("scan:start");
+
+  const sessions = readBreadcrumbSessions();
+
+  assert.equal(sessions.length, 1);
+  assert.deepEqual(stepsOf(sessions[0]), ["scan:start"]);
 });

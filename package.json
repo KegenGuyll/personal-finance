@@ -12,7 +12,7 @@
     "models:fetch": "node scripts/fetch-receipt-ocr-models.mjs"
   },
   "dependencies": {
-    "@huggingface/transformers": "3.7.5",
+    "@huggingface/transformers": "4.3.0",
     "@reduxjs/toolkit": "^2.12.0",
     "@tanstack/react-query": "^5.101.4",
     "mongodb": "^7.5.0",

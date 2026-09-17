@@ -56,11 +56,15 @@ export default function ImageDropZone({
           : "border-space-indigo-200 bg-space-indigo-50"
       }`}
     >
+      {/* Deliberately no `capture` attribute. It is not "prefer the camera": it
+          tells the browser to open the camera directly and skip its own chooser, so
+          the photo library became unreachable. Without it, mobile browsers offer
+          Take Photo / Photo Library / Choose File themselves, which is the choice
+          the user should be making. */}
       <input
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         className="hidden"
         onChange={(event) => {
           pick(event.target.files);
@@ -70,7 +74,7 @@ export default function ImageDropZone({
       />
 
       <p className="text-sm font-medium text-space-indigo-700">
-        Photograph the receipt, or choose a screenshot
+        Take a photo or pick one from your phone
       </p>
       <p className="mt-1 text-xs text-space-indigo-400">
         The photo is read on this device. Nothing is uploaded.
@@ -83,7 +87,7 @@ export default function ImageDropZone({
           onClick={() => inputRef.current?.click()}
           className="rounded-lg bg-space-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-space-indigo-700 disabled:opacity-50"
         >
-          Take or choose a photo
+          Choose a photo
         </button>
       </div>
 

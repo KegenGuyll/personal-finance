@@ -105,3 +105,18 @@ test("describes an empty reply distinctly", () => {
 
   assert.match(message, /returned nothing/i);
 });
+
+test("never pre-selects an account", async () => {
+  // The review form must not fall back to `accounts[0]`: a scanned transaction
+  // booked against an unchosen account is invisible once the select shows a name.
+  // The form owns that rule, so this asserts it is not reintroduced by the
+  // mapping supplying a default of its own.
+  const { mapExtractionToDraft } = await import("../src/lib/receipt-vlm-mapping.ts");
+  const mapped = mapExtractionToDraft(extraction());
+
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(mapped.draft, "accountId"),
+    false,
+    "the mapping must not invent an account"
+  );
+});

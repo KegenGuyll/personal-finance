@@ -72,12 +72,15 @@ export default function ReceiptReviewForm({
     return [fallbackAccount, ...accounts];
   }, [accounts, fallbackAccount]);
 
+  // Deliberately not defaulted to `accounts[0]`. The list is ordered by whatever
+  // the API returned, so falling back to it silently booked a scanned
+  // transaction against an account the user never chose — and a wrong account is
+  // invisible in the form once the select shows a name.
+  //
+  // `defaultAccountId` is still honoured because the only callers that set it are
+  // the account pages, where the account is what the page is about.
   const [accountId, setAccountId] = useState(
-    () =>
-      defaultAccountId ??
-      fallbackAccount?.account_id ??
-      accounts[0]?.account_id ??
-      ""
+    () => defaultAccountId ?? fallbackAccount?.account_id ?? ""
   );
   const [type, setType] = useState<ManualTransactionType>(draft.type);
   const [amount, setAmount] = useState(() =>
@@ -222,6 +225,9 @@ export default function ReceiptReviewForm({
         onChange={(event) => setAccountId(event.target.value)}
         className="mt-1 w-full rounded-lg border border-space-indigo-200 bg-white px-3 py-2 text-sm text-space-indigo-800 outline-none focus:border-space-indigo-400"
       >
+        <option value="" disabled>
+          Choose an account…
+        </option>
         {accountOptions.map((account) => (
           <option key={account.account_id} value={account.account_id}>
             {accountLabel(account)}
@@ -268,6 +274,12 @@ export default function ReceiptReviewForm({
             </div>
           )}
         </>
+      )}
+
+      {accountId.length === 0 && (
+        <p className="mt-1 text-[10px] text-amber-700">
+          Choose an account before saving.
+        </p>
       )}
 
       {errorMessage && (

@@ -1,27 +1,29 @@
 "use client";
 
 /**
- * A breadcrumb log that survives the tab being killed.
+ * A step log that survives the process being killed, written synchronously.
  *
- * The scan crashes on a real device in a way that cannot be reproduced here, and
- * the failure destroys the evidence: the page reloads and anything held in memory
- * — including the error — goes with it.
+ * The scan dies on a real device in a way that takes its own evidence with it:
+ * iOS kills the renderer, the page reloads, and anything held in memory — or
+ * queued in an asynchronous write — is gone. An earlier version of this logged
+ * through the Cache API, which was wrong for exactly that reason: `cache.put()` is
+ * asynchronous, so a log written that way is the code most likely to be cut off
+ * mid-flight by the crash it is meant to describe.
  *
- * Progress is therefore persisted as it happens, in the **Cache API**, for one
- * specific reason: this runs inside the inference Worker. `localStorage` is not
- * available there at all, so a log written through it would be silent for exactly
- * the steps that matter — model load and generation. `sessionStorage` and
- * `IndexedDB` have the same problem, and `IndexedDB` is async at a moment when a
- * crash may be milliseconds away.
+ * `localStorage` is the only store that is synchronous and survives a reload. That
+ * constrains the design in two non-obvious ways:
  *
- * The Cache API is available in both contexts and its writes survive a reload, so
- * the last entry recorded before a crash is the last step that completed. That is
- * the single most useful fact available.
+ * 1. It does not exist in a Worker. Inference runs in one, so the worker cannot log
+ *    directly; it forwards each entry and the main thread writes it.
+ * 2. Being synchronous, every write blocks the main thread. Entries are therefore
+ *    short and few — a dozen or so per scan, which costs nothing next to inference.
+ *
+ * The effect is that each step is durable the instant it completes, so the last
+ * line after a crash is the last step that ran.
  */
 
-const CACHE_NAME = "receipt-scan-diagnostics";
-const LOG_URL = "/__receipt-scan-log";
-const MAX_ENTRIES = 80;
+const STORAGE_KEY = "receipt-scan:log";
+const MAX_ENTRIES = 60;
 
 export interface Breadcrumb {
   /** Milliseconds since the log was started. */
@@ -32,36 +34,20 @@ export interface Breadcrumb {
 
 let startedAt = Date.now();
 
-function cachesAvailable(): boolean {
-  return typeof caches !== "undefined";
-}
-
-async function read(): Promise<Breadcrumb[]> {
-  if (!cachesAvailable()) return [];
-
+function read(): Breadcrumb[] {
   try {
-    const cache = await caches.open(CACHE_NAME);
-    const response = await cache.match(LOG_URL);
-    if (!response) return [];
-
-    const parsed: unknown = await response.json();
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
     return Array.isArray(parsed) ? (parsed as Breadcrumb[]) : [];
   } catch {
     return [];
   }
 }
 
-async function write(entries: Breadcrumb[]): Promise<void> {
-  if (!cachesAvailable()) return;
-
+function write(entries: Breadcrumb[]): void {
   try {
-    const cache = await caches.open(CACHE_NAME);
-    await cache.put(
-      LOG_URL,
-      new Response(JSON.stringify(entries.slice(-MAX_ENTRIES)), {
-        headers: { "content-type": "application/json" },
-      })
-    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries.slice(-MAX_ENTRIES)));
   } catch {
     // Quota or a private-mode refusal. Losing the log is acceptable; throwing at
     // the moment of a crash is not.
@@ -69,25 +55,26 @@ async function write(entries: Breadcrumb[]): Promise<void> {
 }
 
 /**
- * Records one step.
+ * Records one step and returns only once it is durable.
  *
- * Deliberately not awaited by callers: a breadcrumb must never be the thing that
- * fails a scan, and the write is fire-and-forget by design. Callers record on both
- * sides of anything that can fail, so a missing trailing entry is itself the
- * signal.
+ * Callers log on both sides of anything that can fail, so a missing trailing entry
+ * is itself the signal: the step it would have described is the one that died.
  */
 export function breadcrumb(step: string, detail?: string): void {
-  void (async () => {
-    const entries = await read();
-    entries.push({ at: Date.now() - startedAt, step, detail });
-    await write(entries);
-  })();
+  const entries = read();
+  entries.push({ at: Date.now() - startedAt, step, detail });
+  write(entries);
 }
 
-/** Marks the beginning of a scan, so each run is separable in the log. */
+/**
+ * Marks the beginning of a scan.
+ *
+ * Clearing first is what makes the last line unambiguous: everything present
+ * belongs to the run being diagnosed, not to an earlier one.
+ */
 export function startScanLog(): void {
   startedAt = Date.now();
-  void write([]);
+  write([]);
   breadcrumb("scan:start", describeEnvironment());
 }
 
@@ -95,25 +82,29 @@ export function startScanLog(): void {
 export function describeEnvironment(): string {
   const nav = navigator as Navigator & { deviceMemory?: number; gpu?: unknown };
   return [
-    `ua=${typeof navigator === "undefined" ? "?" : nav.userAgent}`,
-    `cores=${nav.hardwareConcurrency ?? "?"}`,
-    `mem=${nav.deviceMemory ?? "?"}`,
-    `gpu=${typeof nav.gpu !== "undefined"}`,
-    `secure=${typeof isSecureContext === "undefined" ? "?" : isSecureContext}`,
+    "gpu=" + (typeof nav.gpu !== "undefined"),
+    "cores=" + (nav.hardwareConcurrency ?? "?"),
+    "mem=" + (nav.deviceMemory ?? "?"),
+    "secure=" + (typeof isSecureContext === "undefined" ? "?" : isSecureContext),
+    "ua=" + nav.userAgent.slice(0, 80),
   ].join(" ");
 }
 
-export function readBreadcrumbs(): Promise<Breadcrumb[]> {
+export function readBreadcrumbs(): Breadcrumb[] {
   return read();
 }
 
-export function clearBreadcrumbs(): Promise<void> {
-  return write([]);
+export function clearBreadcrumbs(): void {
+  write([]);
 }
 
 /**
  * Describes the GPU adapter, including the buffer limits that decide whether a
  * model this size can be uploaded at all.
+ *
+ * The leading suspect for the crash: the decoder shard is 221MB and the
+ * spec-default `maxBufferSize` is 256MB, so a device reporting a smaller limit
+ * would fail at model load rather than during generation.
  */
 export async function describeGpu(): Promise<string> {
   const gpu = (navigator as Navigator & { gpu?: GpuLike }).gpu;
@@ -125,22 +116,22 @@ export async function describeGpu(): Promise<string> {
 
     const info = adapter.info;
     const parts = [
-      `vendor=${info?.vendor ?? "?"}`,
-      `arch=${info?.architecture ?? "?"}`,
-      `f16=${adapter.features?.has("shader-f16") ?? "?"}`,
+      "vendor=" + (info?.vendor ?? "?"),
+      "arch=" + (info?.architecture ?? "?"),
+      "f16=" + (adapter.features?.has("shader-f16") ?? "?"),
     ];
 
     const limits = adapter.limits;
     if (limits) {
-      parts.push(`maxBufferMB=${Math.round((limits.maxBufferSize ?? 0) / 1e6)}`);
+      parts.push("maxBufferMB=" + Math.round((limits.maxBufferSize ?? 0) / 1e6));
       parts.push(
-        `maxStorageMB=${Math.round((limits.maxStorageBufferBindingSize ?? 0) / 1e6)}`
+        "maxStorageMB=" + Math.round((limits.maxStorageBufferBindingSize ?? 0) / 1e6)
       );
     }
 
     return parts.join(" ");
   } catch (error) {
-    return `adapter probe failed: ${error instanceof Error ? error.message : String(error)}`;
+    return "adapter probe failed: " + (error instanceof Error ? error.message : String(error));
   }
 }
 

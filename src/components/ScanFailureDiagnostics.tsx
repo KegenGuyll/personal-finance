@@ -1,37 +1,33 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 
-import { readBreadcrumbs, type Breadcrumb } from "@/src/lib/scan-breadcrumbs";
+import { readBreadcrumbs } from "@/src/lib/scan-breadcrumbs";
 
 /**
  * Shows how far the last scan got, for when it does not finish.
  *
- * The scan can die in a way that leaves nothing behind — the tab is killed, the
- * page reloads, and the error is gone with the memory it lived in. The only
- * surviving evidence is the persisted step log, so surfacing it is the difference
+ * The scan can die in a way that leaves nothing else behind: the renderer is
+ * killed, the page reloads, and the error goes with the memory it lived in. The
+ * only surviving evidence is the step log, so surfacing it is the difference
  * between "it crashes" and knowing which step crashes.
  *
- * Rendered only in the failure path: on a working scan it would be noise.
+ * The read is synchronous and happens on mount, so what is shown is what the last
+ * run actually persisted — including a run that ended by killing the process.
+ * Rendered only in the failure path; on a working scan it would be noise.
  */
-export default function ScanDiagnosticsPanel() {
-  const [entries, setEntries] = useState<Breadcrumb[] | null>(null);
+export default function ScanFailureDiagnostics() {
+  // Read once, synchronously: the log is already durable by the time this renders.
+  const [entries] = useState(() => readBreadcrumbs());
   const [copied, setCopied] = useState(false);
 
-  const load = useCallback(async () => {
-    setEntries(await readBreadcrumbs());
-  }, []);
-
-  useEffect(() => {
-    // From a microtask so no setState runs in the effect body, which this
-    // codebase's lint rules reject for the cascading render it causes.
-    void Promise.resolve().then(load);
-  }, [load]);
-
-  if (!entries || entries.length === 0) return null;
+  if (entries.length === 0) return null;
 
   const text = entries
-    .map((entry) => `${String(entry.at).padStart(6)}ms  ${entry.step}${entry.detail ? "  " + entry.detail : ""}`)
+    .map(
+      (entry) =>
+        `${String(entry.at).padStart(6)}ms  ${entry.step}${entry.detail ? "  " + entry.detail : ""}`
+    )
     .join("\n");
 
   const copy = async () => {
@@ -44,11 +40,18 @@ export default function ScanDiagnosticsPanel() {
     }
   };
 
+  const last = entries[entries.length - 1];
+
   return (
     <details className="mt-3 rounded-md border border-space-indigo-100 bg-space-indigo-50 px-3 py-2">
       <summary className="cursor-pointer text-[10px] font-medium text-space-indigo-500">
-        What the scan did before it stopped ({entries.length} steps)
+        What the last scan did before it stopped ({entries.length} steps)
       </summary>
+
+      <p className="mt-2 text-[10px] text-amber-700">
+        Last step: <span className="font-medium">{last.step}</span>
+        {last.detail ? ` — ${last.detail}` : ""}
+      </p>
 
       <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words text-[10px] leading-tight text-space-indigo-700">
         {text}

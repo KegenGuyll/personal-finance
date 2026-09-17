@@ -189,3 +189,37 @@ export async function fetchModelFileSizes(
     return null;
   }
 }
+
+/**
+ * What a scan entry point should tell the user before they tap.
+ *
+ * A pure mapping so the button's messaging can be tested, and so the four states
+ * cannot drift apart across the two screens that render the button. The
+ * distinction that matters: only `ready` can actually scan, and saying anything
+ * other than that first would make the modal's download prompt look like a
+ * failure rather than the expected first run.
+ */
+export function describeScanReadiness(
+  readiness: "checking" | "missing" | "downloading" | "ready" | "failed"
+): { label: string; hint: string | null; canScan: boolean } {
+  switch (readiness) {
+    case "ready":
+      return { label: "Scan receipt", hint: null, canScan: true };
+    case "downloading":
+      return { label: "Downloading…", hint: "The OCR model is downloading", canScan: false };
+    case "missing":
+      return {
+        label: "Scan receipt",
+        hint: "Needs a one-time ~85MB download",
+        canScan: false,
+      };
+    case "failed":
+      return {
+        label: "Scan receipt",
+        hint: "The model download did not finish",
+        canScan: false,
+      };
+    default:
+      return { label: "Scan receipt", hint: null, canScan: false };
+  }
+}

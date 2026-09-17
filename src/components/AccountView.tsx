@@ -20,6 +20,8 @@ import SearchInput from "@/src/components/SearchInput";
 import DateRangeFilter, { getStartDate } from "@/src/components/DateRangeFilter";
 import ManualTransactionModal from "@/src/components/ManualTransactionModal";
 import ScanReceiptModal from "@/src/components/ScanReceiptModal";
+import { useModelReadiness } from "@/src/hooks/useModelReadiness";
+import { describeScanReadiness } from "@/src/lib/download-progress";
 import SavedTransactionNotice from "@/src/components/SavedTransactionNotice";
 import BackButton from "@/src/components/BackButton";
 
@@ -199,6 +201,8 @@ export default function AccountView({
   );
   const [isAddingManual, setIsAddingManual] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const modelReadiness = useModelReadiness();
+  const scanReadiness = describeScanReadiness(modelReadiness.readiness);
   const [savedTransaction, setSavedTransaction] = useState<Transaction | null>(null);
 
   const { data: accountData, isLoading: isAccountLoading } =
@@ -250,12 +254,20 @@ export default function AccountView({
             {displayName}
           </h1>
           <div className="flex shrink-0 gap-1.5">
-            <button
-              onClick={() => setIsScanning(true)}
-              className="rounded-lg border border-space-indigo-200 px-3 py-1.5 text-xs font-medium text-space-indigo-700 transition-colors hover:bg-space-indigo-50"
-            >
-              Scan receipt
-            </button>
+            <div className="flex flex-col items-end">
+              <button
+                onClick={() => setIsScanning(true)}
+                title={scanReadiness.hint ?? undefined}
+                className="rounded-lg border border-space-indigo-200 px-3 py-1.5 text-xs font-medium text-space-indigo-700 transition-colors hover:bg-space-indigo-50"
+              >
+                {scanReadiness.label}
+              </button>
+              {scanReadiness.hint && (
+                <span className="mt-0.5 max-w-[10rem] text-right text-[10px] text-space-indigo-400">
+                  {scanReadiness.hint}
+                </span>
+              )}
+            </div>
             <button
               onClick={() => setIsAddingManual(true)}
               className="rounded-lg bg-space-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-space-indigo-700"

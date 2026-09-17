@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   createProgressTracker,
+  describeScanReadiness,
   FALLBACK_MODEL_SIZES,
 } from "../src/lib/download-progress.ts";
 
@@ -141,4 +142,55 @@ test("ignores callbacks without a file or byte count", () => {
   tracker.onProgress({ status: "progress" });
 
   assert.equal(tracker.snapshot().loadedBytes, 0);
+});
+
+test("only the ready state can start a scan", () => {
+  // The modal shows a download prompt instead of a photo picker in every other
+  // state, so a hint that promised scanning would send the user to a dead end.
+  const states = ["checking", "missing", "downloading", "ready", "failed"];
+
+  for (const state of states) {
+    const described = describeScanReadiness(state);
+    assert.equal(
+      described.canScan,
+      state === "ready",
+      `${state} should report canScan=${state === "ready"}`
+    );
+  }
+});
+
+test("names the one-time download before the user taps", () => {
+  const described = describeScanReadiness("missing");
+
+  assert.match(described.hint ?? "", /one-time/i);
+  assert.match(described.hint ?? "", /85MB/);
+});
+
+test("shows download progress on the entry button", () => {
+  const described = describeScanReadiness("downloading");
+
+  assert.equal(described.label, "Downloading…");
+  assert.ok(described.hint);
+});
+
+test("offers a retry hint after a failed download", () => {
+  const described = describeScanReadiness("failed");
+
+  assert.match(described.hint ?? "", /did not finish/i);
+});
+
+test("says nothing extra when everything is ready", () => {
+  const described = describeScanReadiness("ready");
+
+  assert.equal(described.label, "Scan receipt");
+  assert.equal(described.hint, null);
+});
+
+test("stays neutral while the cache is still being read", () => {
+  const described = describeScanReadiness("checking");
+
+  // Claiming a download is needed before the cache has been read would flash a
+  // wrong warning on every open for users who already have the model.
+  assert.equal(described.hint, null);
+  assert.equal(described.canScan, false);
 });

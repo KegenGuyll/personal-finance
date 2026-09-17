@@ -67,8 +67,29 @@ and transformers.js caches them under the `transformers-cache` Cache API entry
 
 ## First scan on a device
 
-The first scan offers a **"Download the OCR model"** button (~85MB, one time) and
-stores the result in the Cache API, so later scans work offline.
+Scanning cannot run until the models are on the device, so the scan button
+reflects that before it is tapped: **"Scan receipt"** with a *"Needs a one-time
+~85MB download"* hint when they are absent, **"Downloading…"** while the transfer
+is in progress, and no hint once they are cached. Clicking it always opens the
+scanner — the modal is where the decision is explained, not a dead button.
+
+Inside the modal the pick stage is one of four states rather than a photo picker
+with a download notice beside it:
+
+| State | What you see |
+|---|---|
+| Checking | "Checking the on-device models…" — the cache read is in flight |
+| Missing | **"This needs a one-time download first"** with a download button |
+| Downloading | The progress bar; scanning starts as soon as it completes |
+| Ready | The photo picker |
+| Failed | The error, with **Try again** and **Enter it by hand** |
+
+The photo picker is deliberately *not* shown until the models are present. An
+enabled picker next to a download prompt invites a scan that cannot start, which
+looks like a hang rather than a missing prerequisite.
+
+Closing the modal does not cancel a download in progress — the bytes are wanted
+either way.
 
 While it runs, the button is replaced by a progress bar showing the percentage,
 the bytes transferred against the total, the file currently downloading and how

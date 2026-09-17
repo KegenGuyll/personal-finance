@@ -2,7 +2,7 @@
 
 import type { Account, Transaction } from "@/src/features/plaid/plaidSlice";
 import { useCategories } from "@/src/hooks/useCategories";
-import { useModelsReady } from "@/src/hooks/useModelsReady";
+import { useModelReadiness } from "@/src/hooks/useModelReadiness";
 import { useReceiptScan } from "@/src/hooks/useReceiptScan";
 import ImageDropZone from "@/src/components/ImageDropZone";
 import ReceiptPreview from "@/src/components/ReceiptPreview";
@@ -41,15 +41,13 @@ export default function ScanReceiptModal({
   onManualEntry,
 }: ScanReceiptModalProps) {
   const { data: categoryData } = useCategories();
-  const models = useModelsReady();
+  const models = useModelReadiness();
   const scan = useReceiptScan(categoryData?.categories);
 
   const handleSaved = (transaction: Transaction) => {
     onSaved(transaction);
     onClose();
   };
-
-  const needsDownload = models.isCached === false;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-space-indigo-900/40 p-4">
@@ -63,44 +61,78 @@ export default function ScanReceiptModal({
             : "The photo is read on this device — it is never uploaded."}
         </p>
 
-        {scan.stage === "pick" && (
-          <>
-            {needsDownload && (
-              <div className="mt-4 rounded-lg border border-soft-periwinkle-200 bg-soft-periwinkle-50 px-3 py-3">
-                <p className="text-xs font-medium text-soft-periwinkle-800">
-                  One-time setup: download the on-device OCR model (~85MB)
-                </p>
-                <p className="mt-1 text-[10px] text-soft-periwinkle-700">
-                  Stored in this browser and reused for every later scan, including
-                  offline.
-                </p>
+        {scan.stage === "pick" && models.readiness === "checking" && (
+          <p className="mt-4 text-xs text-space-indigo-400">
+            Checking the on-device models…
+          </p>
+        )}
 
-                {models.isPreparing ? (
-                  <ModelDownloadProgress
-                    download={models.download}
-                    isPreparing={models.isPreparing}
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    onClick={models.prepare}
-                    className="mt-3 rounded-lg bg-space-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-space-indigo-700"
-                  >
-                    Download the OCR model
-                  </button>
-                )}
+        {scan.stage === "pick" && models.readiness === "missing" && (
+          <div className="mt-4 rounded-lg border border-soft-periwinkle-200 bg-soft-periwinkle-50 px-3 py-3">
+            <p className="text-sm font-medium text-soft-periwinkle-800">
+              This needs a one-time download first
+            </p>
+            <p className="mt-1 text-xs text-soft-periwinkle-700">
+              Scanning runs on this device, so the OCR model has to be here
+              first. About 85MB, downloaded once and then reused offline.
+            </p>
 
-                {models.error && (
-                  <p className="mt-2 text-[10px] text-space-indigo-700">{models.error}</p>
-                )}
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={models.startDownload}
+              className="mt-3 w-full rounded-lg bg-space-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-space-indigo-700"
+            >
+              Download the OCR model
+            </button>
+          </div>
+        )}
 
-            <div className="mt-4">
-              <ImageDropZone onSelect={scan.scanFile} disabled={scan.stage !== "pick"} />
+        {scan.stage === "pick" && models.readiness === "failed" && (
+          <div className="mt-4 rounded-lg border border-soft-periwinkle-200 bg-soft-periwinkle-50 px-3 py-3">
+            <p className="text-sm font-medium text-soft-periwinkle-800">
+              The download did not finish
+            </p>
+            <p className="mt-1 text-xs text-soft-periwinkle-700">
+              {models.error ?? "The model could not be downloaded."}
+            </p>
+
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={models.startDownload}
+                className="rounded-lg bg-space-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-space-indigo-700"
+              >
+                Try again
+              </button>
+              <button
+                type="button"
+                onClick={onManualEntry}
+                className="rounded-lg border border-space-indigo-200 px-4 py-2 text-sm font-medium text-space-indigo-600 transition-colors hover:bg-space-indigo-50"
+              >
+                Enter it by hand
+              </button>
             </div>
+          </div>
+        )}
 
-            <ScanDiagnosticsPanel />
+        {scan.stage === "pick" && models.readiness === "downloading" && (
+          <div className="mt-4 rounded-lg border border-soft-periwinkle-200 bg-soft-periwinkle-50 px-3 py-3">
+            <p className="text-sm font-medium text-soft-periwinkle-800">
+              Downloading the OCR model — you can keep this open
+            </p>
+            <p className="mt-1 text-xs text-soft-periwinkle-700">
+              Scanning starts automatically once it finishes.
+            </p>
+
+            <ModelDownloadProgress download={models.download} isPreparing />
+          </div>
+        )}
+
+        {scan.stage === "pick" && models.readiness === "ready" && (
+          <>
+            <div className="mt-4">
+              <ImageDropZone onSelect={scan.scanFile} />
+            </div>
 
             {scan.error && (
               <p className="mt-3 rounded-md border border-soft-periwinkle-200 bg-soft-periwinkle-50 px-3 py-2 text-xs text-soft-periwinkle-800">
@@ -109,6 +141,8 @@ export default function ScanReceiptModal({
             )}
           </>
         )}
+
+        {scan.stage === "pick" && <ScanDiagnosticsPanel />}
 
         {scan.stage === "reading" && (
           <div className="mt-4">

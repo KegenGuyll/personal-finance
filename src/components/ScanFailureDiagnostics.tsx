@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import {
+  currentBreadcrumbSessionId,
   readBreadcrumbSessions,
   type BreadcrumbSession,
 } from "@/src/lib/scan-breadcrumbs";
@@ -17,11 +18,14 @@ import {
  *
  * The read is synchronous and happens on mount, so what is shown is what the last
  * run actually persisted — including a run that ended by killing the process.
- * Rendered only in the failure path; on a working scan it would be noise.
  *
- * Each page load gets its own heading, because the killed run and the page load
- * that replaced it share one store and read as a single run without them. The run
- * worth looking at is usually the older of the two.
+ * Shown whatever the download state, because the crash that leaves a log behind
+ * also empties the model cache. Hiding this behind "ready" would put the evidence
+ * behind the 316MB download that the crash itself forced.
+ *
+ * Each page load gets its own heading, told apart by identity rather than by
+ * position: a crash reloads the page, so the run worth reading is usually the one
+ * before this page load, which has not logged anything yet.
  */
 export default function ScanFailureDiagnostics() {
   // Read once, synchronously: the log is already durable by the time this renders.
@@ -30,16 +34,24 @@ export default function ScanFailureDiagnostics() {
 
   if (sessions.length === 0) return null;
 
-  const text = describeSessions(sessions);
+  // -1 when this page load has logged nothing yet, which is the usual state after a
+  // crash: nothing has run since the reload.
+  const currentIndex = sessions.findIndex(
+    (session) => session.id === currentBreadcrumbSessionId()
+  );
+  // The run a reload interrupted. With none, the only thing to point at is this
+  // page load's own.
+  const interruptedIndex = currentIndex === -1 ? sessions.length - 1 : currentIndex - 1;
+  const focusIndex = interruptedIndex >= 0 ? interruptedIndex : Math.max(currentIndex, 0);
+
+  const text = describeSessions(sessions, currentIndex);
   const steps = sessions.reduce((total, session) => total + session.entries.length, 0);
   const scope =
     sessions.length > 1
       ? `${steps} steps across ${sessions.length} page loads`
       : `${steps} steps`;
 
-  // Point at the run the reload interrupted, not this page load, which has not
-  // finished happening yet.
-  const focused = sessions[sessions.length > 1 ? sessions.length - 2 : sessions.length - 1];
+  const focused = sessions[focusIndex];
   const last = focused.entries[focused.entries.length - 1];
 
   const copy = async () => {
@@ -60,7 +72,7 @@ export default function ScanFailureDiagnostics() {
 
       {last && (
         <p className="mt-2 text-[10px] text-amber-700">
-          {sessions.length > 1 ? "Last step before the reload: " : "Last step: "}
+          {interruptedIndex >= 0 ? "Last step before the reload: " : "Last step: "}
           <span className="font-medium">{last.step}</span>
           {last.detail ? ` — ${last.detail}` : ""}
         </p>
@@ -87,17 +99,20 @@ export default function ScanFailureDiagnostics() {
 }
 
 /**
- * Names a page load from the reader's position, so the newest one is always the
- * page they are looking at rather than an index into storage.
+ * Names a page load from the reader's position. `currentIndex` of -1 means this page
+ * load has not logged anything, which makes the newest stored one the run before it.
  */
-function sessionLabel(index: number, total: number): string {
-  if (index === total - 1) return "this page load";
-  if (index === total - 2) return "the page load before this one";
+function sessionLabel(index: number, currentIndex: number, total: number): string {
+  if (index === currentIndex) return "this page load";
+
+  const interrupted = currentIndex === -1 ? total - 1 : currentIndex - 1;
+  if (index === interrupted) return "the page load before this one";
+
   return `page load ${index + 1} of ${total}`;
 }
 
 /** The copyable log: one block per page load, so a seam is never ambiguous. */
-function describeSessions(sessions: BreadcrumbSession[]): string {
+function describeSessions(sessions: BreadcrumbSession[], currentIndex: number): string {
   return sessions
     .map((session, index) => {
       const count = session.entries.length;
@@ -109,7 +124,9 @@ function describeSessions(sessions: BreadcrumbSession[]): string {
       );
 
       return [
-        `── ${sessionLabel(index, sessions.length)} (${count} step${count === 1 ? "" : "s"}) ──`,
+        `── ${sessionLabel(index, currentIndex, sessions.length)} (${count} step${
+          count === 1 ? "" : "s"
+        }) ──`,
         ...lines,
       ].join("\n");
     })

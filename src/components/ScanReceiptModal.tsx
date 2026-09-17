@@ -8,6 +8,7 @@ import ScanFailureDiagnostics from "@/src/components/ScanFailureDiagnostics";
 import ReceiptPreview from "@/src/components/ReceiptPreview";
 import ReceiptReviewForm from "@/src/components/ReceiptReviewForm";
 import ModelDownloadProgress from "@/src/components/ModelDownloadProgress";
+import { LFM2_VL_DOWNLOAD_MB } from "@/src/lib/receipt-vlm-model";
 
 export interface ScanReceiptModalProps {
   accounts: Account[];
@@ -70,7 +71,8 @@ export default function ScanReceiptModal({
             </p>
             <p className="mt-1 text-xs text-soft-periwinkle-700">
               Scanning runs on this device, so the OCR model has to be here
-              first. About 85MB, downloaded once and then reused offline.
+              first. About {LFM2_VL_DOWNLOAD_MB}MB, downloaded once and then
+              reused offline.
             </p>
 
             <button
@@ -130,8 +132,6 @@ export default function ScanReceiptModal({
               <ImageDropZone onSelect={scan.scanFile} />
             </div>
 
-            <ScanFailureDiagnostics />
-
             {scan.error && (
               <div className="mt-3 rounded-md border border-soft-periwinkle-200 bg-soft-periwinkle-50 px-3 py-2">
                 <p className="text-xs text-soft-periwinkle-800">{scan.error.message}</p>
@@ -150,6 +150,10 @@ export default function ScanReceiptModal({
           </>
         )}
 
+        {/* Kept outside the readiness branches: a scan that dies leaves readiness at
+            "missing", so gating the log on "ready" hides the only evidence of the
+            crash behind the download the crash itself forced. */}
+        {scan.stage === "pick" && <ScanFailureDiagnostics />}
 
         {scan.stage === "reading" && (
           <div className="mt-4">

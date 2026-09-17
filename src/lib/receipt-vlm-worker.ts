@@ -383,11 +383,13 @@ async function runReceipt(request: VlmRunRequest): Promise<VlmResultMessage> {
     callback_function: (token: string) => {
       outputText += token;
       outputTokens++;
-      // The kill lands somewhere inside generation, and where decides the fix: a
-      // death before the first token is a prefill allocation, one after hundreds
-      // is sustained pressure. A count this sparse still localises it to 32
-      // tokens without the log growing by a line per token.
-      if (outputTokens === 1 || outputTokens % 32 === 0) {
+      // Where the kill lands decides the fix: a death before the first token is a
+      // prefill allocation, one after hundreds is sustained pressure. Logging every
+      // token to 32 closes the window the only surviving run died inside — it
+      // reached token 1 and never token 32 — and 32 lines is nothing next to
+      // inference. Past that the count is sparsened, since the answer there is
+      // already "late" rather than "which step".
+      if (outputTokens <= 32 || outputTokens % 32 === 0) {
         breadcrumb("run:token", "n=" + outputTokens);
       }
       post({ type: "token", token });

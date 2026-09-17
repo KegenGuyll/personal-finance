@@ -160,6 +160,18 @@ export function readBreadcrumbSessions(): BreadcrumbSession[] {
 }
 
 /**
+ * Identity of the page load doing the reading.
+ *
+ * It is usually missing from the stored sessions, because the log is worth reading
+ * exactly when this page load has logged nothing yet: a crash reloads the page, and
+ * nothing runs until the user acts. Callers need the id rather than the last
+ * position, or the run that died gets labelled as the page load now showing it.
+ */
+export function currentBreadcrumbSessionId(): number {
+  return SESSION_STARTED_AT;
+}
+
+/**
  * Describes the GPU adapter, including the buffer limits that bound what the
  * device can upload at all.
  *

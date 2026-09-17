@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   breadcrumb,
+  currentBreadcrumbSessionId,
   readBreadcrumbSessions,
   startScanLog,
 } from "../src/lib/scan-breadcrumbs.ts";
@@ -116,4 +117,24 @@ test("drops the oldest page loads rather than growing without bound", () => {
     [4, 5, kept[2].id]
   );
   assert.deepEqual(stepsOf(kept[2]), ["scan:start"]);
+});
+
+test("reports no stored session as this page load until it logs something", () => {
+  // What the panel reads immediately after a crash: the page has just reloaded, so
+  // the only stored run belongs to the page load that died. Treating the newest
+  // stored session as "this page load" would label the dead run as the live one.
+  seedPreviousLoad(1, [{ at: 394, step: "worker:run:generate:begin" }]);
+
+  assert.deepEqual(
+    readBreadcrumbSessions().map((session) => session.id),
+    [1]
+  );
+  assert.notEqual(currentBreadcrumbSessionId(), 1);
+
+  breadcrumb("worker:load:begin");
+
+  const sessions = readBreadcrumbSessions();
+
+  assert.equal(sessions.length, 2);
+  assert.equal(sessions[sessions.length - 1].id, currentBreadcrumbSessionId());
 });

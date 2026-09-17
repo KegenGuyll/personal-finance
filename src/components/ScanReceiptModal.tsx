@@ -4,6 +4,7 @@ import type { Account, Transaction } from "@/src/features/plaid/plaidSlice";
 import { useModelReadiness } from "@/src/hooks/useModelReadiness";
 import { useReceiptScan } from "@/src/hooks/useReceiptScan";
 import ImageDropZone from "@/src/components/ImageDropZone";
+import ScanFailureDiagnostics from "@/src/components/ScanFailureDiagnostics";
 import ReceiptPreview from "@/src/components/ReceiptPreview";
 import ReceiptReviewForm from "@/src/components/ReceiptReviewForm";
 import ModelDownloadProgress from "@/src/components/ModelDownloadProgress";
@@ -128,6 +129,8 @@ export default function ScanReceiptModal({
             <div className="mt-4">
               <ImageDropZone onSelect={scan.scanFile} />
             </div>
+
+            <ScanFailureDiagnostics />
 
             {scan.error && (
               <div className="mt-3 rounded-md border border-soft-periwinkle-200 bg-soft-periwinkle-50 px-3 py-2">

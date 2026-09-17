@@ -229,8 +229,24 @@ async function loadModel(request: VlmLoadRequest): Promise<VlmLoadedMessage> {
     };
   }
 
+  // WebGPU is required, not preferred.
+  //
+  // The WASM fallback is not a slower path — it is a broken one at this size. A
+  // 450M model with a 221MB decoder shard cannot be held and executed on the CPU
+  // inside a browser tab, and attempting it is the most likely explanation for a
+  // process death that leaves no error behind. Failing here, visibly, is far more
+  // useful than a tab that vanishes.
   const gpuAvailable = await hasWebGpu();
-  const device = gpuAvailable ? "webgpu" : "wasm";
+  breadcrumb("load:gpu-available", String(gpuAvailable));
+
+  if (!gpuAvailable) {
+    throw new Error(
+      "This device has no WebGPU, which this model needs. " +
+        "Running it on the CPU is not viable at this size."
+    );
+  }
+
+  const device = "webgpu";
   const dtype = await chooseDtype(request.dtype);
   breadcrumb("load:device", "device=" + device + " dtype=" + dtype);
 

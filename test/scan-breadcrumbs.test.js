@@ -7,6 +7,7 @@ import {
   currentBreadcrumbSessionId,
   readBreadcrumbSessions,
   startScanLog,
+  watchPageLifecycle,
 } from "../src/lib/scan-breadcrumbs.ts";
 
 const STORAGE_KEY = "receipt-scan:log";
@@ -156,4 +157,54 @@ test("clearing removes every page load, including ones this one did not write", 
 
   assert.equal(sessions.length, 1);
   assert.deepEqual(stepsOf(sessions[0]), ["scan:start"]);
+});
+
+test("trims a long run from the middle, keeping the setup and the newest steps", () => {
+  startScanLog();
+
+  // A full generation logs every token to 32 and every 32nd after, which passes the
+  // cap on its own.
+  for (let n = 1; n <= 70; n += 1) breadcrumb("run:token", "n=" + n);
+
+  const [session] = readBreadcrumbSessions();
+
+  assert.equal(session.entries.length, 60);
+  assert.equal(session.entries[0].step, "scan:start");
+
+  const elided = session.entries.find((entry) => entry.step === "log:elided");
+  assert.ok(elided, "expected the gap to be marked rather than silent");
+  assert.equal(elided.detail, "12 steps dropped");
+
+  assert.equal(session.entries[session.entries.length - 1].detail, "n=70");
+});
+
+test("records the page being hidden and unloaded", () => {
+  const documentEvents = {};
+  const windowEvents = {};
+
+  globalThis.document = {
+    visibilityState: "visible",
+    addEventListener: (type, handler) => void (documentEvents[type] = handler),
+    removeEventListener: (type) => void delete documentEvents[type],
+  };
+  globalThis.window = {
+    addEventListener: (type, handler) => void (windowEvents[type] = handler),
+    removeEventListener: (type) => void delete windowEvents[type],
+  };
+
+  const stop = watchPageLifecycle();
+
+  document.visibilityState = "hidden";
+  documentEvents.visibilitychange();
+  windowEvents.pagehide({ persisted: false });
+
+  assert.deepEqual(stepsOf(readBreadcrumbSessions()[0]), [
+    "page:hidden",
+    "page:hide",
+  ]);
+
+  stop();
+
+  assert.deepEqual(documentEvents, {});
+  assert.deepEqual(windowEvents, {});
 });

@@ -34,6 +34,16 @@ const STORAGE_KEY = "receipt-scan:log";
 const MAX_ENTRIES = 60;
 /** Enough to keep a killed run through the reloads that follow it. */
 const MAX_SESSIONS = 3;
+/**
+ * How much of the start of a run survives trimming.
+ *
+ * Covers the steps before generation, which are what make the token positions under
+ * them mean anything. Trimming only from the tail would drop the device line first —
+ * at exactly the moment a late crash is being read.
+ */
+const MAX_HEAD = 12;
+/** Stands where trimming removed steps, so the seam is not read as one long step. */
+const ELISION_STEP = "log:elided";
 
 export interface Breadcrumb {
   /** Milliseconds since this page load began. */
@@ -47,6 +57,13 @@ export interface BreadcrumbSession {
   /** Page-load identity, which is also the epoch millisecond it started. */
   id: number;
   entries: Breadcrumb[];
+  /**
+   * Steps appended since this page load began, including any trimming discarded.
+   *
+   * Carried because the entries cannot say it for themselves: once trimmed, the only
+   * record of how much is gone is this count.
+   */
+  written?: number;
 }
 
 /** Identity and time origin for this page load. A reload produces a new one. */
@@ -82,13 +99,46 @@ function read(): BreadcrumbSession[] {
   }
 }
 
+/**
+ * Trims one page load's entries, keeping both ends.
+ *
+ * A full generation logs every token to 32 and every 32nd after, which on its own
+ * exceeds `MAX_ENTRIES` — so a plain tail slice cuts the setup off the front of a
+ * long run. The middle is what goes instead, and it goes visibly: a silent jump in
+ * the timestamps is indistinguishable from a step that merely took a long time,
+ * which is the misreading this log has already produced once.
+ *
+ * The dropped count comes from the session's tally rather than from this array.
+ * Entries are appended one at a time and every append re-trims, so the previous
+ * call's marker has already been discarded by the time the next one counts — it
+ * would report what this write dropped, not what is missing.
+ */
+function trimEntries(session: BreadcrumbSession): Breadcrumb[] {
+  const { entries } = session;
+  if (entries.length <= MAX_ENTRIES) return entries;
+
+  // The marker occupies one of the slots, so one fewer step is held than the cap.
+  const held = MAX_ENTRIES - 1;
+  const dropped = (session.written ?? entries.length) - held;
+
+  return [
+    ...entries.slice(0, MAX_HEAD),
+    { at: entries[MAX_HEAD].at, step: ELISION_STEP, detail: dropped + " steps dropped" },
+    ...entries.slice(-(MAX_ENTRIES - MAX_HEAD - 1)),
+  ];
+}
+
 function write(sessions: BreadcrumbSession[]): void {
   try {
     const kept = sessions
       .slice()
       .sort((a, b) => a.id - b.id)
       .slice(-MAX_SESSIONS)
-      .map((session) => ({ id: session.id, entries: session.entries.slice(-MAX_ENTRIES) }));
+      .map((session) => ({
+        id: session.id,
+        entries: trimEntries(session),
+        written: session.written,
+      }));
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(kept));
   } catch {
@@ -120,11 +170,13 @@ function currentSession(sessions: BreadcrumbSession[]): BreadcrumbSession {
  */
 export function breadcrumb(step: string, detail?: string): void {
   const sessions = read();
-  currentSession(sessions).entries.push({
+  const session = currentSession(sessions);
+  session.entries.push({
     at: Date.now() - SESSION_STARTED_AT,
     step,
     detail,
   });
+  session.written = (session.written ?? 0) + 1;
   write(sessions);
 }
 
@@ -137,7 +189,9 @@ export function breadcrumb(step: string, detail?: string): void {
  */
 export function startScanLog(): void {
   const sessions = read();
-  currentSession(sessions).entries = [];
+  const session = currentSession(sessions);
+  session.entries = [];
+  session.written = 0;
   write(sessions);
   breadcrumb("scan:start", describeEnvironment());
 }
@@ -181,6 +235,28 @@ export function currentBreadcrumbSessionId(): number {
  */
 export function clearBreadcrumbs(): void {
   write([]);
+}
+
+/**
+ * Records the page being hidden or torn down, until the returned teardown runs.
+ *
+ * A tab the system reclaims for memory dies without firing any of this, so its
+ * absence beside a crash is itself evidence: the kill was not a backgrounding. If
+ * one of these lines does turn up next to a crash, the answer changes completely —
+ * nothing to do with inference, and nothing a smaller model would fix.
+ */
+export function watchPageLifecycle(): () => void {
+  const onVisibilityChange = () => breadcrumb("page:" + document.visibilityState);
+  const onPageHide = (event: PageTransitionEvent) =>
+    breadcrumb("page:hide", "bfcache=" + event.persisted);
+
+  document.addEventListener("visibilitychange", onVisibilityChange);
+  window.addEventListener("pagehide", onPageHide);
+
+  return () => {
+    document.removeEventListener("visibilitychange", onVisibilityChange);
+    window.removeEventListener("pagehide", onPageHide);
+  };
 }
 
 /**

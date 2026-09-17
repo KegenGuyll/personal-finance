@@ -1,8 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
+
 import type { Account, Transaction } from "@/src/features/plaid/plaidSlice";
 import { useModelReadiness } from "@/src/hooks/useModelReadiness";
 import { useReceiptScan } from "@/src/hooks/useReceiptScan";
+import { watchPageLifecycle } from "@/src/lib/scan-breadcrumbs";
 import ImageDropZone from "@/src/components/ImageDropZone";
 import ScanFailureDiagnostics from "@/src/components/ScanFailureDiagnostics";
 import ReceiptPreview from "@/src/components/ReceiptPreview";
@@ -40,6 +43,10 @@ export default function ScanReceiptModal({
 }: ScanReceiptModalProps) {
   const models = useModelReadiness();
   const scan = useReceiptScan();
+
+  // Watched for as long as the scanner is open, which is the whole window a scan can
+  // be killed in.
+  useEffect(() => watchPageLifecycle(), []);
 
   const handleSaved = (transaction: Transaction) => {
     onSaved(transaction);

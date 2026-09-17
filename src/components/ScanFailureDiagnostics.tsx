@@ -135,7 +135,13 @@ function sessionLabel(index: number, currentIndex: number, total: number): strin
   return `page load ${index + 1} of ${total}`;
 }
 
-/** The copyable log: one block per page load, so a seam is never ambiguous. */
+/**
+ * The copyable log: one block per page load, so a seam is never ambiguous.
+ *
+ * The idle time between blocks is stated rather than left to be inferred, because
+ * each block's timestamps are relative to its own page load and reading across the
+ * seam as one clock is exactly the mistake this grouping exists to prevent.
+ */
 function describeSessions(sessions: BreadcrumbSession[], currentIndex: number): string {
   return sessions
     .map((session, index) => {
@@ -148,11 +154,35 @@ function describeSessions(sessions: BreadcrumbSession[], currentIndex: number): 
       );
 
       return [
+        ...(index === 0 ? [] : [`──── ${describeIdle(sessions[index - 1], session)} ────`]),
         `── ${sessionLabel(index, currentIndex, sessions.length)} (${count} step${
           count === 1 ? "" : "s"
-        }) ──`,
+        } · ${clockOf(session.id)}) ──`,
         ...lines,
       ].join("\n");
     })
     .join("\n\n");
+}
+
+/** When a page load started, so the log lines up with anything else observed. */
+function clockOf(id: number): string {
+  return new Date(id).toTimeString().slice(0, 8);
+}
+
+/**
+ * Time between one page load's last step and the next page load starting.
+ *
+ * Elapsed time only, deliberately. It contains both the process dying and however
+ * long it was before the page came back, so it bounds the death from above rather
+ * than timing it — read as a duration of the crash it would overstate every one.
+ */
+function describeIdle(previous: BreadcrumbSession, next: BreadcrumbSession): string {
+  const last = previous.entries[previous.entries.length - 1];
+  if (!last) return "later";
+
+  const gap = next.id - (previous.id + last.at);
+  if (gap < 1000) return Math.max(Math.round(gap), 0) + "ms later";
+  if (gap < 60000) return (gap / 1000).toFixed(1) + "s later";
+
+  return Math.round(gap / 60000) + "min later";
 }

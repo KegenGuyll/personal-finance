@@ -17,7 +17,7 @@ import type {
   ReceiptConfidence,
   ReceiptDraft,
   ReceiptPhotoQuality,
-} from "@/src/lib/receipt-parser";
+} from "@/src/lib/receipt-vlm-mapping";
 
 const CATEGORY_LIST_ID = "receipt-categories";
 

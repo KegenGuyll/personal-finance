@@ -6,10 +6,8 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY package.json package-lock.json ./
 RUN npm ci
-# Receipt-scanning models are fetched rather than committed; see
-# docs/receipt-scanning.md. Run after npm ci because it also stages the ONNX
-# runtime's WASM build out of node_modules.
-RUN npm run models:fetch
+# No model step: the receipt model is downloaded by the browser from Hugging Face
+# and cached on the device, so the image carries no weights.
 COPY . .
 RUN npm run build
 

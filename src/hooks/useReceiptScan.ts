@@ -2,54 +2,56 @@
 
 import { useCallback, useRef, useState } from "react";
 
-import { recogniseReceipt } from "@/src/lib/receipt-ocr-client";
-import { parseReceipt, type ReceiptParseResult } from "@/src/lib/receipt-parser";
-import type { ReceiptBox } from "@/src/lib/receipt-layout";
-import { prepareReceiptImage, ReceiptImageError } from "@/src/lib/receipt-image";
-import type { QualityStats } from "@/src/lib/receipt-ocr-image";
+import { scanReceiptImage } from "@/src/lib/receipt-vlm";
+import {
+  describeUnparseableOutput,
+  mapExtractionToDraft,
+  type MappedExtraction,
+} from "@/src/lib/receipt-vlm-mapping";
+import { parseReceiptJson } from "@/src/lib/receipt-vlm-prompt";
 
 export type ScanStage = "pick" | "reading" | "review";
 
 export interface ScanPreview {
   dataUrl: string;
-  width: number;
-  height: number;
-  quality: QualityStats;
+  /** True when the model ran on the WASM fallback rather than WebGPU. */
+  slow: boolean;
+}
+
+export interface ScanError {
+  message: string;
+  /** Present when the model replied but the reply could not be read. */
+  rawText?: string;
 }
 
 /**
- * Runs a receipt photo through preparation, OCR and parsing.
+ * Runs a receipt photo through the vision model and maps the result for review.
  *
- * Orchestration only: preparation, OCR and parsing each live in their own
- * module so they can be tested without a browser. Not a TanStack Query
- * mutation — a scan is local work with perceptible stages, so progress and
- * cancellation are part of the contract rather than a side effect.
+ * Orchestration only: the model call, the JSON recovery and the mapping each live
+ * in their own module so they can be tested without a browser or a GPU.
+ *
+ * Generation is reported as it streams because it takes seconds even on WebGPU —
+ * a static "Reading…" label for that long is indistinguishable from a hang.
  */
-export function useReceiptScan(knownCategories: string[] | undefined) {
+export function useReceiptScan() {
   const [stage, setStage] = useState<ScanStage>("pick");
   const [progress, setProgress] = useState<string | null>(null);
   const [preview, setPreview] = useState<ScanPreview | null>(null);
-  const [result, setResult] = useState<ReceiptParseResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<MappedExtraction | null>(null);
+  const [error, setError] = useState<ScanError | null>(null);
+  const [streamedChars, setStreamedChars] = useState(0);
 
-  // Pixels are tens of megabytes and are never rendered, so they stay out of
-  // state; the preview the user sees is a small JPEG data URL instead.
-  const pixelsRef = useRef<Uint8ClampedArray | null>(null);
-  const sizeRef = useRef<{ width: number; height: number } | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
 
   const reset = useCallback(() => {
     controllerRef.current?.abort();
     controllerRef.current = null;
-    pixelsRef.current = null;
-    sizeRef.current = null;
     setStage("pick");
     setProgress(null);
-    // The failed scan's image must not sit above a fresh drop zone, where it
-    // would read as a preview of the photo the user is about to choose.
     setPreview(null);
     setResult(null);
     setError(null);
+    setStreamedChars(0);
   }, []);
 
   const cancel = useCallback(() => {
@@ -57,65 +59,65 @@ export function useReceiptScan(knownCategories: string[] | undefined) {
     controllerRef.current = null;
   }, []);
 
-  const parse = useCallback(
-    (boxes: ReceiptBox[]) => {
-      const parsed = parseReceipt(boxes, { knownCategories: knownCategories ?? [] });
-      setResult(parsed);
-      setStage("review");
-      setProgress(null);
-    },
-    [knownCategories]
-  );
+  const scanFile = useCallback(async (file: File) => {
+    setError(null);
+    setResult(null);
+    setStreamedChars(0);
+    setProgress("Reading the receipt…");
 
-  const scanFile = useCallback(
-    async (file: File) => {
-      setError(null);
-      setProgress("Preparing the photo…");
+    const previewUrl = URL.createObjectURL(file);
 
-      try {
-        const prepared = await prepareReceiptImage(file);
-        pixelsRef.current = prepared.pixels;
-        sizeRef.current = prepared.size;
+    try {
+      setPreview({ dataUrl: previewUrl, slow: false });
 
-        setPreview({
-          dataUrl: prepared.previewUrl,
-          width: prepared.size.width,
-          height: prepared.size.height,
-          quality: prepared.quality,
-        });
+      // Hand over the file's own bytes rather than a canvas-derived copy: this
+      // model reads the whole image itself, so preprocessing here could only lose
+      // detail it would otherwise use.
+      const bytes = await file.arrayBuffer();
 
-        controllerRef.current = new AbortController();
-        setStage("reading");
-        setProgress("Loading the OCR models…");
+      controllerRef.current = new AbortController();
+      setStage("reading");
 
-        const { lines } = await recogniseReceipt(
-          { pixels: prepared.pixels, size: prepared.size },
-          {
-            signal: controllerRef.current.signal,
-            onProgress: (update) => {
-              if (update.phase === "loading") setProgress("Loading the OCR models…");
-              else if (update.phase === "detecting") setProgress("Finding the text…");
-              else if (update.total) setProgress(`Reading line ${update.done} of ${update.total}…`);
-              else setProgress("Reading the text…");
-            },
-          }
-        );
+      const outcome = await scanReceiptImage(bytes, file.type, {
+        signal: controllerRef.current.signal,
+        onToken: () => setStreamedChars((count) => count + 1),
+      });
 
-        parse(lines);
-      } catch (scanError) {
+      setPreview({ dataUrl: previewUrl, slow: !outcome.accelerated });
+
+      const extraction = parseReceiptJson(outcome.text);
+      if (!extraction) {
+        // Dead-ending after a 316MB download and a multi-second scan would be the
+        // worst outcome, so the picker returns with the reason stated.
         setStage("pick");
         setProgress(null);
-        setError(
-          scanError instanceof ReceiptImageError
-            ? scanError.message
-            : scanError instanceof Error
-              ? scanError.message
-              : "The receipt could not be read."
-        );
+        setError({
+          message: describeUnparseableOutput(outcome.text),
+          rawText: outcome.text,
+        });
+        return;
       }
-    },
-    [parse]
-  );
+
+      setResult(mapExtractionToDraft(extraction));
+      setStage("review");
+      setProgress(null);
+    } catch (scanError) {
+      if (scanError instanceof DOMException && scanError.name === "AbortError") {
+        setStage("pick");
+        setProgress(null);
+        return;
+      }
+
+      setStage("pick");
+      setProgress(null);
+      setError({
+        message:
+          scanError instanceof Error
+            ? scanError.message
+            : "The receipt could not be read.",
+      });
+    }
+  }, []);
 
   return {
     stage,
@@ -123,6 +125,8 @@ export function useReceiptScan(knownCategories: string[] | undefined) {
     preview,
     result,
     error,
+    /** Tokens streamed so far, so the UI can show the model working. */
+    streamedChars,
     scanFile,
     cancel,
     reset,

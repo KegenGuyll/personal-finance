@@ -290,3 +290,25 @@ export async function prepareVlmModel(options: VlmScanOptions = {}): Promise<
   const persistGranted = await requestPersistentStorage();
   return { ...(await loadVlmModel(options)), persistGranted };
 }
+
+/**
+ * Formats a byte count for display.
+ *
+ * `null` (unknown) and 0 (nothing stored) are reported distinctly: collapsing
+ * them would misreport an empty cache as unmeasurable.
+ */
+export function formatBytes(bytes: number | null): string {
+  if (bytes === null) return "unknown";
+  if (bytes < 1024) return `${bytes} B`;
+
+  const units = ["KB", "MB", "GB"];
+  let value = bytes / 1024;
+  let unit = 0;
+
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
+  }
+
+  return `${value.toFixed(value < 10 ? 1 : 0)} ${units[unit]}`;
+}

@@ -20,8 +20,10 @@ import SearchInput from "@/src/components/SearchInput";
 import DateRangeFilter, { getStartDate } from "@/src/components/DateRangeFilter";
 import ManualTransactionModal from "@/src/components/ManualTransactionModal";
 import ScanReceiptModal from "@/src/components/ScanReceiptModal";
-import { useModelReadiness } from "@/src/hooks/useModelReadiness";
-import { describeScanReadiness } from "@/src/lib/download-progress";
+import {
+  describeScanReadiness,
+  useModelReadiness,
+} from "@/src/hooks/useModelReadiness";
 import SavedTransactionNotice from "@/src/components/SavedTransactionNotice";
 import BackButton from "@/src/components/BackButton";
 

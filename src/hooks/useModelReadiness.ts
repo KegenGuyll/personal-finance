@@ -2,13 +2,16 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { areModelsCached, prepareModels } from "@/src/lib/receipt-ocr-client";
-import type { DownloadProgress } from "@/src/lib/download-progress";
+import {
+  areVlmWeightsCached,
+  prepareVlmModel,
+  type VlmProgress,
+} from "@/src/lib/receipt-vlm";
 
 export type ModelReadiness =
   /** The cache has not been read yet — nothing can be promised. */
   | "checking"
-  /** The models are not cached; scanning cannot start until they are. */
+  /** The weights are not cached; scanning cannot start until they are. */
   | "missing"
   | "downloading"
   | "ready"
@@ -18,39 +21,40 @@ export type ModelReadiness =
 export interface ModelReadinessState {
   readiness: ModelReadiness;
   /** Byte-level detail while downloading. */
-  download: DownloadProgress | null;
+  progress: VlmProgress | null;
+  /** Which backend the model loaded on: "webgpu", or the slow "wasm" fallback. */
+  device: string | null;
   error: string | null;
-  /** Begins the download, or retries it after a failure. */
   startDownload: () => Promise<void>;
-  /** Re-reads the cache, for after a download that finished elsewhere. */
   recheck: () => Promise<void>;
 }
 
 /**
  * Tracks whether scanning can start, and drives the download when it cannot.
  *
- * Exists as one state machine rather than a boolean plus a flags object because
- * the scanner has to *refuse* to start until the models are present: a scan
- * triggered mid-download would sit silently on a progress bar with no way to
- * tell a slow network from a broken one. Keeping the states distinct is what
- * lets the modal show a download prompt instead of a photo picker.
+ * One state machine rather than a boolean plus flags, because the scanner has to
+ * *refuse* to start until the weights are present: a scan triggered mid-download
+ * would sit on a progress bar with no way to tell a slow network from a broken
+ * one.
  *
  * Deliberately not a TanStack Query: preparing asks the browser for persistent
  * storage, which is a side effect on the origin, so it must run only when the
- * user asks for it and never on a refetch, focus or remount.
+ * user asks and never on a refetch, focus or remount. That matters more at 316MB
+ * than it did for the previous model, because a refusal is what makes those bytes
+ * reclaimable.
  *
- * A download already under way is not cancelled when the scanner closes. The
- * bytes are wanted either way, and aborting on close would throw away everything
- * transferred so far; the setters that follow are no-ops once unmounted.
+ * A download already under way is not cancelled when the scanner closes — the
+ * bytes are wanted either way, and aborting would discard everything transferred.
  */
 export function useModelReadiness(): ModelReadinessState {
   const [readiness, setReadiness] = useState<ModelReadiness>("checking");
-  const [download, setDownload] = useState<DownloadProgress | null>(null);
+  const [progress, setProgress] = useState<VlmProgress | null>(null);
+  const [device, setDevice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const recheck = useCallback(async () => {
     try {
-      setReadiness((await areModelsCached()) ? "ready" : "missing");
+      setReadiness((await areVlmWeightsCached()) ? "ready" : "missing");
     } catch {
       setReadiness("missing");
     }
@@ -59,16 +63,17 @@ export function useModelReadiness(): ModelReadinessState {
   const startDownload = useCallback(async () => {
     setReadiness("downloading");
     setError(null);
-    setDownload(null);
+    setProgress(null);
 
     try {
-      await prepareModels((next) => setDownload(next.download));
+      const result = await prepareVlmModel({ onProgress: setProgress });
+      setDevice(result.device);
       setReadiness("ready");
     } catch (downloadError) {
       setError(
         downloadError instanceof Error
           ? downloadError.message
-          : "Could not download the OCR model."
+          : "Could not download the receipt model."
       );
       setReadiness("failed");
     }
@@ -80,5 +85,45 @@ export function useModelReadiness(): ModelReadinessState {
     void Promise.resolve().then(recheck);
   }, [recheck]);
 
-  return { readiness, download, error, startDownload, recheck };
+  return { readiness, progress, device, error, startDownload, recheck };
+}
+
+/**
+ * What a scan entry point should tell the user before they tap.
+ *
+ * A pure mapping so the messaging can be tested, and so the states cannot drift
+ * apart across the two screens that render the button. The distinction that
+ * matters: only `ready` can actually scan, and saying anything else first would
+ * make the modal's download prompt look like a failure rather than the expected
+ * first run.
+ */
+export function describeScanReadiness(readiness: ModelReadiness): {
+  label: string;
+  hint: string | null;
+  canScan: boolean;
+} {
+  switch (readiness) {
+    case "ready":
+      return { label: "Scan receipt", hint: null, canScan: true };
+    case "downloading":
+      return {
+        label: "Downloading…",
+        hint: "The receipt model is downloading",
+        canScan: false,
+      };
+    case "missing":
+      return {
+        label: "Scan receipt",
+        hint: "Needs a one-time ~316MB download",
+        canScan: false,
+      };
+    case "failed":
+      return {
+        label: "Scan receipt",
+        hint: "The model download did not finish",
+        canScan: false,
+      };
+    default:
+      return { label: "Scan receipt", hint: null, canScan: false };
+  }
 }

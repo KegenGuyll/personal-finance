@@ -1,13 +1,11 @@
 "use client";
 
 import type { Account, Transaction } from "@/src/features/plaid/plaidSlice";
-import { useCategories } from "@/src/hooks/useCategories";
 import { useModelReadiness } from "@/src/hooks/useModelReadiness";
 import { useReceiptScan } from "@/src/hooks/useReceiptScan";
 import ImageDropZone from "@/src/components/ImageDropZone";
 import ReceiptPreview from "@/src/components/ReceiptPreview";
 import ReceiptReviewForm from "@/src/components/ReceiptReviewForm";
-import ScanDiagnosticsPanel from "@/src/components/ScanDiagnosticsPanel";
 import ModelDownloadProgress from "@/src/components/ModelDownloadProgress";
 
 export interface ScanReceiptModalProps {
@@ -40,9 +38,8 @@ export default function ScanReceiptModal({
   onSaved,
   onManualEntry,
 }: ScanReceiptModalProps) {
-  const { data: categoryData } = useCategories();
   const models = useModelReadiness();
-  const scan = useReceiptScan(categoryData?.categories);
+  const scan = useReceiptScan();
 
   const handleSaved = (transaction: Transaction) => {
     onSaved(transaction);
@@ -124,7 +121,7 @@ export default function ScanReceiptModal({
               Scanning starts automatically once it finishes.
             </p>
 
-            <ModelDownloadProgress download={models.download} isPreparing />
+            <ModelDownloadProgress progress={models.progress} isPreparing />
           </div>
         )}
 
@@ -135,19 +132,28 @@ export default function ScanReceiptModal({
             </div>
 
             {scan.error && (
-              <p className="mt-3 rounded-md border border-soft-periwinkle-200 bg-soft-periwinkle-50 px-3 py-2 text-xs text-soft-periwinkle-800">
-                {scan.error}
-              </p>
+              <div className="mt-3 rounded-md border border-soft-periwinkle-200 bg-soft-periwinkle-50 px-3 py-2">
+                <p className="text-xs text-soft-periwinkle-800">{scan.error.message}</p>
+                {scan.error.rawText && (
+                  <details className="mt-1">
+                    <summary className="cursor-pointer text-[10px] text-soft-periwinkle-700">
+                      What the model replied
+                    </summary>
+                    <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-words text-[10px] text-space-indigo-600">
+                      {scan.error.rawText}
+                    </pre>
+                  </details>
+                )}
+              </div>
             )}
           </>
         )}
 
-        {scan.stage === "pick" && <ScanDiagnosticsPanel />}
 
         {scan.stage === "reading" && (
           <div className="mt-4">
             {scan.preview && (
-              <ReceiptPreview dataUrl={scan.preview.dataUrl} quality={scan.preview.quality} />
+              <ReceiptPreview dataUrl={scan.preview.dataUrl} />
             )}
 
             <div className="mt-4 rounded-lg border border-space-indigo-100 bg-space-indigo-50 px-3 py-3">
@@ -174,7 +180,7 @@ export default function ScanReceiptModal({
           <div className="mt-4">
             {scan.preview && (
               <div className="mb-3">
-                <ReceiptPreview dataUrl={scan.preview.dataUrl} quality={scan.preview.quality} />
+                <ReceiptPreview dataUrl={scan.preview.dataUrl} />
               </div>
             )}
 

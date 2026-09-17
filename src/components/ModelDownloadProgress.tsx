@@ -2,29 +2,26 @@
 
 import { useEffect, useState } from "react";
 
-import type { DownloadProgress } from "@/src/lib/download-progress";
-import { formatBytes } from "@/src/lib/scan-diagnostics";
+import type { VlmProgress } from "@/src/lib/receipt-vlm";
+import { formatBytes } from "@/src/lib/receipt-vlm";
 
 /**
- * Shows how far along the on-device model download is.
+ * Shows how far along the model download is.
  *
- * The download is ~85MB, and for most of it nothing else on screen changes — so
- * a bar that does not move is indistinguishable from a hang. This reports the
- * byte count and the file being fetched, because those are what distinguish
- * "slow connection" from "stuck", and it is the file names that reveal the
- * honest shape of the transfer: three large files, not one.
- *
- * Progress here is genuinely monotonic: the tracker keeps a per-file high-water
- * mark, so a retry inside one file cannot make the bar jump backwards.
+ * This is 316MB, and for most of it nothing else on screen changes — so a bar
+ * that does not move is indistinguishable from a hang. The byte count and the
+ * file being fetched are what separate "slow connection" from "stuck", and the
+ * file names reveal the honest shape of the transfer: weight shards plus config,
+ * not one file.
  */
 export default function ModelDownloadProgress({
-  download,
+  progress,
   isPreparing,
 }: {
-  download: DownloadProgress | null;
+  progress: VlmProgress | null;
   isPreparing: boolean;
 }) {
-  const percent = download?.percent ?? null;
+  const percent = percentOf(progress);
   const stalled = useStalled(percent, isPreparing);
 
   return (
@@ -38,8 +35,8 @@ export default function ModelDownloadProgress({
         aria-label="Model download progress"
       >
         <div
-          // Indeterminate only when the total size could not be established at
-          // all; with sizes known the bar is determinate from zero.
+          // Indeterminate only while the total is still unknown; once bytes
+          // arrive the bar is determinate and honest.
           className={
             percent === null
               ? "h-full w-1/3 animate-pulse rounded-full bg-cornflower-blue-500"
@@ -51,23 +48,13 @@ export default function ModelDownloadProgress({
 
       <div className="mt-1 flex justify-between gap-2 text-[10px]">
         <span className="truncate text-space-indigo-500">
-          {download?.file
-            ? shortenFile(download.file)
-            : isPreparing
-              ? "Preparing…"
-              : "Waiting"}
-          {download && download.filesTotal > 0 && (
-            <span className="text-space-indigo-400">
-              {" "}
-              · {download.filesDone}/{download.filesTotal} files
-            </span>
-          )}
+          {progress?.file ? shortenFile(progress.file) : isPreparing ? "Starting…" : "Waiting"}
         </span>
 
         <span className="shrink-0 tabular-nums text-space-indigo-500">
-          {download
-            ? `${formatBytes(download.loadedBytes)}${
-                download.totalBytes ? ` / ${formatBytes(download.totalBytes)}` : ""
+          {progress
+            ? `${formatBytes(progress.loadedBytes)}${
+                progress.totalBytes > 0 ? ` / ${formatBytes(progress.totalBytes)}` : ""
               }`
             : ""}
           {percent !== null ? ` · ${percent}%` : ""}
@@ -84,17 +71,22 @@ export default function ModelDownloadProgress({
   );
 }
 
+function percentOf(progress: VlmProgress | null): number | null {
+  if (!progress || progress.totalBytes <= 0) return null;
+  return Math.min(100, Math.round((progress.loadedBytes / progress.totalBytes) * 100));
+}
+
 /**
  * True when the percentage has not moved for a while.
  *
- * Worth saying out loud because a stalled download and a large file look
- * identical on a progress bar, and the user's alternative — entering the
- * transaction by hand — is only useful while they still believe the scan might
- * not finish.
+ * Worth saying out loud because a stalled download and a large shard look
+ * identical on a progress bar, and the manual-entry alternative is only useful
+ * while the user still believes the scan might finish.
  *
- * The timer is only ever *armed* here, never fired synchronously inside the
- * effect: a stale `true` left over from an earlier stall is harmless because the
- * only caller renders this notice when there is a percentage to be stalled at.
+ * The timer is only ever *armed* in the effect and fired from its callback, never
+ * set synchronously — this codebase's lint rules reject that for the cascading
+ * render it causes. A stale `true` is harmless because the notice only renders
+ * when there is a percentage to be stalled at.
  */
 function useStalled(percent: number | null, isPreparing: boolean): boolean {
   const [stalled, setStalled] = useState(false);
@@ -105,8 +97,6 @@ function useStalled(percent: number | null, isPreparing: boolean): boolean {
     const timer = setTimeout(() => setStalled(true), 20_000);
     return () => {
       clearTimeout(timer);
-      // Cleared from the cleanup rather than the effect body so no setState runs
-      // during the render pass.
       setStalled(false);
     };
   }, [percent, isPreparing]);
@@ -114,7 +104,7 @@ function useStalled(percent: number | null, isPreparing: boolean): boolean {
   return stalled;
 }
 
-/** Trims the `onnx/` prefix so the long file names fit on a phone. */
+/** Trims the `onnx/` prefix so the long shard names fit on a phone. */
 function shortenFile(file: string): string {
   return file.replace(/^onnx\//, "");
 }

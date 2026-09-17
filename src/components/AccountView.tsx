@@ -255,8 +255,8 @@ export default function AccountView({
           <h1 className="text-xl font-bold text-space-indigo-800">
             {displayName}
           </h1>
-          <div className="flex shrink-0 gap-1.5">
-            <div className="flex flex-col items-end">
+          <div className="flex shrink-0 items-start gap-1.5">
+            <div className="flex w-[7.5rem] flex-col items-end">
               <button
                 onClick={() => setIsScanning(true)}
                 title={scanReadiness.hint ?? undefined}
@@ -265,7 +265,7 @@ export default function AccountView({
                 {scanReadiness.label}
               </button>
               {scanReadiness.hint && (
-                <span className="mt-0.5 max-w-[10rem] text-right text-[10px] text-space-indigo-400">
+                <span className="mt-0.5 text-right text-[10px] leading-tight text-space-indigo-400">
                   {scanReadiness.hint}
                 </span>
               )}

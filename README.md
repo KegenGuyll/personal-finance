@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Personal finance
 
-## Getting Started
+Personal finance tracking: Plaid-synced accounts, manual transactions that count
+before Plaid catches up, envelope budgets, and savings goals.
 
-First, run the development server:
+## Getting started
 
 ```bash
+npm install
+npm run models:fetch   # one-time: receipt-scanning OCR models (~25MB)
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Copy `.env.example` to `.env.local` and fill in the Plaid keys and MongoDB URI
+first — nothing loads accounts without them.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | What it does |
+|---|---|
+| `npm run dev` | Development server (Turbopack) |
+| `npm run build` / `npm start` | Production build and server |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm test` | Unit tests for the pure parser, layout and image maths |
+| `npm run models:fetch` | Fetches and verifies the receipt OCR models into `public/receipt-ocr/` |
 
-## Learn More
+## Notes
 
-To learn more about Next.js, take a look at the following resources:
+- **Receipt scanning** reads a photographed receipt in the browser and pre-fills
+  the manual-transaction form. Setup, accuracy expectations and the model
+  upgrade path are in [`docs/receipt-scanning.md`](docs/receipt-scanning.md).
+- **Manual transactions** are real rows in the same `transactions` collection,
+  flagged `manual: true`, and are linked to the Plaid transaction they turn out
+  to be once it syncs. Budgets, trends and goals count them with no special
+  cases.
+- **Backups** are encrypted MongoDB dumps to Google Drive; see
+  [`backup/README.md`](backup/README.md).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Conventions for contributors — component rules, colour palette, comment
+discipline — are in [`AGENTS.md`](AGENTS.md).

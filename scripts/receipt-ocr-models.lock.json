@@ -1,0 +1,23 @@
+{
+  "repo": "SWHL/RapidOCR",
+  "revision": "1cfba2e90fc938db55889873735088de210cc173",
+  "comment": "PP-OCRv3 ONNX conversions used by the browser receipt scanner. Pinned by revision and SHA-256; regenerate with scripts/fetch-receipt-ocr-models.mjs. The recogniser is the English/Latin model (95 tokens covering digits, letters, currency and punctuation) because the scanner reads printed receipts in English.",
+  "models": [
+    {
+      "kind": "det",
+      "source": "PP-OCRv4/en_PP-OCRv3_det_infer.onnx",
+      "file": "det.onnx",
+      "sha256": "f139598bc2af4e4b6fe98dec11574e30edfdd91fc94ac1425c18ace3bd5a866b"
+    },
+    {
+      "kind": "rec",
+      "source": "PP-OCRv3/en_PP-OCRv3_rec_infer.onnx",
+      "file": "rec.onnx",
+      "sha256": "ef7abd8bd3629ae57ea2c28b425c1bd258a871b93fd2fe7c433946ade9b5d9ea"
+    }
+  ],
+  "dict": {
+    "file": "rec-dict.txt",
+    "source": "character metadata entry inside rec.onnx"
+  }
+}

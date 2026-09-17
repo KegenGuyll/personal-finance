@@ -2,6 +2,7 @@
 
 import { use, Suspense, useState } from "react";
 import type { ReactNode } from "react";
+import type { Transaction } from "@/src/features/plaid/plaidSlice";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAppSelector } from "@/src/lib/hooks";
 import { useAccount } from "@/src/hooks/useAccount";
@@ -18,6 +19,12 @@ import ChartCarousel from "@/src/components/ChartCarousel";
 import SearchInput from "@/src/components/SearchInput";
 import DateRangeFilter, { getStartDate } from "@/src/components/DateRangeFilter";
 import ManualTransactionModal from "@/src/components/ManualTransactionModal";
+import ScanReceiptModal from "@/src/components/ScanReceiptModal";
+import {
+  describeScanReadiness,
+  useModelReadiness,
+} from "@/src/hooks/useModelReadiness";
+import SavedTransactionNotice from "@/src/components/SavedTransactionNotice";
 import BackButton from "@/src/components/BackButton";
 
 function AccountTransactionList({
@@ -195,6 +202,10 @@ export default function AccountView({
     state.plaid.accounts.find((a) => a.account_id === accountId)
   );
   const [isAddingManual, setIsAddingManual] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const modelReadiness = useModelReadiness();
+  const scanReadiness = describeScanReadiness(modelReadiness.readiness);
+  const [savedTransaction, setSavedTransaction] = useState<Transaction | null>(null);
 
   const { data: accountData, isLoading: isAccountLoading } =
     useAccount(accountId);
@@ -244,12 +255,28 @@ export default function AccountView({
           <h1 className="text-xl font-bold text-space-indigo-800">
             {displayName}
           </h1>
-          <button
-            onClick={() => setIsAddingManual(true)}
-            className="shrink-0 rounded-lg bg-space-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-space-indigo-700"
-          >
-            Add transaction
-          </button>
+          <div className="flex shrink-0 items-start gap-1.5">
+            <div className="flex w-[7.5rem] flex-col items-end">
+              <button
+                onClick={() => setIsScanning(true)}
+                title={scanReadiness.hint ?? undefined}
+                className="rounded-lg border border-space-indigo-200 px-3 py-1.5 text-xs font-medium text-space-indigo-700 transition-colors hover:bg-space-indigo-50"
+              >
+                {scanReadiness.label}
+              </button>
+              {scanReadiness.hint && (
+                <span className="mt-0.5 text-right text-[10px] leading-tight text-space-indigo-400">
+                  {scanReadiness.hint}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => setIsAddingManual(true)}
+              className="rounded-lg bg-space-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-space-indigo-700"
+            >
+              Add transaction
+            </button>
+          </div>
         </div>
         <p className="text-sm text-space-indigo-400">
           {account.mask && <>···{account.mask} · </>}
@@ -273,6 +300,11 @@ export default function AccountView({
               )}
         </p>
       </div>
+
+      <SavedTransactionNotice
+        transaction={savedTransaction}
+        onDismiss={() => setSavedTransaction(null)}
+      />
 
       <Suspense fallback={null}>
         <SearchInput />
@@ -301,6 +333,20 @@ export default function AccountView({
           defaultAccountId={accountId}
           fallbackAccount={account}
           onClose={() => setIsAddingManual(false)}
+          onSaved={setSavedTransaction}
+        />
+      )}
+
+      {isScanning && (
+        <ScanReceiptModal
+          accounts={accounts}
+          fallbackAccount={account}
+          onClose={() => setIsScanning(false)}
+          onSaved={setSavedTransaction}
+          onManualEntry={() => {
+            setIsScanning(false);
+            setIsAddingManual(true);
+          }}
         />
       )}
     </main>

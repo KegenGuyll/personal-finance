@@ -76,14 +76,29 @@ export function lfm2VlCacheUrls(modelId: string = LFM2_VL_MODEL_ID): string[] {
   return LFM2_VL_FILES.map((file) => `${base}/${file}`);
 }
 
-/** True when every weight file is already cached, so a scan costs no download. */
+/**
+ * Files that must be present before a scan is offered.
+ *
+ * Not all of them. transformers.js fetches whatever is missing and reuses whatever
+ * is cached, so requiring every file turned a single missing config into a full
+ * 316MB re-download. The two encoder shards are most of the bytes and are what
+ * actually matter; if they survived, the remainder is a few hundred kilobytes.
+ */
+const ESSENTIAL_FILES = [
+  "onnx/encoder_model_quantized.onnx",
+  "onnx/decoder_model_merged_quantized.onnx",
+] as const;
+
+/** True when the bulk of the weights is cached, so a scan is worth offering. */
 export async function areVlmWeightsCached(): Promise<boolean> {
   if (typeof caches === "undefined") return false;
 
   try {
     const cache = await caches.open(VLM_CACHE_NAME);
+    const base = `https://huggingface.co/${LFM2_VL_MODEL_ID}/resolve/main`;
+
     const matches = await Promise.all(
-      lfm2VlCacheUrls().map((url) => cache.match(url))
+      ESSENTIAL_FILES.map((file) => cache.match(`${base}/${file}`))
     );
     return matches.every((match) => match !== undefined);
   } catch {

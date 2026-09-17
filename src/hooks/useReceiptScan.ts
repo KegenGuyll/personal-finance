@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 
+import { prepareImageForModel, ImagePreparationError } from "@/src/lib/receipt-image-prep";
 import { scanReceiptImage } from "@/src/lib/receipt-vlm";
 import {
   describeUnparseableOutput,
@@ -42,10 +43,16 @@ export function useReceiptScan() {
   const [streamedChars, setStreamedChars] = useState(0);
 
   const controllerRef = useRef<AbortController | null>(null);
+  /** Revoked before being replaced, so repeated scans do not accumulate blobs. */
+  const previewUrlRef = useRef<string | null>(null);
 
   const reset = useCallback(() => {
     controllerRef.current?.abort();
     controllerRef.current = null;
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
     setStage("pick");
     setProgress(null);
     setPreview(null);
@@ -65,25 +72,25 @@ export function useReceiptScan() {
     setStreamedChars(0);
     setProgress("Reading the receipt…");
 
-    const previewUrl = URL.createObjectURL(file);
-
     try {
-      setPreview({ dataUrl: previewUrl, slow: false });
+      // Downscale before anything else. A phone photo is ~12MP, which the model
+      // would tile anyway; sending it whole exhausted the tab's memory on iOS and
+      // the page was killed mid-scan.
+      const prepared = await prepareImageForModel(file);
 
-      // Hand over the file's own bytes rather than a canvas-derived copy: this
-      // model reads the whole image itself, so preprocessing here could only lose
-      // detail it would otherwise use.
-      const bytes = await file.arrayBuffer();
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = prepared.previewUrl;
+      setPreview({ dataUrl: prepared.previewUrl, slow: false });
 
       controllerRef.current = new AbortController();
       setStage("reading");
 
-      const outcome = await scanReceiptImage(bytes, file.type, {
+      const outcome = await scanReceiptImage(prepared.bytes, prepared.mediaType, {
         signal: controllerRef.current.signal,
         onToken: () => setStreamedChars((count) => count + 1),
       });
 
-      setPreview({ dataUrl: previewUrl, slow: !outcome.accelerated });
+      setPreview({ dataUrl: prepared.previewUrl, slow: !outcome.accelerated });
 
       const extraction = parseReceiptJson(outcome.text);
       if (!extraction) {
@@ -112,9 +119,11 @@ export function useReceiptScan() {
       setProgress(null);
       setError({
         message:
-          scanError instanceof Error
+          scanError instanceof ImagePreparationError
             ? scanError.message
-            : "The receipt could not be read.",
+            : scanError instanceof Error
+              ? scanError.message
+              : "The receipt could not be read.",
       });
     }
   }, []);

@@ -7,6 +7,7 @@ import { useReceiptScan } from "@/src/hooks/useReceiptScan";
 import ImageDropZone from "@/src/components/ImageDropZone";
 import ReceiptPreview from "@/src/components/ReceiptPreview";
 import ReceiptReviewForm from "@/src/components/ReceiptReviewForm";
+import ScanDiagnosticsPanel from "@/src/components/ScanDiagnosticsPanel";
 
 export interface ScanReceiptModalProps {
   accounts: Account[];
@@ -93,6 +94,8 @@ export default function ScanReceiptModal({
             <div className="mt-4">
               <ImageDropZone onSelect={scan.scanFile} disabled={scan.stage !== "pick"} />
             </div>
+
+            <ScanDiagnosticsPanel />
 
             {scan.error && (
               <p className="mt-3 rounded-md border border-soft-periwinkle-200 bg-soft-periwinkle-50 px-3 py-2 text-xs text-soft-periwinkle-800">

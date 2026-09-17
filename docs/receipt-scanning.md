@@ -61,7 +61,9 @@ the script is the only supported way to populate it, and it fails loudly on a
 checksum mismatch rather than serving an unverified asset. `Dockerfile` runs it
 during the image build.
 
-The TrOCR weights need no setup step: the browser downloads them on first scan.
+The TrOCR weights need no setup step: the browser downloads them on first scan,
+and transformers.js caches them under the `transformers-cache` Cache API entry
+(~72MB), separately from this app's own `receipt-ocr` cache.
 
 ## First scan on a device
 
@@ -69,6 +71,34 @@ The first scan offers a **"Download the OCR model"** button (~72MB, one time) an
 stores the result in the Cache API, so later scans work offline. If the download
 is refused or the Cache API is unavailable the scanner still works — the assets
 are re-fetched from the app or Hugging Face each time.
+
+## Device diagnostics
+
+The scan modal has a collapsible **"Scan diagnostics (device storage and GPU)"**
+section. It exists because three facts decide how scanning feels on a given
+device and none can be established from a browser version:
+
+| Reading | Why it matters |
+|---|---|
+| Detector / recogniser cached | Whether a scan will stall on a ~72MB download |
+| `navigator.gpu` and adapter | Whether the fast path exists (WASM is used regardless today) |
+| `storage.persist()` and quota | Whether the cached weights can be reclaimed at any time |
+
+**The load-bearing use is the before/after comparison.** Scan once, then open the
+panel again days later. If the recogniser reads "absent", eviction is real for
+your usage and the ~72MB is being re-paid.
+
+Two things worth knowing when reading it:
+
+- **`persist()` returning `false` is the expected result on WebKit today.** It is
+  implemented there and can return true — the storage process grants a per-origin
+  eviction exemption — but WebKit has been reported as always refusing
+  ([bug 271401](https://bugs.webkit.org/show_bug.cgi?id=271401), open and
+  untouched since January 2025). A refusal means the weights are reclaimable, not
+  that the feature is broken.
+- **WebGPU on iOS requires Safari 26 or later.** It is enabled by default there;
+  the flag-gated case in caniuse refers to *macOS* before Tahoe. So a missing
+  adapter on an iPhone is a version or context problem, not a platform limit.
 
 ## What each field is worth
 
@@ -107,9 +137,11 @@ preview means the photo was the problem.
   photo is the most likely reason a scan comes back empty. The form says what it
   thinks went wrong (blur, low contrast, dark) and offers a retry, manual entry,
   or pasting text instead.
-- **Recognition runs on the main thread.** The pipeline yields between lines so
-  progress updates, but a long receipt (many lines × autoregressive decoding) will
-  make the page sluggish. WebGPU would help and is not wired up.
+- **Recognition runs on the main thread, on WASM.** The pipeline yields between
+  lines so progress updates, but a long receipt (many lines × autoregressive
+  decoding) will make the page sluggish. **WebGPU is available on iOS Safari 26+
+  and current desktop Safari and is not being used** — the runtime is pinned to
+  the WASM backend. See the diagnostic below before assuming the device lacks it.
 - **A refund is guessed, not known.** Text matching `refund`, `credit`,
   `reversal` or `deposit` without a total row selects "Income", always at low
   confidence.

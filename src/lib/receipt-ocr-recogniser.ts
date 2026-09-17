@@ -19,10 +19,9 @@
 
 import type * as TransformersNamespace from "@huggingface/transformers";
 
-type Transformers = typeof TransformersNamespace;
+import { TROCR_MODEL_ID } from "@/src/lib/receipt-ocr-model";
 
-/** Hugging Face model id; the browser caches the weights after the first scan. */
-export const TROCR_MODEL_ID = "Xenova/trocr-small-printed";
+type Transformers = typeof TransformersNamespace;
 
 /**
  * Hard cap on generated tokens per line.

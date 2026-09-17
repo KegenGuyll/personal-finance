@@ -23,6 +23,9 @@ import {
   type OcrLine,
   type ScanPhase,
 } from "@/src/lib/receipt-ocr-runtime";
+import { loadRecogniser } from "@/src/lib/receipt-ocr-recogniser";
+import { DETECTOR_CACHE_NAME, TRANSFORMERS_CACHE_NAME } from "@/src/lib/scan-diagnostics";
+import { trocrCacheUrls } from "@/src/lib/receipt-ocr-model";
 
 export interface ScannedReceipt {
   lines: OcrLine[];
@@ -60,38 +63,75 @@ export async function recogniseReceipt(
   return { lines };
 }
 
-/** True when every model asset is already in the browser cache. */
+/**
+ * True when every asset a scan needs is already cached.
+ *
+ * Both caches are checked, and the recogniser is not optional: the detector and
+ * runtime are 16MB, while the TrOCR weights transformers.js stores in its own
+ * cache are ~72MB and dominate first-run cost. Reporting ready on the detector
+ * alone would promise a fast scan and then stall on the largest download.
+ */
 export async function areModelsCached(): Promise<boolean> {
   if (typeof caches === "undefined") return false;
 
   try {
-    const cache = await caches.open("receipt-ocr");
-    const matches = await Promise.all(
-      RECEIPT_OCR_ASSETS.map((url) => cache.match(url))
+    const detectorCache = await caches.open(DETECTOR_CACHE_NAME);
+    const detectorPresent = await Promise.all(
+      RECEIPT_OCR_ASSETS.map((url) => detectorCache.match(url))
     );
-    return matches.every((match) => match !== undefined);
+    if (!detectorPresent.every((match) => match !== undefined)) return false;
+
+    const transformersCache = await caches.open(TRANSFORMERS_CACHE_NAME);
+    const recogniserPresent = await Promise.all(
+      trocrCacheUrls().map((url) => transformersCache.match(url))
+    );
+    return recogniserPresent.every((match) => match !== undefined);
   } catch {
     return false;
   }
 }
 
 /**
- * Downloads the model assets into the Cache API.
+ * Asks the browser to make this origin's storage persistent, and reports what it
+ * said.
+ *
+ * The result is returned rather than discarded because a refusal has a concrete
+ * consequence worth surfacing: the cached weights become reclaimable, so a later
+ * scan may silently re-download all 72MB. WebKit's implementation has been
+ * reported as always refusing, which is why the value is measured on the device
+ * rather than assumed — see `scan-diagnostics.ts`.
+ *
+ * Failure to call it is not an error: without the grant the scanner still works,
+ * it just re-downloads more readily.
+ */
+export async function requestPersistentStorage(): Promise<boolean> {
+  try {
+    if (!navigator.storage?.persist) return false;
+    return await navigator.storage.persist();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Downloads this app's own model assets into the Cache API.
  *
  * Doing this before the first scan turns a long wait in the middle of a scan
- * into a setup step the user triggers deliberately. A cache failure is not fatal
- * — the assets are still served from `public/`, just not cached.
+ * into a setup step the user triggers deliberately. The TrOCR weights are not
+ * fetched here — transformers.js downloads and caches those itself when the
+ * recogniser first loads, and duplicating that would double the download.
+ *
+ * A cache failure is not fatal: the assets are still served from `public/`, just
+ * not cached.
  */
 export async function prepareModels(
   onProgress?: (progress: { loaded: number; total: number }) => void
 ): Promise<void> {
+  const persistGranted = await requestPersistentStorage();
+
   if (typeof caches !== "undefined") {
     try {
-      const cache = await caches.open("receipt-ocr");
-
-      // ~25MB is large enough for the browser to evict under storage pressure;
-      // asking for persistence is best-effort and a refusal is not an error.
-      await navigator.storage?.persist?.().catch(() => undefined);
+      const cache = await caches.open(DETECTOR_CACHE_NAME);
 
       for (const [index, url] of RECEIPT_OCR_ASSETS.entries()) {
         if (!(await cache.match(url))) {
@@ -105,6 +145,11 @@ export async function prepareModels(
         }
         onProgress?.({ loaded: index + 1, total: RECEIPT_OCR_ASSETS.length });
       }
+
+      // Loading the recogniser here is what actually downloads and caches the
+      // TrOCR weights, so the "preparing" step covers everything the first scan
+      // would otherwise wait on mid-scan.
+      await loadRecogniser();
     } catch (error) {
       if (error instanceof Error && error.message.startsWith("Could not download")) {
         throw error;
@@ -114,5 +159,11 @@ export async function prepareModels(
     }
   }
 
+  // Reported so the caller can tell the user when their scan may re-download.
   onProgress?.({ loaded: RECEIPT_OCR_ASSETS.length, total: RECEIPT_OCR_ASSETS.length });
+  if (!persistGranted) {
+    console.info(
+      "[receipt-scan] persistent storage not granted; cached models may be reclaimed"
+    );
+  }
 }

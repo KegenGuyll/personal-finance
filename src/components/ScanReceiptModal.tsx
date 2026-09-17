@@ -8,6 +8,7 @@ import ImageDropZone from "@/src/components/ImageDropZone";
 import ReceiptPreview from "@/src/components/ReceiptPreview";
 import ReceiptReviewForm from "@/src/components/ReceiptReviewForm";
 import ScanDiagnosticsPanel from "@/src/components/ScanDiagnosticsPanel";
+import ModelDownloadProgress from "@/src/components/ModelDownloadProgress";
 
 export interface ScanReceiptModalProps {
   accounts: Account[];
@@ -67,27 +68,31 @@ export default function ScanReceiptModal({
             {needsDownload && (
               <div className="mt-4 rounded-lg border border-soft-periwinkle-200 bg-soft-periwinkle-50 px-3 py-3">
                 <p className="text-xs font-medium text-soft-periwinkle-800">
-                  One-time setup: download the on-device OCR model (~72MB)
+                  One-time setup: download the on-device OCR model (~85MB)
                 </p>
                 <p className="mt-1 text-[10px] text-soft-periwinkle-700">
                   Stored in this browser and reused for every later scan, including
                   offline.
                 </p>
 
+                {models.isPreparing ? (
+                  <ModelDownloadProgress
+                    download={models.download}
+                    isPreparing={models.isPreparing}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={models.prepare}
+                    className="mt-3 rounded-lg bg-space-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-space-indigo-700"
+                  >
+                    Download the OCR model
+                  </button>
+                )}
+
                 {models.error && (
                   <p className="mt-2 text-[10px] text-space-indigo-700">{models.error}</p>
                 )}
-
-                <button
-                  type="button"
-                  onClick={models.prepare}
-                  disabled={models.isPreparing}
-                  className="mt-3 rounded-lg bg-space-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-space-indigo-700 disabled:opacity-50"
-                >
-                  {models.isPreparing
-                    ? `Downloading ${models.progress.loaded}/${models.progress.total}…`
-                    : "Download the OCR model"}
-                </button>
               </div>
             )}
 

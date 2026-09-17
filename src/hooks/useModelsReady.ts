@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { areModelsCached, prepareModels } from "@/src/lib/receipt-ocr-client";
-import { RECEIPT_OCR_ASSETS } from "@/src/lib/receipt-ocr-runtime";
+import type { DownloadProgress } from "@/src/lib/download-progress";
 
 /**
  * Tracks whether the browser has downloaded the OCR model assets.
@@ -16,7 +16,7 @@ import { RECEIPT_OCR_ASSETS } from "@/src/lib/receipt-ocr-runtime";
 export function useModelsReady() {
   const [isCached, setIsCached] = useState<boolean | null>(null);
   const [isPreparing, setIsPreparing] = useState(false);
-  const [progress, setProgress] = useState({ loaded: 0, total: RECEIPT_OCR_ASSETS.length });
+  const [download, setDownload] = useState<DownloadProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const cancelled = useRef(false);
@@ -41,7 +41,7 @@ export function useModelsReady() {
     setError(null);
 
     try {
-      await prepareModels((next) => setProgress(next));
+      await prepareModels((next) => setDownload(next.download));
       setIsCached(true);
     } catch (prepareError) {
       setError(
@@ -58,7 +58,8 @@ export function useModelsReady() {
     /** `null` until the cache has been checked. */
     isCached,
     isPreparing,
-    progress,
+    /** Byte-level progress of the download; `null` before it starts. */
+    download,
     error,
     prepare,
   };

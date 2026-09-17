@@ -67,8 +67,27 @@ and transformers.js caches them under the `transformers-cache` Cache API entry
 
 ## First scan on a device
 
-The first scan offers a **"Download the OCR model"** button (~72MB, one time) and
-stores the result in the Cache API, so later scans work offline. If the download
+The first scan offers a **"Download the OCR model"** button (~85MB, one time) and
+stores the result in the Cache API, so later scans work offline.
+
+While it runs, the button is replaced by a progress bar showing the percentage,
+the bytes transferred against the total, the file currently downloading and how
+many files are done. That detail is deliberate: the transfer is one small
+appendix plus two ~30MB weight files, so a single percentage would sit still
+often enough to look like a hang. If the percentage does not move for 20
+seconds, the panel says so and points at entering the transaction by hand.
+
+The progress is genuinely monotonic. transformers.js reports one file at a time
+and its own percentage restarts at zero per file, which would make the bar jump
+backwards three times during what feels like one download; the tracker sums bytes
+across files and keeps a per-file high-water mark so a retry inside a file cannot
+reverse it either.
+
+The size shown is measured, not estimated: the file list comes from the Hub API
+for the **7 files a q8 load actually requests**. The model repository holds 20
+files including fp32 weights and a decoder-with-past variant that are never
+fetched, and counting those inflated the total to ~830MB — which made a finished
+download display as 8%. If the download
 is refused or the Cache API is unavailable the scanner still works — the assets
 are re-fetched from the app or Hugging Face each time.
 

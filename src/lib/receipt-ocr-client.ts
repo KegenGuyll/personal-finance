@@ -24,6 +24,12 @@ import {
   type ScanPhase,
 } from "@/src/lib/receipt-ocr-runtime";
 import { loadRecogniser } from "@/src/lib/receipt-ocr-recogniser";
+import {
+  createProgressTracker,
+  FALLBACK_MODEL_SIZES,
+  fetchModelFileSizes,
+  type DownloadProgress,
+} from "@/src/lib/download-progress";
 import { DETECTOR_CACHE_NAME, TRANSFORMERS_CACHE_NAME } from "@/src/lib/scan-diagnostics";
 import { trocrCacheUrls } from "@/src/lib/receipt-ocr-model";
 
@@ -114,20 +120,35 @@ export async function requestPersistentStorage(): Promise<boolean> {
 }
 
 /**
- * Downloads this app's own model assets into the Cache API.
+ * Downloads every asset a scan needs into the browser caches.
  *
  * Doing this before the first scan turns a long wait in the middle of a scan
- * into a setup step the user triggers deliberately. The TrOCR weights are not
- * fetched here — transformers.js downloads and caches those itself when the
- * recogniser first loads, and duplicating that would double the download.
+ * into a setup step the user triggers deliberately, and the progress it reports
+ * is byte level because ~69MB of the ~85MB total is the recognition weights.
  *
  * A cache failure is not fatal: the assets are still served from `public/`, just
  * not cached.
  */
 export async function prepareModels(
-  onProgress?: (progress: { loaded: number; total: number }) => void
+  onProgress?: (progress: {
+    loaded: number;
+    total: number;
+    download: DownloadProgress;
+  }) => void
 ): Promise<void> {
   const persistGranted = await requestPersistentStorage();
+
+  // Real sizes let the bar show a percentage from the first byte; the fallback
+  // constants are only a few MB out, and a failed request is not an error.
+  const sizes =
+    (await fetchModelFileSizes()) ??
+    // Without real sizes the bar still works; it is just a few MB light, which
+    // costs a second of completeness rather than a stalled bar.
+    FALLBACK_MODEL_SIZES;
+  const tracker = createProgressTracker(sizes);
+
+  const report = (loaded: number, total: number) =>
+    onProgress?.({ loaded, total, download: tracker.snapshot() });
 
   if (typeof caches !== "undefined") {
     try {
@@ -143,13 +164,16 @@ export async function prepareModels(
           }
           await cache.put(url, response.clone());
         }
-        onProgress?.({ loaded: index + 1, total: RECEIPT_OCR_ASSETS.length });
+        report(index + 1, RECEIPT_OCR_ASSETS.length);
       }
 
-      // Loading the recogniser here is what actually downloads and caches the
-      // TrOCR weights, so the "preparing" step covers everything the first scan
-      // would otherwise wait on mid-scan.
-      await loadRecogniser();
+      // Loading the recogniser downloads and caches the TrOCR weights, so it
+      // runs here to keep that cost inside the deliberate setup action rather
+      // than mid-scan. Its callback is what drives the byte level.
+      await loadRecogniser((info) => {
+        tracker.onProgress(info);
+        report(RECEIPT_OCR_ASSETS.length, RECEIPT_OCR_ASSETS.length);
+      });
     } catch (error) {
       if (error instanceof Error && error.message.startsWith("Could not download")) {
         throw error;
@@ -159,8 +183,7 @@ export async function prepareModels(
     }
   }
 
-  // Reported so the caller can tell the user when their scan may re-download.
-  onProgress?.({ loaded: RECEIPT_OCR_ASSETS.length, total: RECEIPT_OCR_ASSETS.length });
+  report(RECEIPT_OCR_ASSETS.length, RECEIPT_OCR_ASSETS.length);
   if (!persistGranted) {
     console.info(
       "[receipt-scan] persistent storage not granted; cached models may be reclaimed"

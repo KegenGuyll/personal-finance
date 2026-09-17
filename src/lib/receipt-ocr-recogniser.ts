@@ -20,6 +20,7 @@
 import type * as TransformersNamespace from "@huggingface/transformers";
 
 import { TROCR_MODEL_ID } from "@/src/lib/receipt-ocr-model";
+import type { ModelProgressInfo } from "@/src/lib/download-progress";
 
 type Transformers = typeof TransformersNamespace;
 
@@ -37,6 +38,16 @@ type ImageToTextPipeline = (
   options?: { max_new_tokens?: number }
 ) => Promise<Array<{ generated_text: string }>>;
 
+/**
+ * Progress reporting for the one-time weight download.
+ *
+ * Passed straight through to the pipeline, which forwards it to the model load.
+ * Worth wiring because this is ~69MB: without it the setup step sits on an
+ * unchanged label for however long the connection takes, which is
+ * indistinguishable from being stuck.
+ */
+export type RecogniserProgressCallback = (info: ModelProgressInfo) => void;
+
 let transformersPromise: Promise<Transformers> | null = null;
 let pipelinePromise: Promise<ImageToTextPipeline> | null = null;
 
@@ -45,8 +56,16 @@ function getTransformers(): Promise<Transformers> {
   return transformersPromise;
 }
 
-/** Loads the recognition pipeline, reusing the loaded instance for later lines. */
-export function loadRecogniser(): Promise<ImageToTextPipeline> {
+/**
+ * Loads the recognition pipeline, reusing the loaded instance for later lines.
+ *
+ * The callback only affects the first call: once the pipeline is cached in
+ * `pipelinePromise` there is nothing left to download, so later callers resolve
+ * immediately and their callback simply never fires.
+ */
+export function loadRecogniser(
+  onProgress?: RecogniserProgressCallback
+): Promise<ImageToTextPipeline> {
   pipelinePromise ??= (async () => {
     const { pipeline } = await getTransformers();
 
@@ -55,6 +74,7 @@ export function loadRecogniser(): Promise<ImageToTextPipeline> {
     // to check anyway.
     return (await pipeline("image-to-text", TROCR_MODEL_ID, {
       dtype: "q8",
+      progress_callback: onProgress,
     })) as unknown as ImageToTextPipeline;
   })();
 

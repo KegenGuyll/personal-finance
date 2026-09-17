@@ -29,15 +29,26 @@ const TROCR_REVISION = "main";
 export function trocrCacheUrls(modelId: string = TROCR_MODEL_ID): string[] {
   const base = `https://huggingface.co/${modelId}/resolve/${TROCR_REVISION}`;
 
+  // The exact 7 files observed being requested on a clean load. This list is
+  // load-bearing in two places: it decides what the cache probe counts as
+  // "ready", and it bounds the progress total. Listing the repo's other 13 files
+  // (the fp32 weights and the decoder-with-past variant, ~750MB that is never
+  // fetched at q8) made the bar report 8% for a download that had finished.
   return [
     `${base}/config.json`,
     `${base}/generation_config.json`,
     `${base}/preprocessor_config.json`,
     `${base}/tokenizer.json`,
     `${base}/tokenizer_config.json`,
-    // `q8` is the dtype the recogniser requests, which resolves to the files
-    // named `_quantized`; these two are the bulk of the download.
+    // These two are ~64MB of the ~69MB transfer.
     `${base}/onnx/encoder_model_quantized.onnx`,
     `${base}/onnx/decoder_model_merged_quantized.onnx`,
   ];
+}
+
+/** The file names, in the form progress callbacks report them. */
+export function trocrFileNames(modelId: string = TROCR_MODEL_ID): string[] {
+  return trocrCacheUrls(modelId).map(
+    (url) => url.split(`/resolve/${TROCR_REVISION}/`)[1] ?? url
+  );
 }

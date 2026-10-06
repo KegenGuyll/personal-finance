@@ -19,6 +19,7 @@ interface BudgetEnvelopeCardProps {
   onEditCategory: (category: string) => void;
   onAcceptSuggestion: (category: string, suggestedAmount: number) => void;
   onToggleBudgetCategory: (category: string, isBudgeted: boolean) => void;
+  onToggleCarryOver: (category: string, carryOver: boolean) => void;
   onReorderCategories: (orderedNames: string[]) => void;
 }
 
@@ -57,6 +58,7 @@ export default function BudgetEnvelopeCard({
   onEditCategory,
   onAcceptSuggestion,
   onToggleBudgetCategory,
+  onToggleCarryOver,
   onReorderCategories,
 }: BudgetEnvelopeCardProps) {
   const isSavings = group.name === "Savings";
@@ -220,6 +222,12 @@ export default function BudgetEnvelopeCard({
               onToggleBudget={
                 isEditing
                   ? () => onToggleBudgetCategory(cat.category, false)
+                  : undefined
+              }
+              carryOverEnabled={cat.carryOver}
+              onToggleCarryOver={
+                isEditing
+                  ? () => onToggleCarryOver(cat.category, !cat.carryOver)
                   : undefined
               }
               viewTransactionsUrl={

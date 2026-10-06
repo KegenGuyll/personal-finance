@@ -14,6 +14,8 @@ interface BudgetProgressBarProps {
   onAcceptSuggestion?: () => void;
   isSavings?: boolean;
   onToggleBudget?: () => void;
+  carryOverEnabled?: boolean;
+  onToggleCarryOver?: () => void;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
 }
@@ -37,6 +39,8 @@ export default function BudgetProgressBar({
   onAcceptSuggestion,
   isSavings = false,
   onToggleBudget,
+  carryOverEnabled = true,
+  onToggleCarryOver,
   onMoveUp,
   onMoveDown,
 }: BudgetProgressBarProps) {
@@ -114,7 +118,7 @@ export default function BudgetProgressBar({
       </div>
 
       {/* Bottom row: Edit mode controls & Suggestion actions */}
-      {((onMoveUp || onMoveDown || onToggleBudget) || (suggestedAmount !== undefined && suggestedAmount > 0 && limit === 0)) && (
+      {((onMoveUp || onMoveDown || onToggleBudget || onToggleCarryOver) || (suggestedAmount !== undefined && suggestedAmount > 0 && limit === 0)) && (
         <div className="mt-1.5 flex flex-wrap items-center justify-between gap-1.5 pt-0.5">
           {/* Suggestion prompt if exists */}
           {suggestedAmount !== undefined && suggestedAmount > 0 && limit === 0 && (
@@ -139,7 +143,7 @@ export default function BudgetProgressBar({
           )}
 
           {/* Edit / Reorder Controls */}
-          {(onMoveUp || onMoveDown || onToggleBudget) && (
+          {(onMoveUp || onMoveDown || onToggleBudget || onToggleCarryOver) && (
             <div className="ml-auto flex items-center gap-1">
               {(onMoveUp || onMoveDown) && (
                 <div className="flex items-center rounded-md border border-space-indigo-200 bg-white shadow-2xs">
@@ -173,6 +177,30 @@ export default function BudgetProgressBar({
                     &#9660;
                   </button>
                 </div>
+              )}
+
+              {onToggleCarryOver && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onToggleCarryOver();
+                  }}
+                  title={
+                    carryOverEnabled
+                      ? "Leftover rolls into next month — click to reset monthly"
+                      : "Leftover resets each month — click to roll over"
+                  }
+                  className={`flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium shadow-2xs transition-colors ${
+                    carryOverEnabled
+                      ? "border-ocean-deep-200 bg-ocean-deep-50 text-ocean-deep-700 hover:bg-ocean-deep-100"
+                      : "border-space-indigo-200 bg-white text-space-indigo-600 hover:bg-space-indigo-50 hover:text-space-indigo-800"
+                  }`}
+                >
+                  <span aria-hidden="true">&#8635;</span>
+                  {carryOverEnabled ? "Rolls over" : "Resets monthly"}
+                </button>
               )}
 
               {onToggleBudget && (

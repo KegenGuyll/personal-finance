@@ -2,7 +2,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface MutateBudgetCategoryInput {
   name: string;
-  isBudgeted: boolean;
+  isBudgeted?: boolean;
+  carryOver?: boolean;
 }
 
 export function useMutateBudgetCategory() {

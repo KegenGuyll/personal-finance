@@ -141,6 +141,10 @@ function BudgetContent() {
     mutateBudgetCategory.mutate({ name: category, isBudgeted });
   }
 
+  function handleToggleCarryOver(category: string, carryOver: boolean) {
+    mutateBudgetCategory.mutate({ name: category, carryOver });
+  }
+
   function handleReorderCategories(orderedNames: string[]) {
     reorderBudgetCategories.mutate({ orderedNames });
   }
@@ -424,6 +428,7 @@ function BudgetContent() {
                   onEditCategory={handleEditCategory}
                   onAcceptSuggestion={handleAcceptSuggestion}
                   onToggleBudgetCategory={handleToggleBudgetCategory}
+                  onToggleCarryOver={handleToggleCarryOver}
                   onReorderCategories={handleReorderCategories}
                 />
               );

@@ -11,6 +11,7 @@ export interface BudgetCategory {
   _id?: string;
   name: string;
   isBudgeted: boolean;
+  carryOver?: boolean;
   sortOrder?: number;
   createdAt: Date;
 }
@@ -70,6 +71,7 @@ export interface BudgetCategorySummary {
   actualAmount: number;
   remaining: number;
   percentUsed: number;
+  carryOver: boolean;
   carryoverFromPrevious: number;
   suggestedAmount: number;
   dailyLimit?: number;

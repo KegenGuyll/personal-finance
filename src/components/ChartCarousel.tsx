@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import Button from "@/src/components/ui/Button";
 
 export default function ChartCarousel({ slides }: { slides: ReactNode[] }) {
   return <ChartCarouselInner key={slides.length} slides={slides} />;
@@ -48,20 +49,24 @@ function ChartCarouselInner({ slides }: { slides: ReactNode[] }) {
 
       {slides.length > 1 && (
         <div className="mt-3 flex items-center justify-center gap-4">
-          <button
+          <Button
             onClick={() => scrollToIndex(activeIndex - 1)}
             disabled={activeIndex === 0}
             aria-label="Previous chart"
-            className="flex h-6 w-6 items-center justify-center rounded-full bg-space-indigo-100 text-sm text-space-indigo-600 transition-colors hover:bg-space-indigo-200 disabled:cursor-not-allowed disabled:opacity-40"
+            variant="bare"
+            size="none"
+            className="flex h-6 w-6 items-center justify-center rounded-full bg-space-indigo-100 text-sm text-space-indigo-600 hover:bg-space-indigo-200 disabled:cursor-not-allowed disabled:opacity-40"
           >
             &lsaquo;
-          </button>
+          </Button>
           <div className="flex items-center gap-2">
             {slides.map((_, i) => (
-              <button
+              <Button
                 key={i}
                 onClick={() => scrollToIndex(i)}
                 aria-label={`Go to chart ${i + 1}`}
+                variant="bare"
+                size="none"
                 className={`h-1.5 rounded-full transition-all ${
                   i === activeIndex
                     ? "w-4 bg-space-indigo-500"
@@ -70,14 +75,16 @@ function ChartCarouselInner({ slides }: { slides: ReactNode[] }) {
               />
             ))}
           </div>
-          <button
+          <Button
             onClick={() => scrollToIndex(activeIndex + 1)}
             disabled={activeIndex === slides.length - 1}
             aria-label="Next chart"
-            className="flex h-6 w-6 items-center justify-center rounded-full bg-space-indigo-100 text-sm text-space-indigo-600 transition-colors hover:bg-space-indigo-200 disabled:cursor-not-allowed disabled:opacity-40"
+            variant="bare"
+            size="none"
+            className="flex h-6 w-6 items-center justify-center rounded-full bg-space-indigo-100 text-sm text-space-indigo-600 hover:bg-space-indigo-200 disabled:cursor-not-allowed disabled:opacity-40"
           >
             &rsaquo;
-          </button>
+          </Button>
         </div>
       )}
     </div>

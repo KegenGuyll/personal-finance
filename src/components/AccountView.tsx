@@ -12,6 +12,7 @@ import { useCategoryStats } from "@/src/hooks/useCategoryStats";
 import { useCategoryNameStats } from "@/src/hooks/useCategoryNameStats";
 import { useSpendingTrend } from "@/src/hooks/useSpendingTrend";
 import TransactionList from "@/src/components/TransactionList";
+import Card from "@/src/components/ui/Card";
 import CategoryBreakdown from "@/src/components/CategoryBreakdown";
 import CategoryNameBreakdown from "@/src/components/CategoryNameBreakdown";
 import SpendingTrend from "@/src/components/SpendingTrend";
@@ -21,6 +22,8 @@ import DateRangeFilter, { getStartDate } from "@/src/components/DateRangeFilter"
 import ManualTransactionModal from "@/src/components/ManualTransactionModal";
 import SavedTransactionNotice from "@/src/components/SavedTransactionNotice";
 import BackButton from "@/src/components/BackButton";
+import Button from "@/src/components/ui/Button";
+import Chip from "@/src/components/ui/Chip";
 
 function AccountTransactionList({
   accountId,
@@ -116,14 +119,14 @@ function CategoryStats({ accountId }: { accountId: string }) {
 
   if (isLoading) {
     return (
-      <div className="h-60 animate-pulse rounded-lg border border-space-indigo-100 bg-white" />
+      <Card className="h-60 animate-pulse p-0 shadow-none" />
     );
   }
 
   if (!data || data.categories.length === 0) return null;
 
   const chartSkeleton = (
-    <div className="h-60 animate-pulse rounded-lg border border-space-indigo-100 bg-white" />
+    <Card className="h-60 animate-pulse p-0 shadow-none" />
   );
 
   const slides: ReactNode[] = [
@@ -170,15 +173,20 @@ function CategoryStats({ accountId }: { accountId: string }) {
           <span className="text-xs text-space-indigo-400">
             Filtering by:
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-space-indigo-100 px-2.5 py-0.5 text-xs font-medium text-space-indigo-700">
+          <Chip
+            tone="indigo-muted"
+            className="gap-1 px-2.5 text-xs text-space-indigo-700"
+          >
             {selectedCategory}
-            <button
+            <Button
+              variant="bare"
+              size="none"
               onClick={() => handleSelect(null)}
               className="ml-0.5 text-space-indigo-400 hover:text-space-indigo-600"
             >
               &times;
-            </button>
-          </span>
+            </Button>
+          </Chip>
         </div>
       )}
       <ChartCarousel slides={slides} />
@@ -247,12 +255,14 @@ export default function AccountView({
           <h1 className="text-xl font-bold text-space-indigo-800">
             {displayName}
           </h1>
-          <button
+          <Button
             onClick={() => setIsAddingManual(true)}
-            className="shrink-0 rounded-lg bg-space-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-space-indigo-700"
+            variant="primary"
+            size="sm"
+            className="shrink-0"
           >
             Add transaction
-          </button>
+          </Button>
         </div>
         <p className="text-sm text-space-indigo-400">
           {account.mask && <>···{account.mask} · </>}
@@ -292,7 +302,7 @@ export default function AccountView({
 
       <Suspense
         fallback={
-          <div className="h-60 animate-pulse rounded-lg border border-space-indigo-100 bg-white" />
+          <Card className="h-60 animate-pulse p-0 shadow-none" />
         }
       >
         <CategoryStats accountId={accountId} />

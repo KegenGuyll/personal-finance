@@ -1,5 +1,7 @@
 "use client";
 
+import Button from "@/src/components/ui/Button";
+
 interface IncomeBannerProps {
   month: string;
   onMarkIncome: () => void;
@@ -24,12 +26,14 @@ export default function IncomeBanner({ month, onMarkIncome }: IncomeBannerProps)
             using the 50/20/30 rule.
           </p>
         </div>
-        <button
+        <Button
           onClick={onMarkIncome}
-          className="w-full sm:w-auto shrink-0 rounded-lg bg-cornflower-blue-600 px-4 py-2 text-center text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-cornflower-blue-700 active:bg-cornflower-blue-800"
+          variant="accent"
+          size="md"
+          className="w-full sm:w-auto shrink-0 text-center text-xs font-semibold shadow-2xs"
         >
           Mark Income
-        </button>
+        </Button>
       </div>
     </div>
   );

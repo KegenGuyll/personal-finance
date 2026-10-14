@@ -4,6 +4,11 @@ import { useState, useRef, useMemo, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCategories } from "@/src/hooks/useCategories";
 import { useAddCategory } from "@/src/hooks/useAddCategory";
+import Button from "@/src/components/ui/Button";
+import FieldLabel from "@/src/components/ui/FieldLabel";
+import Modal from "@/src/components/ui/Modal";
+import Notice from "@/src/components/ui/Notice";
+import TextInput from "@/src/components/ui/TextInput";
 
 interface CategoryEditorProps {
   transactionId: string;
@@ -142,73 +147,74 @@ export default function CategoryEditor({
 
   return (
     <>
-      <button
+      <Button
+        variant="link"
+        className="text-cornflower-blue-500 hover:text-cornflower-blue-600"
         onClick={handleOpen}
-        className="text-xs font-medium text-cornflower-blue-500 hover:text-cornflower-blue-600"
       >
         {currentValue ? "Edit category" : "Add category"}
-      </button>
+      </Button>
 
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="mx-4 w-full max-w-md rounded-lg border border-space-indigo-100 bg-white p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-space-indigo-800">
-              Edit Category
-            </h3>
-            <p className="mt-1 text-sm text-space-indigo-400">
-              {transactionName}
-            </p>
+        <Modal onClose={() => setIsOpen(false)}>
+          <h3 className="text-lg font-semibold text-space-indigo-800">
+            Edit Category
+          </h3>
+          <p className="mt-1 text-sm text-space-indigo-400">
+            {transactionName}
+          </p>
 
-            <label className="mt-4 block text-xs font-medium text-space-indigo-600">
-              Category
-            </label>
-            <div className="relative mt-1">
-              <input
-                ref={inputRef}
-                type="text"
-                value={inputValue}
-                onChange={(e) => {
-                  setInputValue(e.target.value);
-                  setDropdownOpen(true);
-                  setHighlightIndex(-1);
-                }}
-                onFocus={() => setDropdownOpen(true)}
-                onKeyDown={handleKeyDown}
-                placeholder='e.g. "Food and Drink > Restaurants"'
-                className="w-full rounded-lg border border-space-indigo-200 px-3 py-2 text-sm text-space-indigo-800 outline-none focus:border-space-indigo-400"
-              />
-              {dropdownOpen && filtered.length > 0 && (
-                <div
-                  ref={dropdownRef}
-                  className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-lg border border-space-indigo-100 bg-white shadow-lg"
-                >
-                  {filtered.map((cat, i) => (
-                    <button
-                      key={cat}
-                      onClick={() => {
-                        setInputValue(cat);
-                        setDropdownOpen(false);
-                      }}
-                      className={`w-full px-3 py-1.5 text-left text-sm ${
-                        i === highlightIndex
-                          ? "bg-space-indigo-50 text-space-indigo-800"
-                          : "text-space-indigo-600 hover:bg-space-indigo-50"
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {applyToAll && (
-              <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                This will update all transactions named &ldquo;
-                {transactionName}&rdquo; in this account. This action cannot be
-                automatically undone.
-              </p>
+          <FieldLabel htmlFor="category-editor-input" className="mt-4">
+            Category
+          </FieldLabel>
+          <div className="relative mt-1">
+            <TextInput
+              id="category-editor-input"
+              ref={inputRef}
+              type="text"
+              value={inputValue}
+              onChange={(e) => {
+                setInputValue(e.target.value);
+                setDropdownOpen(true);
+                setHighlightIndex(-1);
+              }}
+              onFocus={() => setDropdownOpen(true)}
+              onKeyDown={handleKeyDown}
+              placeholder='e.g. "Food and Drink > Restaurants"'
+            />
+            {dropdownOpen && filtered.length > 0 && (
+              <div
+                ref={dropdownRef}
+                className="absolute z-10 mt-1 max-h-40 w-full overflow-y-auto rounded-lg border border-space-indigo-100 bg-white shadow-lg"
+              >
+                {filtered.map((cat, i) => (
+                  <Button
+                    key={cat}
+                    variant="bare"
+                    onClick={() => {
+                      setInputValue(cat);
+                      setDropdownOpen(false);
+                    }}
+                    className={`w-full px-3 py-1.5 text-left text-sm ${
+                      i === highlightIndex
+                        ? "bg-space-indigo-50 text-space-indigo-800"
+                        : "text-space-indigo-600 hover:bg-space-indigo-50"
+                    }`}
+                  >
+                    {cat}
+                  </Button>
+                ))}
+              </div>
             )}
+          </div>
+
+          {applyToAll && (
+            <Notice tone="warning" className="mt-3">
+              This will update all transactions named &ldquo;
+              {transactionName}&rdquo; in this account. This action cannot be
+              automatically undone.
+            </Notice>
+          )}
 
             <label className="mt-3 flex items-center gap-2">
               <input
@@ -242,22 +248,17 @@ export default function CategoryEditor({
             )}
 
             <div className="mt-5 flex justify-end gap-2">
-              <button
-                onClick={() => setIsOpen(false)}
-                className="rounded-lg border border-space-indigo-200 px-4 py-2 text-sm font-medium text-space-indigo-600 hover:bg-space-indigo-50"
-              >
+              <Button variant="secondary" onClick={() => setIsOpen(false)}>
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleSave}
                 disabled={isSaving || inputValue.trim().length === 0}
-                className="rounded-lg bg-space-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-space-indigo-700 disabled:opacity-50"
               >
                 {isSaving ? "Saving..." : "Save"}
-              </button>
+              </Button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </>
   );

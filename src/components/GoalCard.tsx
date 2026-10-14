@@ -6,6 +6,10 @@ import { useContributeToGoal } from "@/src/hooks/useContributeToGoal";
 import { useDeleteGoal } from "@/src/hooks/useDeleteGoal";
 import { useDeleteContribution } from "@/src/hooks/useDeleteContribution";
 import GoalTransactionsModal from "@/src/components/GoalTransactionsModal";
+import Button from "@/src/components/ui/Button";
+import Card from "@/src/components/ui/Card";
+import Chip from "@/src/components/ui/Chip";
+import TextInput from "@/src/components/ui/TextInput";
 import type { Goal } from "@/src/types/budget";
 
 interface GoalCardProps {
@@ -59,7 +63,7 @@ export default function GoalCard({ goal }: GoalCardProps) {
   const contributions = goal.contributions ?? [];
 
   return (
-    <div className="rounded-lg border border-space-indigo-100 bg-white p-4 shadow-sm">
+    <Card>
       <div className="mb-3 flex items-start justify-between">
         <div>
           <h3 className="text-sm font-semibold text-space-indigo-800">
@@ -79,29 +83,25 @@ export default function GoalCard({ goal }: GoalCardProps) {
         </div>
         <div className="flex items-center gap-1">
           {isArchived ? (
-            <span className="rounded-full bg-space-indigo-100 px-2 py-0.5 text-[10px] font-medium text-space-indigo-500">
-              Archived
-            </span>
+            <Chip tone="indigo-muted">Archived</Chip>
           ) : goal.isFeasible ? (
-            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
-              On Track
-            </span>
+            <Chip tone="emerald">On Track</Chip>
           ) : (
-            <span className="rounded-full bg-cornflower-blue-100 px-2 py-0.5 text-[10px] font-medium text-cornflower-blue-700">
-              Needs Review
-            </span>
+            <Chip tone="blue">Needs Review</Chip>
           )}
-          <button
+          <Button
+            variant="bare"
+            size="none"
             onClick={() => {
               if (goal._id && confirm("Delete this goal?")) {
                 deleteGoal.mutate(goal._id);
               }
             }}
-            className="rounded p-0.5 text-space-indigo-300 transition-colors hover:text-red-500"
+            className="rounded p-0.5 text-space-indigo-300 hover:text-red-500"
             aria-label="Delete goal"
           >
             &times;
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -155,7 +155,7 @@ export default function GoalCard({ goal }: GoalCardProps) {
       {!isArchived && showContribute ? (
         <div className="flex items-center gap-2">
           <span className="text-xs text-space-indigo-600">$</span>
-          <input
+          <TextInput
             type="number"
             step="0.01"
             min="0"
@@ -164,44 +164,52 @@ export default function GoalCard({ goal }: GoalCardProps) {
             onKeyDown={(e) => {
               if (e.key === "Enter") handleContribute();
             }}
-            className="w-28 rounded-md border border-space-indigo-200 px-2 py-1 text-xs text-space-indigo-800 focus:border-space-indigo-400 focus:outline-none"
+            className="w-28 rounded-md px-2 py-1 text-xs"
             placeholder="Amount"
             autoFocus
           />
-          <button
+          <Button
+            variant="primary"
+            size="xs"
             onClick={handleContribute}
             disabled={contributeToGoal.isPending}
-            className="rounded-md bg-ocean-deep-500 px-2 py-1 text-xs font-medium text-white transition-colors hover:bg-ocean-deep-600 disabled:opacity-50"
+            className="bg-ocean-deep-500 hover:bg-ocean-deep-600 active:bg-ocean-deep-600"
           >
             Add
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="xs"
             onClick={() => setShowContribute(false)}
-            className="rounded-md px-2 py-1 text-xs text-space-indigo-400 transition-colors hover:bg-space-indigo-50"
+            className="font-normal hover:text-space-indigo-400"
           >
             Cancel
-          </button>
+          </Button>
         </div>
       ) : (
         !isArchived && (
-          <button
+          <Button
+            variant="bare"
+            size="sm"
             onClick={() => setShowContribute(true)}
-            className="rounded-md bg-space-indigo-50 px-3 py-1.5 text-xs font-medium text-space-indigo-600 transition-colors hover:bg-space-indigo-100"
+            className="rounded-md bg-space-indigo-50 text-space-indigo-600 hover:bg-space-indigo-100"
           >
             Add Contribution
-          </button>
+          </Button>
         )
       )}
 
       {/* Archived goals keep their goal-funded transactions, so their spending
           must stay viewable/removable even though new assignments are blocked. */}
       {(!isArchived || (goal.spendCount ?? 0) > 0) && (
-        <button
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => setShowTransactions(true)}
-          className="mt-2 w-full rounded-md border border-cornflower-blue-200 bg-cornflower-blue-50 px-3 py-1.5 text-xs font-medium text-cornflower-blue-700 transition-colors hover:bg-cornflower-blue-100"
+          className="mt-2 w-full rounded-md border-cornflower-blue-200 bg-cornflower-blue-50 text-cornflower-blue-700 hover:bg-cornflower-blue-100"
         >
           View spending ({goal.spendCount ?? 0})
-        </button>
+        </Button>
       )}
 
       {contributions.length > 0 && (
@@ -223,14 +231,16 @@ export default function GoalCard({ goal }: GoalCardProps) {
                     <span className="font-medium">
                       {formatCurrency(c.amount)}
                     </span>
-                    <button
+                    <Button
+                      variant="bare"
+                      size="none"
                       onClick={() => handleDeleteContribution(c._id!)}
                       disabled={deleteContribution.isPending}
-                      className="rounded px-1 text-space-indigo-300 transition-colors hover:text-red-500 disabled:opacity-50"
+                      className="rounded px-1 text-space-indigo-300 hover:text-red-500"
                       aria-label="Delete contribution"
                     >
                       &times;
-                    </button>
+                    </Button>
                   </span>
                 </div>
               ))}
@@ -244,6 +254,6 @@ export default function GoalCard({ goal }: GoalCardProps) {
           onClose={() => setShowTransactions(false)}
         />
       )}
-    </div>
+    </Card>
   );
 }

@@ -6,6 +6,7 @@ import { useAssignTransactionGoal } from "@/src/hooks/useAssignTransactionGoal";
 import { useUnassignTransactionGoal } from "@/src/hooks/useUnassignTransactionGoal";
 import LoadingSkeleton from "@/src/components/LoadingSkeleton";
 import GoalSelect from "@/src/components/GoalSelect";
+import Button from "@/src/components/ui/Button";
 
 interface GoalAssignerProps {
   transactionId: string;
@@ -32,13 +33,15 @@ export default function GoalAssigner({
     return (
       <span className="flex items-center gap-2 text-sm text-space-indigo-800">
         <span>{currentGoal?.name ?? "Goal"}</span>
-        <button
+        <Button
+          variant="danger"
+          size="none"
           onClick={() => unassignFromGoal.mutate(transactionId)}
           disabled={unassignFromGoal.isPending}
-          className="text-xs font-medium text-red-500 transition-colors hover:text-red-600 disabled:opacity-50"
+          className="text-xs font-medium"
         >
           {unassignFromGoal.isPending ? "Removing..." : "Remove"}
-        </button>
+        </Button>
       </span>
     );
   }
@@ -68,13 +71,15 @@ export default function GoalAssigner({
         onChange={setSelectedGoalId}
         size="compact"
       />
-      <button
+      <Button
+        variant="accent"
+        size="xs"
         onClick={handleAssign}
         disabled={assignToGoal.isPending || !selectedGoalId}
-        className="rounded-md bg-cornflower-blue-500 px-2 py-1 text-xs font-medium text-white transition-colors hover:bg-cornflower-blue-600 disabled:opacity-50"
+        className="bg-cornflower-blue-500 hover:bg-cornflower-blue-600 active:bg-cornflower-blue-600"
       >
         {assignToGoal.isPending ? "Saving..." : "Assign"}
-      </button>
+      </Button>
     </span>
   );
 }

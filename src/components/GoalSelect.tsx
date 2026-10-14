@@ -1,6 +1,7 @@
 "use client";
 
 import type { Goal } from "@/src/types/budget";
+import Select from "@/src/components/ui/Select";
 import { formatCurrency } from "@/src/utils/currency";
 
 /**
@@ -25,11 +26,6 @@ interface GoalSelectProps {
   "aria-label"?: string;
 }
 
-const SIZE_CLASSES: Record<"field" | "compact", string> = {
-  field: "w-full rounded-lg px-3 py-2 text-sm",
-  compact: "rounded-md px-2 py-1 text-sm",
-};
-
 export function goalAvailableAmount(goal: Goal): number {
   return goal.currentAmount - (goal.spentAmount ?? 0);
 }
@@ -50,13 +46,16 @@ export default function GoalSelect({
   const orphanedValue = value && !knownGoal ? value : null;
 
   return (
-    <select
+    <Select
       aria-label={ariaLabel}
       value={value}
       onChange={(event) => onChange(event.target.value)}
       onBlur={onBlur}
       disabled={disabled}
-      className={`border border-space-indigo-200 bg-white text-space-indigo-800 outline-none focus:border-space-indigo-400 disabled:opacity-50 ${SIZE_CLASSES[size]}`}
+      size={size}
+      // The compact picker sits inline in the transaction header, so it must
+      // not stretch or take the primitive's smaller text size.
+      className={size === "compact" ? "w-auto rounded-md text-sm" : undefined}
     >
       {emptyOptionLabel ? (
         <option value="">{emptyOptionLabel}</option>
@@ -73,6 +72,6 @@ export default function GoalSelect({
           {goal.name} · {formatCurrency(goalAvailableAmount(goal))} available
         </option>
       ))}
-    </select>
+    </Select>
   );
 }

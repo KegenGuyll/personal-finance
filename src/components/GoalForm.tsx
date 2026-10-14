@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import { useCreateGoal } from "@/src/hooks/useCreateGoal";
+import Button from "@/src/components/ui/Button";
+import Card from "@/src/components/ui/Card";
+import FieldLabel from "@/src/components/ui/FieldLabel";
+import TextInput from "@/src/components/ui/TextInput";
 
 interface GoalFormProps {
   onClose: () => void;
@@ -42,83 +46,79 @@ export default function GoalForm({ onClose }: GoalFormProps) {
   };
 
   return (
-    <div className="rounded-lg border border-space-indigo-100 bg-white p-4 shadow-sm">
+    <Card>
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-space-indigo-800">
           Create Savings Goal
         </h3>
-        <button
+        <Button
+          variant="bare"
+          size="none"
           onClick={onClose}
-          className="rounded p-1 text-space-indigo-400 transition-colors hover:bg-space-indigo-50"
+          className="rounded p-1 text-space-indigo-400 hover:bg-space-indigo-50"
         >
           &times;
-        </button>
+        </Button>
       </div>
 
       <div className="space-y-3">
         <div>
-          <label className="mb-1 block text-xs font-medium text-space-indigo-600">
-            Goal Name
-          </label>
-          <input
+          <FieldLabel className="mb-1">Goal Name</FieldLabel>
+          <TextInput
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-md border border-space-indigo-200 px-3 py-1.5 text-sm text-space-indigo-800 focus:border-space-indigo-400 focus:outline-none"
+            className="rounded-md py-1.5"
             placeholder="Summer Vacation"
           />
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-space-indigo-600">
-            Target Amount
-          </label>
+          <FieldLabel className="mb-1">Target Amount</FieldLabel>
           <div className="flex items-center gap-2">
             <span className="text-sm text-space-indigo-600">$</span>
-            <input
+            <TextInput
               type="number"
               step="0.01"
               min="0"
               value={targetAmount}
               onChange={(e) => setTargetAmount(e.target.value)}
-              className="w-full rounded-md border border-space-indigo-200 px-3 py-1.5 text-sm text-space-indigo-800 focus:border-space-indigo-400 focus:outline-none"
+              className="rounded-md py-1.5"
               placeholder="2000.00"
             />
           </div>
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-space-indigo-600">
-            Start Date
-          </label>
-          <input
+          <FieldLabel className="mb-1">Start Date</FieldLabel>
+          <TextInput
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
-            className="w-full rounded-md border border-space-indigo-200 px-3 py-1.5 text-sm text-space-indigo-800 focus:border-space-indigo-400 focus:outline-none"
+            className="rounded-md py-1.5"
           />
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-space-indigo-600">
-            Target Date
-          </label>
-          <input
+          <FieldLabel className="mb-1">Target Date</FieldLabel>
+          <TextInput
             type="date"
             value={targetDate}
             onChange={(e) => setTargetDate(e.target.value)}
-            className="w-full rounded-md border border-space-indigo-200 px-3 py-1.5 text-sm text-space-indigo-800 focus:border-space-indigo-400 focus:outline-none"
+            className="rounded-md py-1.5"
           />
         </div>
 
-        <button
+        <Button
+          variant="primary"
+          size="md"
           onClick={handleSubmit}
           disabled={createGoal.isPending}
-          className="w-full rounded-lg bg-space-indigo-600 py-2 text-sm font-medium text-white transition-colors hover:bg-space-indigo-700 disabled:opacity-50"
+          className="w-full"
         >
           {createGoal.isPending ? "Creating..." : "Create Goal"}
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   );
 }

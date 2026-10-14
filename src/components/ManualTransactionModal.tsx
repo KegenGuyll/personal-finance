@@ -5,6 +5,12 @@ import type { Account, Transaction } from "@/src/features/plaid/plaidSlice";
 import { useCategories } from "@/src/hooks/useCategories";
 import { useGoals } from "@/src/hooks/useGoals";
 import GoalSelect from "@/src/components/GoalSelect";
+import Button from "@/src/components/ui/Button";
+import FieldLabel from "@/src/components/ui/FieldLabel";
+import Modal from "@/src/components/ui/Modal";
+import Notice from "@/src/components/ui/Notice";
+import Select from "@/src/components/ui/Select";
+import TextInput from "@/src/components/ui/TextInput";
 import { useCreateManualTransaction } from "@/src/hooks/useCreateManualTransaction";
 import { useUpdateManualTransaction } from "@/src/hooks/useUpdateManualTransaction";
 import {
@@ -167,184 +173,174 @@ export default function ManualTransactionModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-space-indigo-900/40 p-4">
-      <div className="max-h-full w-full max-w-md overflow-y-auto rounded-lg border border-space-indigo-100 bg-white p-6 shadow-lg">
-        <h3 className="text-lg font-semibold text-space-indigo-800">
-          {isEdit ? "Edit manual transaction" : "Add manual transaction"}
-        </h3>
-        <p className="mt-1 text-sm text-space-indigo-400">
-          {isEdit
-            ? "Update the details you entered before this purchase synced."
-            : "Track a purchase before Plaid syncs it. It counts in your budgets right away, and you link it to the real transaction later."}
-        </p>
+    <Modal onClose={onClose} className="max-h-full overflow-y-auto">
+      <h3 className="text-lg font-semibold text-space-indigo-800">
+        {isEdit ? "Edit manual transaction" : "Add manual transaction"}
+      </h3>
+      <p className="mt-1 text-sm text-space-indigo-400">
+        {isEdit
+          ? "Update the details you entered before this purchase synced."
+          : "Track a purchase before Plaid syncs it. It counts in your budgets right away, and you link it to the real transaction later."}
+      </p>
 
-        {accountOptions.length === 0 ? (
-          <div className="mt-4">
-            <p className="text-sm text-space-indigo-600">
-              Link an account before adding manual transactions.
-            </p>
-            <div className="mt-5 flex justify-end">
-              <button
-                onClick={onClose}
-                className="rounded-lg border border-space-indigo-200 px-4 py-2 text-sm font-medium text-space-indigo-600 transition-colors hover:bg-space-indigo-50"
-              >
-                Close
-              </button>
-            </div>
+      {accountOptions.length === 0 ? (
+        <div className="mt-4">
+          <p className="text-sm text-space-indigo-600">
+            Link an account before adding manual transactions.
+          </p>
+          <div className="mt-5 flex justify-end">
+            <Button variant="secondary" onClick={onClose}>
+              Close
+            </Button>
           </div>
-        ) : (
-          <>
-            <div className="mt-4 flex gap-1">
-              {(
-                [
-                  { label: "Expense", value: "expense" },
-                  { label: "Income", value: "income" },
-                ] as const
-              ).map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => {
-                    setType(option.value);
-                    // Income cannot be goal-funded, so a chosen goal is dropped
-                    // rather than silently kept and rejected on save.
-                    if (option.value === "income") setGoalId("");
-                  }}
-                  className={`flex-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
-                    type === option.value
-                      ? option.value === "income"
-                        ? "bg-ocean-deep-500 text-white"
-                        : "bg-cornflower-blue-500 text-white"
-                      : "bg-space-indigo-50 text-space-indigo-600 hover:bg-space-indigo-100"
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+        </div>
+      ) : (
+        <>
+          <div className="mt-4 flex gap-1">
+            {(
+              [
+                { label: "Expense", value: "expense" },
+                { label: "Income", value: "income" },
+              ] as const
+            ).map((option) => (
+              <Button
+                key={option.value}
+                variant="bare"
+                className={`flex-1 rounded-lg px-3 py-2 text-xs font-medium ${
+                  type === option.value
+                    ? option.value === "income"
+                      ? "bg-ocean-deep-500 text-white"
+                      : "bg-cornflower-blue-500 text-white"
+                    : "bg-space-indigo-50 text-space-indigo-600 hover:bg-space-indigo-100"
+                }`}
+                onClick={() => {
+                  setType(option.value);
+                  // Income cannot be goal-funded, so a chosen goal is dropped
+                  // rather than silently kept and rejected on save.
+                  if (option.value === "income") setGoalId("");
+                }}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
 
-            <label className="mt-4 block text-xs font-medium text-space-indigo-600">
-              Amount
-            </label>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              className="mt-1 w-full rounded-lg border border-space-indigo-200 px-3 py-2 text-sm text-space-indigo-800 outline-none focus:border-space-indigo-400"
-            />
+          <FieldLabel className="mt-4" htmlFor="manual-transaction-amount">
+            Amount
+          </FieldLabel>
+          <TextInput
+            id="manual-transaction-amount"
+            type="text"
+            inputMode="decimal"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="0.00"
+            className="mt-1"
+          />
 
-            <label className="mt-3 block text-xs font-medium text-space-indigo-600">
-              Name
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Corner Cafe"
-              className="mt-1 w-full rounded-lg border border-space-indigo-200 px-3 py-2 text-sm text-space-indigo-800 outline-none focus:border-space-indigo-400"
-            />
+          <FieldLabel className="mt-3" htmlFor="manual-transaction-name">
+            Name
+          </FieldLabel>
+          <TextInput
+            id="manual-transaction-name"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Corner Cafe"
+            className="mt-1"
+          />
 
-            <label className="mt-3 block text-xs font-medium text-space-indigo-600">
-              Date
-            </label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-space-indigo-200 px-3 py-2 text-sm text-space-indigo-800 outline-none focus:border-space-indigo-400"
-            />
+          <FieldLabel className="mt-3" htmlFor="manual-transaction-date">
+            Date
+          </FieldLabel>
+          <TextInput
+            id="manual-transaction-date"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="mt-1"
+          />
 
-            <label className="mt-3 block text-xs font-medium text-space-indigo-600">
-              Account
-            </label>
-            <select
-              value={effectiveAccountId}
-              onChange={(e) => setAccountId(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-space-indigo-200 bg-white px-3 py-2 text-sm text-space-indigo-800 outline-none focus:border-space-indigo-400"
-            >
-              {accountOptions.map((account) => (
-                <option key={account.account_id} value={account.account_id}>
-                  {accountLabel(account)}
-                </option>
-              ))}
-            </select>
+          <FieldLabel className="mt-3" htmlFor="manual-transaction-account">
+            Account
+          </FieldLabel>
+          <Select
+            id="manual-transaction-account"
+            value={effectiveAccountId}
+            onChange={(e) => setAccountId(e.target.value)}
+            className="mt-1"
+          >
+            {accountOptions.map((account) => (
+              <option key={account.account_id} value={account.account_id}>
+                {accountLabel(account)}
+              </option>
+            ))}
+          </Select>
 
-            <label className="mt-3 block text-xs font-medium text-space-indigo-600">
-              Category (optional)
-            </label>
-            <input
-              type="text"
-              list={CATEGORY_LIST_ID}
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder='e.g. "Food and Drink > Restaurants"'
-              className="mt-1 w-full rounded-lg border border-space-indigo-200 px-3 py-2 text-sm text-space-indigo-800 outline-none focus:border-space-indigo-400"
-            />
-            <datalist id={CATEGORY_LIST_ID}>
-              {(categoryData?.categories ?? []).map((option) => (
-                <option key={option} value={option} />
-              ))}
-            </datalist>
-            <p className="mt-1 text-[10px] text-space-indigo-400">
-              Use &ldquo;Parent &gt; Child&rdquo; to nest a category. Leave it
-              empty to keep the purchase uncategorized for now.
-            </p>
+          <FieldLabel className="mt-3" htmlFor="manual-transaction-category">
+            Category (optional)
+          </FieldLabel>
+          <TextInput
+            id="manual-transaction-category"
+            type="text"
+            list={CATEGORY_LIST_ID}
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            placeholder='e.g. "Food and Drink > Restaurants"'
+            className="mt-1"
+          />
+          <datalist id={CATEGORY_LIST_ID}>
+            {(categoryData?.categories ?? []).map((option) => (
+              <option key={option} value={option} />
+            ))}
+          </datalist>
+          <p className="mt-1 text-[10px] text-space-indigo-400">
+            Use &ldquo;Parent &gt; Child&rdquo; to nest a category. Leave it
+            empty to keep the purchase uncategorized for now.
+          </p>
 
-            {type === "expense" && (
-              <>
-                <label className="mt-3 block text-xs font-medium text-space-indigo-600">
-                  Spend from goal (optional)
-                </label>
-                {goals.length === 0 && !goalId ? (
-                  <p className="mt-1 text-xs text-space-indigo-400">
-                    No goals yet.
+          {type === "expense" && (
+            <>
+              <FieldLabel className="mt-3" htmlFor="manual-transaction-goal">
+                Spend from goal (optional)
+              </FieldLabel>
+              {goals.length === 0 && !goalId ? (
+                <p className="mt-1 text-xs text-space-indigo-400">
+                  No goals yet.
+                </p>
+              ) : (
+                <>
+                  <div className="mt-1">
+                    <GoalSelect
+                      aria-label="Spend from goal"
+                      goals={goals}
+                      value={goalId}
+                      onChange={setGoalId}
+                      emptyOptionLabel="No goal"
+                    />
+                  </div>
+                  <p className="mt-1 text-[10px] text-space-indigo-400">
+                    Drops out of your category spending and draws down the goal
+                    instead. Linking carries the assignment onto the synced
+                    transaction.
                   </p>
-                ) : (
-                  <>
-                    <div className="mt-1">
-                      <GoalSelect
-                        aria-label="Spend from goal"
-                        goals={goals}
-                        value={goalId}
-                        onChange={setGoalId}
-                        emptyOptionLabel="No goal"
-                      />
-                    </div>
-                    <p className="mt-1 text-[10px] text-space-indigo-400">
-                      Drops out of your category spending and draws down the goal
-                      instead. Linking carries the assignment onto the synced
-                      transaction.
-                    </p>
-                  </>
-                )}
-              </>
-            )}
+                </>
+              )}
+            </>
+          )}
 
-            {errorMessage && (
-              <p className="mt-3 rounded-md border border-soft-periwinkle-200 bg-soft-periwinkle-50 px-3 py-2 text-xs text-soft-periwinkle-800">
-                {errorMessage}
-              </p>
-            )}
+          {errorMessage && <Notice className="mt-3">{errorMessage}</Notice>}
 
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                onClick={onClose}
-                className="rounded-lg border border-space-indigo-200 px-4 py-2 text-sm font-medium text-space-indigo-600 transition-colors hover:bg-space-indigo-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={!canSave}
-                className="rounded-lg bg-space-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-space-indigo-700 disabled:opacity-50"
-              >
-                {isSaving ? "Saving..." : isEdit ? "Save changes" : "Add transaction"}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+          <div className="mt-5 flex justify-end gap-2">
+            <Button variant="secondary" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubmit} disabled={!canSave}>
+              {isSaving ? "Saving..." : isEdit ? "Save changes" : "Add transaction"}
+            </Button>
+          </div>
+        </>
+      )}
+    </Modal>
   );
 }

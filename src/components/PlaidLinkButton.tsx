@@ -5,6 +5,7 @@ import { usePlaidLink, type PlaidLinkOnSuccess } from "react-plaid-link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppDispatch } from "@/src/lib/hooks";
 import { setLinked, setError } from "@/src/features/plaid/plaidSlice";
+import Button from "@/src/components/ui/Button";
 
 function PlaidLinkOverlay({
   linkToken,
@@ -144,16 +145,16 @@ export default function PlaidLinkButton({
       {linkToken && (
         <PlaidLinkOverlay linkToken={linkToken} onSuccess={onSuccess} />
       )}
-      <button
+      {/* A caller-supplied className replaces the styled default wholesale; variant defaults apply only when className is absent. */}
+      <Button
         onClick={() => createLinkToken.mutate()}
         disabled={createLinkToken.isPending}
-        className={
-          className ??
-          "rounded-lg bg-space-indigo-600 px-6 py-3 font-medium text-white transition-colors hover:bg-space-indigo-700 disabled:opacity-50"
-        }
+        variant={className ? "bare" : "primary"}
+        size={className ? "none" : "lg"}
+        className={className}
       >
         {createLinkToken.isPending ? "Connecting..." : buttonLabel}
-      </button>
+      </Button>
     </>
   );
 }

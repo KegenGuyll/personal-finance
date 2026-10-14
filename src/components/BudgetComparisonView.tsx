@@ -14,6 +14,8 @@ import ComparisonDeltaTable, {
 import BudgetCategoryModal from "@/src/components/BudgetCategoryModal";
 import BudgetInsightsCard from "@/src/components/BudgetInsightsCard";
 import LoadingSkeleton from "@/src/components/LoadingSkeleton";
+import Button from "@/src/components/ui/Button";
+import Card from "@/src/components/ui/Card";
 import { useAppSelector } from "@/src/lib/hooks";
 import { useBudgetComparison } from "@/src/hooks/useBudgetComparison";
 import { useMutateBudget } from "@/src/hooks/useMutateBudget";
@@ -273,27 +275,23 @@ function ComparisonBody({
 
   if (isError) {
     return (
-      <div className="rounded-2xl border border-space-indigo-100 bg-white p-8 py-16 text-center shadow-xs">
+      <Card className="rounded-2xl p-8 py-16 text-center shadow-xs">
         <p className="mb-2 text-lg font-bold text-space-indigo-800">
           Couldn&apos;t load the comparison
         </p>
         <p className="max-w-md text-sm text-space-indigo-500">
           There was a problem fetching your budget data. Please try again.
         </p>
-        <button
-          type="button"
-          onClick={() => refetch()}
-          className="mt-6 rounded-xl bg-space-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-2xs transition-colors hover:bg-space-indigo-700"
-        >
+        <Button variant="primary" size="lg" onClick={() => refetch()} className="mt-6">
           Try again
-        </button>
-      </div>
+        </Button>
+      </Card>
     );
   }
 
   if (!anyData) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-space-indigo-100 bg-white p-8 py-16 text-center shadow-xs">
+      <Card className="flex flex-col items-center justify-center rounded-2xl p-8 py-16 text-center shadow-xs">
         <p className="mb-2 text-lg font-bold text-space-indigo-800">Budget Not Set Up</p>
         <p className="max-w-md text-sm text-space-indigo-500">
           Set up your 50/20/30 budget groups from the Budget page to start comparing
@@ -305,7 +303,7 @@ function ComparisonBody({
         >
           Go to Budget
         </Link>
-      </div>
+      </Card>
     );
   }
 
@@ -324,37 +322,41 @@ function ComparisonBody({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex w-full flex-wrap items-center gap-1.5 rounded-xl border border-space-indigo-100 bg-white p-1 shadow-2xs sm:w-auto">
           {WINDOW_OPTIONS.map((opt) => (
-            <button
+            <Button
               key={opt}
               type="button"
+              variant="bare"
+              size="none"
               aria-pressed={count === opt}
               onClick={() => onCountChange(opt)}
-              className={`flex-1 rounded-lg px-3 py-1.5 text-center text-xs font-semibold transition-colors sm:flex-none ${
+              className={`flex-1 rounded-lg px-3 py-1.5 text-center text-xs font-semibold sm:flex-none ${
                 count === opt
                   ? "bg-ocean-deep-500 text-white shadow-2xs"
                   : "text-ocean-deep-700 hover:bg-ocean-deep-50"
               }`}
             >
               {opt} mo
-            </button>
+            </Button>
           ))}
         </div>
 
         <div className="flex flex-wrap items-center gap-1">
           {months.map((month) => (
-            <button
+            <Button
               key={month}
               type="button"
+              variant="bare"
+              size="none"
               aria-pressed={selectedMonth === month}
               onClick={() => setSelectedMonth(month)}
-              className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+              className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold ${
                 selectedMonth === month
                   ? "bg-space-indigo-600 text-white shadow-2xs"
                   : "border border-space-indigo-200 bg-white text-space-indigo-700 hover:bg-space-indigo-50"
               }`}
             >
               {formatMonthShort(month)}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -368,40 +370,44 @@ function ComparisonBody({
 
       {/* Category toggle chips */}
       {allCategories.length > 0 && (
-        <div className="rounded-xl border border-space-indigo-100 bg-white p-3 shadow-2xs">
+        <Card padding="sm" className="rounded-xl shadow-2xs">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-xs font-semibold text-space-indigo-600">Categories</span>
             {selectedNames && (
-              <button
+              <Button
                 type="button"
+                variant="link"
+                size="none"
                 onClick={() => setSelectedNames(null)}
-                className="text-xs font-medium text-cornflower-blue-600 hover:text-cornflower-blue-700"
+                className="text-xs"
               >
                 Reset
-              </button>
+              </Button>
             )}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {allCategories.map((c) => {
               const active = visibleNames.includes(c.category);
               return (
-                <button
+                <Button
                   key={c.category}
                   type="button"
+                  variant="bare"
+                  size="none"
                   aria-pressed={active}
                   onClick={() => toggleCategory(c.category)}
-                  className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${
                     active
                       ? "bg-space-indigo-600 text-white"
                       : "border border-space-indigo-200 bg-white text-space-indigo-600 hover:bg-space-indigo-50"
                   }`}
                 >
                   {c.category}
-                </button>
+                </Button>
               );
             })}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Charts carousel */}

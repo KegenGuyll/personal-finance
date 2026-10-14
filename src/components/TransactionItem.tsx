@@ -5,6 +5,9 @@ import { formatCurrency } from "@/src/utils/currency";
 import { formatDate } from "@/src/utils/date";
 import { useUnmarkIncome } from "@/src/hooks/useUnmarkIncome";
 import Link from "next/link";
+import Button from "@/src/components/ui/Button";
+import Chip from "@/src/components/ui/Chip";
+import Card from "@/src/components/ui/Card";
 
 function IncomeButton({
   transaction,
@@ -20,31 +23,35 @@ function IncomeButton({
 
   if (isIncome) {
     return (
-      <button
+      <Button
+        variant="bare"
+        size="none"
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
           unmarkIncome.mutate(transaction.transaction_id);
         }}
         disabled={isPending}
-        className="shrink-0 rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700 transition-colors hover:bg-emerald-200 disabled:opacity-50"
+        className="shrink-0 rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700 hover:bg-emerald-200"
       >
         {isPending ? "..." : "Income"}
-      </button>
+      </Button>
     );
   }
 
   return (
-    <button
+    <Button
+      variant="bare"
+      size="none"
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
         onMarkIncomeStart(transaction.name);
       }}
-      className="shrink-0 rounded-md bg-space-indigo-50 px-2 py-0.5 text-[10px] font-medium text-space-indigo-400 transition-colors hover:bg-space-indigo-200 hover:text-space-indigo-700"
+      className="shrink-0 rounded-md bg-space-indigo-50 px-2 py-0.5 text-[10px] font-medium text-space-indigo-400 hover:bg-space-indigo-200 hover:text-space-indigo-700"
     >
       Income?
-    </button>
+    </Button>
   );
 }
 
@@ -62,7 +69,7 @@ export default function TransactionItem({
       href={`/accounts/${transaction.account_id}/transactions/${transaction.transaction_id}`}
       className="block transition-shadow hover:shadow-md"
     >
-      <div className="flex items-center justify-between rounded-lg border border-space-indigo-100 bg-white px-4 py-3 shadow-sm">
+      <Card className="flex items-center justify-between px-4 py-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-space-indigo-800">
             {transaction.name}
@@ -81,14 +88,14 @@ export default function TransactionItem({
         </div>
         <div className="ml-3 flex items-center gap-2">
           {transaction.manual && (
-            <span className="shrink-0 rounded-md bg-soft-periwinkle-100 px-2 py-0.5 text-[10px] font-medium text-soft-periwinkle-700">
+            <Chip className="shrink-0 rounded-md bg-soft-periwinkle-100 text-soft-periwinkle-700">
               Manual
-            </span>
+            </Chip>
           )}
           {transaction.goalId && (
-            <span className="shrink-0 rounded-md bg-cornflower-blue-100 px-2 py-0.5 text-[10px] font-medium text-cornflower-blue-700">
+            <Chip tone="blue" className="shrink-0 rounded-md">
               Goal
-            </span>
+            </Chip>
           )}
           {showIncomeButton && onMarkIncomeStart && (
             <IncomeButton
@@ -107,7 +114,7 @@ export default function TransactionItem({
             )}
           </p>
         </div>
-      </div>
+      </Card>
     </Link>
   );
 }

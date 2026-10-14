@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import Card from "@/src/components/ui/Card";
 
 interface BaseAccountCardProps {
   title: ReactNode;
@@ -15,7 +16,7 @@ export default function BaseAccountCard({
   accountId,
 }: BaseAccountCardProps) {
   const card = (
-    <div className="rounded-lg border border-space-indigo-100 bg-white p-4 shadow-sm">
+    <Card>
       <div className="flex items-center justify-between">
         <div>
           <p className="font-medium text-space-indigo-800">{title}</p>
@@ -23,7 +24,7 @@ export default function BaseAccountCard({
         </div>
         <p className="text-lg font-semibold">{balance}</p>
       </div>
-    </div>
+    </Card>
   );
 
   if (accountId) {

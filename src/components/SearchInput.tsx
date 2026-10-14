@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useTransition } from "react";
+import TextInput from "@/src/components/ui/TextInput";
 
 const DEBOUNCE_MS = 300;
 
@@ -43,19 +44,17 @@ export default function SearchInput() {
   );
 
   return (
-    <div className="relative">
-      <input
-        type="text"
-        defaultValue={query}
-        onChange={(e) => handleChange(e.target.value)}
-        placeholder="Search transactions..."
-        className="w-full rounded-lg border border-space-indigo-200 bg-white px-4 py-2.5 pr-10 text-sm text-space-indigo-800 placeholder-space-indigo-300 outline-none transition-colors focus:border-space-indigo-400"
-      />
-      {isPending && (
-        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+    <TextInput
+      type="text"
+      defaultValue={query}
+      onChange={(e) => handleChange(e.target.value)}
+      placeholder="Search transactions..."
+      className="py-2.5 pl-4"
+      trailing={
+        isPending ? (
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-space-indigo-300 border-t-transparent" />
-        </div>
-      )}
-    </div>
+        ) : undefined
+      }
+    />
   );
 }

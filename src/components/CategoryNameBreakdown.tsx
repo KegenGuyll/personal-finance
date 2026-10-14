@@ -7,6 +7,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import Card from "@/src/components/ui/Card";
 import type { NameStat } from "@/src/hooks/useCategoryNameStats";
 import { formatCurrency } from "@/src/utils/currency";
 import { CHART_COLORS as COLORS } from "@/src/utils/chart-colors";
@@ -31,7 +32,7 @@ function CustomTooltip({
   const percentage = (value / data.grandTotal) * 100;
 
   return (
-    <div className="rounded-lg border border-space-indigo-100 bg-white px-3 py-2 shadow-sm">
+    <Card className="px-3 py-2">
       <p className="max-w-60 truncate text-xs font-medium text-space-indigo-800">
         {data.name}
       </p>
@@ -42,7 +43,7 @@ function CustomTooltip({
         {data.count} transaction{data.count > 1 ? "s" : ""} ·{" "}
         {percentage.toFixed(1)}%
       </p>
-    </div>
+    </Card>
   );
 }
 
@@ -72,7 +73,7 @@ export default function CategoryNameBreakdown({
   }));
 
   return (
-    <div className="rounded-lg border border-space-indigo-100 bg-white p-4">
+    <Card className="shadow-none">
       <h3 className="mb-1 text-sm font-medium text-space-indigo-600">
         Transaction Breakdown
       </h3>
@@ -102,6 +103,6 @@ export default function CategoryNameBreakdown({
           <Tooltip content={<CustomTooltip />} />
         </PieChart>
       </ResponsiveContainer>
-    </div>
+    </Card>
   );
 }

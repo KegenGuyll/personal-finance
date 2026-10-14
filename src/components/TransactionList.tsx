@@ -2,6 +2,7 @@
 
 import TransactionItem from "@/src/components/TransactionItem";
 import LoadingSkeleton from "@/src/components/LoadingSkeleton";
+import Button from "@/src/components/ui/Button";
 import type { Transaction } from "@/src/features/plaid/plaidSlice";
 
 interface TransactionListProps {
@@ -56,13 +57,15 @@ export default function TransactionList({
         />
       ))}
       {hasNextPage && (
-        <button
+        <Button
+          variant="secondary"
+          size="md"
           onClick={onLoadMore}
           disabled={isFetchingNextPage}
-          className="w-full rounded-lg border border-space-indigo-200 bg-white py-2.5 text-sm font-medium text-space-indigo-600 transition-colors hover:bg-space-indigo-50 disabled:opacity-50"
+          className="w-full py-2.5"
         >
           {isFetchingNextPage ? "Loading..." : "Load more"}
-        </button>
+        </Button>
       )}
     </div>
   );

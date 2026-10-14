@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 
 import type { Transaction } from "@/src/features/plaid/plaidSlice";
+import Button from "@/src/components/ui/Button";
 import { formatCurrency } from "@/src/utils/currency";
 
 /**
@@ -54,13 +55,15 @@ export default function SavedTransactionNotice({
         >
           View
         </Link>
-        <button
+        <Button
+          variant="bare"
+          size="none"
           onClick={onDismiss}
           aria-label="Dismiss"
-          className="text-space-indigo-400 transition-colors hover:text-space-indigo-600"
+          className="text-space-indigo-400 hover:text-space-indigo-600"
         >
           &times;
-        </button>
+        </Button>
       </div>
     </div>
   );

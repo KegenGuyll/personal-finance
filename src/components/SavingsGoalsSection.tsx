@@ -6,6 +6,9 @@ import { useContributeToGoal } from "@/src/hooks/useContributeToGoal";
 import type { Goal } from "@/src/types/budget";
 import { formatCurrency } from "@/src/utils/currency";
 import { getEndOfMonth } from "@/src/lib/month-utils";
+import Button from "@/src/components/ui/Button";
+import Chip from "@/src/components/ui/Chip";
+import TextInput from "@/src/components/ui/TextInput";
 
 interface SavingsGoalsSectionProps {
   goals: Goal[];
@@ -116,9 +119,12 @@ export default function SavingsGoalsSection({
                   {isDeleted ? "Deleted goal" : goal.name}
                 </span>
                 {!isDeleted && completed && (
-                  <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.2 text-[9px] font-semibold text-emerald-700">
+                  <Chip
+                    tone="emerald"
+                    className="shrink-0 py-0.2 text-[9px] font-semibold"
+                  >
                     Completed
-                  </span>
+                  </Chip>
                 )}
               </div>
 
@@ -143,20 +149,22 @@ export default function SavingsGoalsSection({
                 </div>
 
                 {!isDeleted && !completed && (
-                  <button
+                  <Button
                     type="button"
+                    variant="bare"
+                    size="none"
                     onClick={() => {
                       setAllocateGoalId(isAllocatingThis ? null : String(goal._id));
                       setAllocateAmount("");
                     }}
-                    className={`rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                    className={`rounded px-2 py-0.5 text-[11px] font-medium ${
                       isAllocatingThis
                         ? "bg-ocean-deep-500 text-white"
                         : "bg-ocean-deep-50 text-ocean-deep-600 hover:bg-ocean-deep-100"
                     }`}
                   >
                     Allocate
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -177,28 +185,29 @@ export default function SavingsGoalsSection({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-medium text-ocean-deep-700">Add to goal:</span>
-                    <div className="relative flex items-center">
-                      <span className="absolute left-2 text-xs text-ocean-deep-600">$</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max={unallocated}
-                        value={allocateAmount}
-                        onChange={(e) => setAllocateAmount(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleAllocate(String(goal._id));
-                        }}
-                        className="w-24 rounded border border-ocean-deep-200 bg-white py-1 pl-5 pr-1.5 text-xs font-medium text-space-indigo-800 focus:border-ocean-deep-400 focus:outline-none"
-                        placeholder="0.00"
-                        autoFocus
-                      />
-                    </div>
+                    <TextInput
+                      size="compact"
+                      leading={<span className="text-xs text-ocean-deep-600">$</span>}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max={unallocated}
+                      value={allocateAmount}
+                      onChange={(e) => setAllocateAmount(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleAllocate(String(goal._id));
+                      }}
+                      className="w-24 rounded border-ocean-deep-200 py-1 pl-5 pr-1.5 font-medium focus:border-ocean-deep-400"
+                      placeholder="0.00"
+                      autoFocus
+                    />
                   </div>
 
                   <div className="flex items-center gap-1">
-                    <button
+                    <Button
                       type="button"
+                      variant="bare"
+                      size="none"
                       onClick={() => handleAllocate(String(goal._id))}
                       disabled={
                         contributeToGoal.isPending ||
@@ -206,17 +215,19 @@ export default function SavingsGoalsSection({
                         parseFloat(allocateAmount) <= 0 ||
                         parseFloat(allocateAmount) > unallocatedExact
                       }
-                      className="rounded bg-ocean-deep-500 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-ocean-deep-600 disabled:opacity-50"
+                      className="rounded bg-ocean-deep-500 px-2.5 py-1 text-xs font-medium text-white hover:bg-ocean-deep-600"
                     >
                       {contributeToGoal.isPending ? "Saving..." : "Save"}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      variant="bare"
+                      size="none"
                       onClick={() => setAllocateGoalId(null)}
-                      className="rounded px-2 py-1 text-xs text-space-indigo-500 transition-colors hover:bg-ocean-deep-100"
+                      className="rounded px-2 py-1 text-xs text-space-indigo-500 hover:bg-ocean-deep-100"
                     >
                       Cancel
-                    </button>
+                    </Button>
                   </div>
                 </div>
 
@@ -233,10 +244,12 @@ export default function SavingsGoalsSection({
 
       {unallocated > 0 && (
         <div className="mt-3 border-t border-space-indigo-100 pt-2">
-          <button
+          <Button
             type="button"
+            variant="bare"
+            size="none"
             onClick={() => setShowUnallocated(!showUnallocated)}
-            className="flex w-full items-center justify-between rounded-md px-1.5 py-1 text-xs text-space-indigo-500 transition-colors hover:bg-space-indigo-50 hover:text-space-indigo-700"
+            className="flex w-full items-center justify-between rounded-md px-1.5 py-1 text-xs text-space-indigo-500 hover:bg-space-indigo-50 hover:text-space-indigo-700"
           >
             <span className="flex items-center gap-1 font-medium">
               <span className={`inline-block text-[9px] transition-transform ${showUnallocated ? "rotate-90" : ""}`}>
@@ -247,7 +260,7 @@ export default function SavingsGoalsSection({
             <span className="font-bold text-ocean-deep-600">
               {formatCurrency(unallocated)}
             </span>
-          </button>
+          </Button>
           {showUnallocated && (
             <p className="mt-1 px-1.5 text-[11px] text-space-indigo-400">
               Savings not yet assigned to a goal. Allocate it to a goal above or leave it as a buffer.

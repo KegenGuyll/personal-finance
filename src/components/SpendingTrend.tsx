@@ -14,6 +14,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import Card from "@/src/components/ui/Card";
 
 interface ChartData {
   date: string;
@@ -40,7 +41,7 @@ function CustomTooltip({
   if (!data) return null;
 
   return (
-    <div className="rounded-lg border border-space-indigo-100 bg-white px-3 py-2 shadow-sm">
+    <Card className="px-3 py-2">
       {data.name && (
         <p className="text-xs font-medium text-space-indigo-800">
           {data.name}
@@ -57,7 +58,7 @@ function CustomTooltip({
           </span>
         </p>
       ))}
-    </div>
+    </Card>
   );
 }
 
@@ -132,9 +133,7 @@ export default function SpendingTrend({
   const chartData = data.map((d) => ({ ...d, average, dailyLimit: dailyLimit ?? 0 }));
 
   return (
-    <div
-      className={`rounded-lg border border-space-indigo-100 bg-white p-4 ${className}`}
-    >
+    <Card className={`shadow-none ${className}`}>
       <h3 className="mb-1 text-sm font-medium text-space-indigo-600">
         Spending Trend
       </h3>
@@ -238,6 +237,6 @@ export default function SpendingTrend({
           )}
         </LineChart>
       </ResponsiveContainer>
-    </div>
+    </Card>
   );
 }

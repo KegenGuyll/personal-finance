@@ -38,7 +38,6 @@ import {
 } from "@huggingface/transformers";
 
 import { RECEIPT_PROMPT } from "@/src/lib/receipt-vlm-prompt";
-import { describeGpu } from "@/src/lib/scan-breadcrumbs";
 import {
   LFM2_VL_MODEL_ID,
   LFM2_VL_DTYPE_WITHOUT_F16,
@@ -121,12 +120,6 @@ export interface VlmResultMessage {
   outputTokens: number | null;
 }
 
-export interface VlmBreadcrumbMessage {
-  type: "breadcrumb";
-  step: string;
-  detail?: string;
-}
-
 export interface VlmErrorMessage {
   type: "error";
   message: string;
@@ -136,7 +129,6 @@ export interface VlmErrorMessage {
 }
 
 export type VlmResponse =
-  | VlmBreadcrumbMessage
   | VlmProgressMessage
   | VlmLoadedMessage
   | VlmTokenMessage
@@ -168,17 +160,6 @@ function enqueue<T>(fn: () => Promise<T>): Promise<T> {
 
 function post(message: VlmResponse): void {
   self.postMessage(message);
-}
-
-/**
- * Records a step by asking the main thread to persist it.
- *
- * The write deliberately happens on the other side: this worker is the component
- * that dies, and a half-written cache entry from a killed worker would corrupt the
- * log that is supposed to explain the crash.
- */
-function breadcrumb(step: string, detail?: string): void {
-  self.postMessage({ type: "breadcrumb", step, detail } satisfies VlmBreadcrumbMessage);
 }
 
 /**
@@ -216,11 +197,7 @@ async function hasWebGpu(): Promise<boolean> {
 }
 
 async function loadModel(request: VlmLoadRequest): Promise<VlmLoadedMessage> {
-  breadcrumb("load:begin", "dtype=" + (request.dtype ?? "auto"));
-  breadcrumb("load:gpu", await describeGpu());
-
   if (loaded && (!request.dtype || loaded.dtype === request.dtype)) {
-    breadcrumb("load:cached");
     return {
       type: "loaded",
       device: loaded.device,
@@ -229,26 +206,9 @@ async function loadModel(request: VlmLoadRequest): Promise<VlmLoadedMessage> {
     };
   }
 
-  // WebGPU is required, not preferred.
-  //
-  // The WASM fallback is not a slower path — it is a broken one at this size. A
-  // 450M model with a 221MB decoder shard cannot be held and executed on the CPU
-  // inside a browser tab, and attempting it is the most likely explanation for a
-  // process death that leaves no error behind. Failing here, visibly, is far more
-  // useful than a tab that vanishes.
   const gpuAvailable = await hasWebGpu();
-  breadcrumb("load:gpu-available", String(gpuAvailable));
-
-  if (!gpuAvailable) {
-    throw new Error(
-      "This device has no WebGPU, which this model needs. " +
-        "Running it on the CPU is not viable at this size."
-    );
-  }
-
-  const device = "webgpu";
+  const device = gpuAvailable ? "webgpu" : "wasm";
   const dtype = await chooseDtype(request.dtype);
-  breadcrumb("load:device", "device=" + device + " dtype=" + dtype);
 
   // Sum the per-file callbacks into a whole-download figure: transformers.js
   // restarts its own percentage at zero for each file, so reporting it directly
@@ -279,20 +239,14 @@ async function loadModel(request: VlmLoadRequest): Promise<VlmLoadedMessage> {
     });
   };
 
-  breadcrumb("load:processor:begin");
   const processor = await AutoProcessor.from_pretrained(LFM2_VL_MODEL_ID, {
     progress_callback,
   });
-  breadcrumb("load:processor:ok");
-
-  // The step most likely to exhaust memory: the whole model is materialised here.
-  breadcrumb("load:model:begin", "files=" + files.size);
   const model = await AutoModelForImageTextToText.from_pretrained(LFM2_VL_MODEL_ID, {
     dtype,
     device,
     progress_callback,
   });
-  breadcrumb("load:model:ok");
 
   loaded = { processor, model, device, dtype };
 
@@ -348,12 +302,9 @@ async function runReceipt(request: VlmRunRequest): Promise<VlmResultMessage> {
   if (!loaded) throw new Error("no model loaded");
   const { processor, model, device, dtype } = loaded;
 
-  breadcrumb("run:begin", "bytes=" + request.imageBytes.byteLength + " device=" + device);
-
   const image = await RawImage.fromBlob(
     new Blob([request.imageBytes], { type: request.imageMime || "image/jpeg" })
   );
-  breadcrumb("run:decoded", image.width + "x" + image.height);
 
   const messages = [
     {
@@ -364,13 +315,6 @@ async function runReceipt(request: VlmRunRequest): Promise<VlmResultMessage> {
 
   const text = processor.apply_chat_template(messages, { add_generation_prompt: true });
   const inputs = await callProcessor(processor, text as string, image);
-
-  const inputIds = (inputs as { input_ids?: { dims: number[] } }).input_ids;
-  const tiles = (inputs as { pixel_values?: { dims: number[] } }).pixel_values;
-  breadcrumb(
-    "run:preprocessed",
-    "tokens=" + (inputIds?.dims?.[1] ?? "?") + " tiles=" + (tiles?.dims?.[0] ?? "?")
-  );
 
   const tokenizer = processor.tokenizer;
   if (!tokenizer) throw new Error("model processor exposes no tokenizer");
@@ -383,21 +327,11 @@ async function runReceipt(request: VlmRunRequest): Promise<VlmResultMessage> {
     callback_function: (token: string) => {
       outputText += token;
       outputTokens++;
-      // Where the kill lands decides the fix: a death before the first token is a
-      // prefill allocation, one after hundreds is sustained pressure. Logging every
-      // token to 32 closes the window the only surviving run died inside — it
-      // reached token 1 and never token 32 — and 32 lines is nothing next to
-      // inference. Past that the count is sparsened, since the answer there is
-      // already "late" rather than "which step".
-      if (outputTokens <= 32 || outputTokens % 32 === 0) {
-        breadcrumb("run:token", "n=" + outputTokens);
-      }
       post({ type: "token", token });
     },
   });
 
   const started = performance.now();
-  breadcrumb("run:generate:begin");
   const output = await model.generate({
     ...inputs,
     // 768 is the budget the benchmark used. Verbose output routinely hits the
@@ -413,10 +347,6 @@ async function runReceipt(request: VlmRunRequest): Promise<VlmResultMessage> {
   });
 
   const generateMs = performance.now() - started;
-  breadcrumb(
-    "run:generate:ok",
-    "ms=" + Math.round(generateMs) + " tokens=" + outputTokens
-  );
 
   // The streamer normally supplies the text; decoding the raw ids is the
   // fallback for a generation that produced no streamed tokens.
@@ -469,12 +399,10 @@ self.addEventListener("message", (event: MessageEvent<{ id: string; request: Vlm
     } catch (error) {
       // Worker stacks do not survive postMessage — they arrive as a bare
       // message pointing at the caller — so the step is reported as data.
-      const message = error instanceof Error ? error.message : String(error);
-      breadcrumb(request.op + ":ERROR", message);
       post({
         type: "error",
         step: request.op,
-        message,
+        message: error instanceof Error ? error.message : String(error),
         detail: error instanceof Error ? error.stack?.slice(0, 1000) : undefined,
       });
     }

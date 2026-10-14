@@ -15,7 +15,6 @@ import {
   type VlmDtype,
 } from "@/src/lib/receipt-vlm-model";
 import type { VlmResponse } from "@/src/lib/receipt-vlm-worker";
-import { breadcrumb } from "@/src/lib/scan-breadcrumbs";
 
 export { LFM2_VL_DOWNLOAD_MB, LFM2_VL_MODEL_ID };
 export type { VlmDtype };
@@ -158,7 +157,6 @@ function getWorker(): Worker {
     lastWorkerError = new Error(
       event.message || "The receipt model worker crashed"
     );
-    breadcrumb("worker:crashed", lastWorkerError.message);
     pending?.onMessage({
       type: "error",
       step: "worker",
@@ -195,12 +193,6 @@ function send<T>(request: Record<string, unknown>, options: VlmScanOptions = {})
         const messageId = (message as { id?: string }).id;
         if (messageId && messageId !== id) return;
 
-        if (message.type === "breadcrumb") {
-          // Persisted here rather than in the worker: this side survives the
-          // worker dying, which is the case the log exists to explain.
-          breadcrumb("worker:" + message.step, message.detail);
-          return;
-        }
         if (message.type === "progress") {
           options.onProgress?.({
             file: message.file,

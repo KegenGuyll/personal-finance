@@ -3,7 +3,6 @@
 import { useCallback, useRef, useState } from "react";
 
 import { prepareImageForModel, ImagePreparationError } from "@/src/lib/receipt-image-prep";
-import { breadcrumb, startScanLog } from "@/src/lib/scan-breadcrumbs";
 import { scanReceiptImage } from "@/src/lib/receipt-vlm";
 import {
   describeUnparseableOutput,
@@ -68,10 +67,6 @@ export function useReceiptScan() {
   }, []);
 
   const scanFile = useCallback(async (file: File) => {
-    // A fresh log per scan, so the last line of a crashed run is unambiguous.
-    startScanLog();
-    breadcrumb("file:received", `type=${file.type} bytes=${file.size}`);
-
     setError(null);
     setResult(null);
     setStreamedChars(0);
@@ -81,12 +76,7 @@ export function useReceiptScan() {
       // Downscale before anything else. A phone photo is ~12MP, which the model
       // would tile anyway; sending it whole exhausted the tab's memory on iOS and
       // the page was killed mid-scan.
-      breadcrumb("prep:begin");
       const prepared = await prepareImageForModel(file);
-      breadcrumb(
-        "prep:ok",
-        `${prepared.sourceWidth}x${prepared.sourceHeight} -> ${prepared.width}x${prepared.height}, ${prepared.bytes.byteLength} bytes`
-      );
 
       if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
       previewUrlRef.current = prepared.previewUrl;
@@ -95,16 +85,13 @@ export function useReceiptScan() {
       controllerRef.current = new AbortController();
       setStage("reading");
 
-      breadcrumb("inference:begin");
       const outcome = await scanReceiptImage(prepared.bytes, prepared.mediaType, {
         signal: controllerRef.current.signal,
         onToken: () => setStreamedChars((count) => count + 1),
       });
 
-      breadcrumb("inference:ok", `device=${outcome.device} ms=${Math.round(outcome.generateMs)}`);
       setPreview({ dataUrl: prepared.previewUrl, slow: !outcome.accelerated });
 
-      breadcrumb("parse:begin", `chars=${outcome.text.length}`);
       const extraction = parseReceiptJson(outcome.text);
       if (!extraction) {
         // Dead-ending after a 316MB download and a multi-second scan would be the
@@ -118,7 +105,6 @@ export function useReceiptScan() {
         return;
       }
 
-      breadcrumb("parse:ok");
       setResult(mapExtractionToDraft(extraction));
       setStage("review");
       setProgress(null);
@@ -129,7 +115,6 @@ export function useReceiptScan() {
         return;
       }
 
-      breadcrumb("scan:ERROR", scanError instanceof Error ? scanError.message : String(scanError));
       setStage("pick");
       setProgress(null);
       setError({

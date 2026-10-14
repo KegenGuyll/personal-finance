@@ -1,10 +1,24 @@
 export default function LoadingSkeleton({
   count = 5,
   className,
+  variant = "card",
 }: {
   count?: number;
   className?: string;
+  variant?: "card" | "row";
 }) {
+  if (variant === "row") {
+    return (
+      <div className={className}>
+        {Array.from({ length: count }).map((_, i) => (
+          <div key={i} className="animate-pulse px-2.5 py-2">
+            <div className="h-3.5 w-3/4 rounded bg-space-indigo-100" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className={className}>
       {Array.from({ length: count }).map((_, i) => (

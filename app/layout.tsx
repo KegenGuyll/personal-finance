@@ -4,7 +4,7 @@ import "./globals.css";
 import StoreProvider from "@/src/components/StoreProvider";
 import QueryProvider from "@/src/components/QueryProvider";
 import AccountProvider from "@/src/components/AccountProvider";
-import Header from "@/src/components/Header";
+import AppShell from "@/src/components/AppShell";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -48,8 +48,7 @@ export default function RootLayout({
         <StoreProvider>
           <QueryProvider>
             <AccountProvider>
-              <Header />
-              {children}
+              <AppShell>{children}</AppShell>
             </AccountProvider>
           </QueryProvider>
         </StoreProvider>

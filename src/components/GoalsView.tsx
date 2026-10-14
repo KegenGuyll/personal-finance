@@ -4,19 +4,14 @@ import { Suspense, useMemo, useState } from "react";
 import { useGoals } from "@/src/hooks/useGoals";
 import GoalCard from "@/src/components/GoalCard";
 import GoalForm from "@/src/components/GoalForm";
+import GoalSummaryCard from "@/src/components/GoalSummaryCard";
 import BackButton from "@/src/components/BackButton";
+import { classifyGoals } from "@/src/lib/goal-sections";
 import Button from "@/src/components/ui/Button";
 import type { Goal } from "@/src/types/budget";
 
 function todayStr(): string {
   return new Date().toISOString().split("T")[0];
-}
-
-interface GoalSections {
-  active: Goal[];
-  completed: Goal[];
-  past: Goal[];
-  archived: Goal[];
 }
 
 function Section({ title, goals }: { title: string; goals: Goal[] }) {
@@ -43,23 +38,10 @@ function GoalsContent() {
   const [showForm, setShowForm] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
 
-  const sections: GoalSections = useMemo(() => {
-    const today = todayStr();
-    const result: GoalSections = { active: [], completed: [], past: [], archived: [] };
-    for (const g of data?.goals ?? []) {
-      if (g.deletedAt) {
-        result.archived.push(g);
-      } else if (g.targetDate < today) {
-        result.past.push(g);
-      } else if (g.currentAmount >= g.targetAmount) {
-        result.completed.push(g);
-      } else {
-        result.active.push(g);
-      }
-    }
-    result.active.sort((a, b) => a.targetDate.localeCompare(b.targetDate));
-    return result;
-  }, [data]);
+  const sections = useMemo(
+    () => classifyGoals(data?.goals ?? [], todayStr()),
+    [data]
+  );
 
   const total = sections.active.length + sections.completed.length + sections.past.length;
 
@@ -78,6 +60,11 @@ function GoalsContent() {
 
   return (
     <div className="space-y-6">
+      <GoalSummaryCard
+        goals={data?.goals ?? []}
+        savingsActual={data?.savingsActual ?? 0}
+      />
+
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-medium text-space-indigo-600">
           {total === 0 ? "No goals yet" : `${total} goal${total > 1 ? "s" : ""}`}

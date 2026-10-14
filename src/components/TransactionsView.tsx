@@ -16,6 +16,8 @@ import SpendingTrend from "@/src/components/SpendingTrend";
 import ChartCarousel from "@/src/components/ChartCarousel";
 import SearchInput from "@/src/components/SearchInput";
 import DateRangeFilter, { getStartDate } from "@/src/components/DateRangeFilter";
+import { resolveTrendGranularity } from "@/src/utils/date";
+import { getEndOfMonth } from "@/src/lib/month-utils";
 import BulkMarkIncomeModal from "@/src/components/BulkMarkIncomeModal";
 import ManualTransactionFilterToggle from "@/src/components/ManualTransactionFilterToggle";
 import type { Transaction } from "@/src/features/plaid/plaidSlice";
@@ -187,6 +189,7 @@ function CategoryStats({
   const dateFilter = searchParams.get("date") ?? "";
   const startDate = dateFilter || urlStartDate || getStartDate(range);
   const endDate = dateFilter || urlEndDate || null;
+  const granularity = resolveTrendGranularity(startDate, endDate);
   const selectedCategory = searchParams.get("category") ?? null;
   const dailyLimitParam = searchParams.get("dailyLimit");
   const dailyLimit = dailyLimitParam ? parseFloat(dailyLimitParam) : undefined;
@@ -212,7 +215,8 @@ function CategoryStats({
     selectedCategory ?? "",
     startDate,
     endDate,
-    urlTransactionType || null
+    urlTransactionType || null,
+    granularity
   );
 
   const handleSelect = (category: string | null) => {
@@ -225,9 +229,18 @@ function CategoryStats({
     router.replace(`/transactions?${params.toString()}`);
   };
 
-  const handleDateClick = (date: string) => {
+  const handleDateClick = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
-    params.set("date", date);
+    if (granularity === "monthly") {
+      // Monthly points carry a "YYYY-MM" key, so the drill-down is the whole
+      // month rather than the single-day filter a daily point sets.
+      params.delete("date");
+      params.delete("range");
+      params.set("startDate", `${value}-01`);
+      params.set("endDate", getEndOfMonth(value));
+    } else {
+      params.set("date", value);
+    }
     router.replace(`/transactions?${params.toString()}`);
   };
 
@@ -277,6 +290,7 @@ function CategoryStats({
         className=""
         onPointClick={handleDateClick}
         dailyLimit={dailyLimit}
+        granularity={granularity}
       />
     );
   }

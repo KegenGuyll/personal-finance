@@ -5,6 +5,8 @@ import { formatCurrency } from "@/src/utils/currency";
 import { useContributeToGoal } from "@/src/hooks/useContributeToGoal";
 import { useDeleteGoal } from "@/src/hooks/useDeleteGoal";
 import { useDeleteContribution } from "@/src/hooks/useDeleteContribution";
+import GoalForm from "@/src/components/GoalForm";
+import GoalProgressBar from "@/src/components/GoalProgressBar";
 import GoalTransactionsModal from "@/src/components/GoalTransactionsModal";
 import Button from "@/src/components/ui/Button";
 import Card from "@/src/components/ui/Card";
@@ -20,6 +22,7 @@ export default function GoalCard({ goal }: GoalCardProps) {
   const [showContribute, setShowContribute] = useState(false);
   const [contributeAmount, setContributeAmount] = useState("");
   const [showTransactions, setShowTransactions] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   const contributeToGoal = useContributeToGoal();
   const deleteGoal = useDeleteGoal();
   const deleteContribution = useDeleteContribution();
@@ -62,6 +65,10 @@ export default function GoalCard({ goal }: GoalCardProps) {
 
   const contributions = goal.contributions ?? [];
 
+  if (showEdit) {
+    return <GoalForm goal={goal} onClose={() => setShowEdit(false)} />;
+  }
+
   return (
     <Card>
       <div className="mb-3 flex items-start justify-between">
@@ -89,6 +96,17 @@ export default function GoalCard({ goal }: GoalCardProps) {
           ) : (
             <Chip tone="blue">Needs Review</Chip>
           )}
+          {!isArchived && (
+            <Button
+              variant="bare"
+              size="none"
+              onClick={() => setShowEdit(true)}
+              className="rounded px-1.5 py-0.5 text-[10px] font-medium text-space-indigo-400 hover:bg-space-indigo-50 hover:text-space-indigo-600"
+              aria-label="Edit goal"
+            >
+              Edit
+            </Button>
+          )}
           <Button
             variant="bare"
             size="none"
@@ -106,12 +124,7 @@ export default function GoalCard({ goal }: GoalCardProps) {
       </div>
 
       <div className="mb-2">
-        <div className="h-2.5 w-full overflow-hidden rounded-full bg-space-indigo-100">
-          <div
-            className="h-full rounded-full bg-ocean-deep-400 transition-all duration-500"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
+        <GoalProgressBar percent={progressPercent} />
         <div className="mt-1 flex justify-between text-[10px] text-space-indigo-400">
           <span>{Math.round(progressPercent)}% saved</span>
           <span>

@@ -3,6 +3,7 @@ import { connectToDatabase } from "@/src/lib/mongodb";
 import {
   buildSpendingTrendPipeline,
   buildTransactionStatsMatch,
+  type TrendGranularity,
 } from "@/src/lib/stats-pipeline";
 
 export async function GET(request: NextRequest) {
@@ -15,6 +16,9 @@ export async function GET(request: NextRequest) {
     const endDate = url.searchParams.get("endDate") ?? "";
     const transactionType = url.searchParams.get("transactionType") ?? "";
     const category = url.searchParams.get("category") ?? "";
+    const granularityParam = url.searchParams.get("granularity");
+    const granularity: TrendGranularity =
+      granularityParam === "monthly" ? "monthly" : "daily";
     const accountIds = accountIdsParam.split(",").filter(Boolean);
 
     const matchConditions = buildTransactionStatsMatch({
@@ -27,7 +31,10 @@ export async function GET(request: NextRequest) {
 
     const pipeline = [
       { $match: { $and: matchConditions } },
-      ...buildSpendingTrendPipeline(transactionType === "income"),
+      ...buildSpendingTrendPipeline(
+        transactionType === "income",
+        granularity
+      ),
     ];
 
     const results = await db

@@ -213,11 +213,11 @@ export default function SpendingTrend({
           {limitActive && (
             <span
               className="flex items-center gap-1.5 text-xs"
-              style={{ color: CHART_COLORS[7] }}
+              style={{ color: CHART_COLORS[8] }}
             >
               <span
                 className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: CHART_COLORS[7] }}
+                style={{ backgroundColor: CHART_COLORS[8] }}
               />
               {labels.limit}
             </span>
@@ -281,7 +281,7 @@ export default function SpendingTrend({
               type="monotone"
               dataKey="limit"
               name={labels.limit}
-              stroke={CHART_COLORS[7]}
+              stroke={CHART_COLORS[8]}
               strokeWidth={2}
               strokeDasharray="5 3"
               dot={false}

@@ -52,6 +52,12 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       );
     }
+    if (body.isBudgeted === undefined && body.carryOver === undefined) {
+      return Response.json(
+        { error: "isBudgeted or carryOver is required" },
+        { status: 400 }
+      );
+    }
 
     const set: Record<string, unknown> = { name: body.name };
     const setOnInsert: Record<string, unknown> = { createdAt: new Date() };

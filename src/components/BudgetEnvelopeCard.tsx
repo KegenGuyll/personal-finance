@@ -225,8 +225,9 @@ export default function BudgetEnvelopeCard({
                   : undefined
               }
               carryOverEnabled={cat.carryOver}
+              // Savings renders these rows only while goals load, and rollover never applies there.
               onToggleCarryOver={
-                isEditing
+                isEditing && !isSavings
                   ? () => onToggleCarryOver(cat.category, !cat.carryOver)
                   : undefined
               }

@@ -284,7 +284,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
                   }
                   aria-expanded={expanded}
                   aria-label={`${expanded ? "Collapse" : "Expand"} ${section.label} submenu`}
-                  className="flex w-8 shrink-0 items-center justify-center rounded-lg text-space-indigo-400 hover:bg-space-indigo-50 hover:text-space-indigo-600"
+                  className="flex w-8 shrink-0 items-center justify-center rounded-lg p-0 text-space-indigo-400 hover:bg-space-indigo-50 hover:text-space-indigo-600"
                 >
                   <ChevronDown
                     aria-hidden="true"

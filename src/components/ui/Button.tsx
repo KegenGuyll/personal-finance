@@ -14,8 +14,9 @@ export type ButtonVariant =
 
 export type ButtonSize = "lg" | "md" | "sm" | "xs" | "icon" | "none";
 
-interface ButtonProps extends ComponentProps<"button"> {
-  variant?: ButtonVariant;
+interface ButtonProps extends Omit<ComponentProps<"button">, "variant"> {
+  /** Required: a silent default would let solid CTAs drift into text styling. */
+  variant: ButtonVariant;
   size?: ButtonSize;
 }
 
@@ -59,7 +60,7 @@ const SIZE_CLASSES: Record<ButtonSize, string> = {
  * button is a form's submit action.
  */
 export default function Button({
-  variant = "ghost",
+  variant,
   size = "md",
   type = "button",
   className,

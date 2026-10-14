@@ -188,6 +188,7 @@ export default function BudgetCategoryModal({
           {confirming ? (
             <>
               <Button
+                variant="primary"
                 onClick={handleConfirm}
                 disabled={isPending}
                 className="flex-1 rounded-xl py-2.5 text-center font-semibold shadow-2xs"
@@ -205,6 +206,7 @@ export default function BudgetCategoryModal({
           ) : (
             <>
               <Button
+                variant="primary"
                 type="submit"
                 disabled={isPending || !isValidAmount || checking}
                 className="flex-1 rounded-xl py-2.5 text-center font-semibold shadow-2xs"

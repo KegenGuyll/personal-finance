@@ -252,6 +252,7 @@ export default function CategoryEditor({
                 Cancel
               </Button>
               <Button
+                variant="primary"
                 onClick={handleSave}
                 disabled={isSaving || inputValue.trim().length === 0}
               >

@@ -212,6 +212,7 @@ export default function BulkMarkIncomeModal({
             Cancel
           </Button>
           <Button
+            variant="primary"
             onClick={handleConfirm}
             disabled={
               bulkMarkIncome.isPending ||

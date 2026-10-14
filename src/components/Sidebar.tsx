@@ -192,6 +192,7 @@ export default function Sidebar({
         <div className="flex items-center justify-between gap-2 border-b border-space-indigo-100 px-4 py-3">
           <Brand />
           <Button
+            variant="ghost"
             onClick={onClose}
             aria-label="Close navigation menu"
             className="rounded-lg p-1.5 text-space-indigo-500 hover:bg-space-indigo-50 hover:text-space-indigo-700"
@@ -273,6 +274,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
               </Link>
               {hasChildren && (
                 <Button
+                  variant="ghost"
                   onClick={() =>
                     setOverride({
                       path: pathname,

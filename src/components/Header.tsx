@@ -13,6 +13,7 @@ export default function Header({ onOpenMenu }: HeaderProps) {
     <header className="sticky top-0 z-30 border-b border-space-indigo-100 bg-white/90 backdrop-blur lg:hidden">
       <div className="flex items-center gap-2 px-4 py-2.5">
         <Button
+          variant="ghost"
           onClick={onOpenMenu}
           aria-label="Open navigation menu"
           aria-haspopup="dialog"

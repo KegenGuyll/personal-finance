@@ -102,7 +102,7 @@ export default function LinkManualTransactionPanel({
               ))}
             </ul>
             <div className="mt-5 flex justify-end">
-              <Button onClick={() => setIsOpen(false)}>Done</Button>
+              <Button variant="primary" onClick={() => setIsOpen(false)}>Done</Button>
             </div>
           </>
         ) : (
@@ -222,6 +222,7 @@ export default function LinkManualTransactionPanel({
                 Cancel
               </Button>
               <Button
+                variant="primary"
                 onClick={handleLink}
                 disabled={!selected || linkManual.isPending}
               >

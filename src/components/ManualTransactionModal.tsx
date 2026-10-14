@@ -335,7 +335,7 @@ export default function ManualTransactionModal({
             <Button variant="secondary" onClick={onClose}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={!canSave}>
+            <Button variant="primary" onClick={handleSubmit} disabled={!canSave}>
               {isSaving ? "Saving..." : isEdit ? "Save changes" : "Add transaction"}
             </Button>
           </div>

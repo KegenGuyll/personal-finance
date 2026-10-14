@@ -19,6 +19,11 @@ export function getEndOfMonth(month: string): string {
   return `${month}-${String(lastDay).padStart(2, "0")}`;
 }
 
+export function getDaysInMonth(month: string): number {
+  const [y, m] = month.split("-").map(Number);
+  return new Date(y, m, 0).getDate();
+}
+
 export function getLastMonths(count: number, endMonth: string = getPreviousMonth(getCurrentMonth())): string[] {
   const result: string[] = [];
   for (let i = count - 1; i >= 0; i--) {

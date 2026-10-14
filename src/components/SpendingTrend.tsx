@@ -3,8 +3,9 @@
 import type { MouseEvent as ReactMouseEvent } from "react";
 import type { Transaction } from "@/src/features/plaid/plaidSlice";
 import type { TrendPoint } from "@/src/hooks/useSpendingTrend";
+import type { TrendGranularity } from "@/src/lib/stats-pipeline";
 import { formatCurrency } from "@/src/utils/currency";
-import { formatDate } from "@/src/utils/date";
+import { formatDate, formatMonth } from "@/src/utils/date";
 import { CHART_COLORS } from "@/src/utils/chart-colors";
 import {
   LineChart,
@@ -14,18 +15,52 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { getDaysInMonth } from "@/src/lib/month-utils";
 
 interface ChartData {
+  // "YYYY-MM-DD" for daily points, "YYYY-MM" for monthly buckets.
   date: string;
   amount: number;
   name: string;
   average: number;
-  dailyLimit: number;
+  limit: number;
+}
+
+const GRANULARITY_LABELS = {
+  daily: {
+    unit: "day",
+    series: "Daily Spending",
+    average: "Avg Daily Spend",
+    limit: "Daily Limit",
+  },
+  monthly: {
+    unit: "month",
+    series: "Monthly Spending",
+    average: "Avg Monthly Spend",
+    limit: "Monthly Limit",
+  },
+} as const;
+
+function tickFormatterFor(granularity: TrendGranularity) {
+  if (granularity === "monthly") {
+    return (monthKey: string) => {
+      const d = new Date(`${monthKey}-01T12:00:00`);
+      return d.toLocaleDateString("en-US", {
+        month: "short",
+        year: "2-digit",
+      });
+    };
+  }
+  return (d: string) => {
+    const [, m, day] = d.split("-");
+    return `${m}/${day}`;
+  };
 }
 
 function CustomTooltip({
   active,
   payload,
+  granularity,
 }: {
   active?: boolean;
   payload?: readonly {
@@ -33,6 +68,7 @@ function CustomTooltip({
     name?: string | number;
     value?: number | string | readonly (string | number)[];
   }[];
+  granularity: TrendGranularity;
 }) {
   if (!active || !payload?.length) return null;
 
@@ -46,7 +82,9 @@ function CustomTooltip({
           {data.name}
         </p>
       )}
-      <p className="text-xs text-space-indigo-400">{formatDate(data.date)}</p>
+      <p className="text-xs text-space-indigo-400">
+        {granularity === "monthly" ? formatMonth(data.date) : formatDate(data.date)}
+      </p>
       {payload.map((entry, i) => (
         <p key={i} className="text-sm font-semibold text-space-indigo-600">
           {formatCurrency(
@@ -97,12 +135,14 @@ export default function SpendingTrend({
   className = "mt-4",
   onPointClick,
   dailyLimit,
+  granularity = "daily",
 }: {
   transactions?: Transaction[];
   points?: TrendPoint[];
   className?: string;
   onPointClick?: (date: string) => void;
   dailyLimit?: number;
+  granularity?: TrendGranularity;
 }) {
   const grouped = new Map<string, { amount: number; name: string }>();
 
@@ -122,14 +162,26 @@ export default function SpendingTrend({
   }
 
   const data: ChartData[] = [...grouped.entries()]
-    .map(([date, { amount, name }]) => ({ date, amount, name, average: 0, dailyLimit: 0 }))
+    .map(([date, { amount, name }]) => ({ date, amount, name, average: 0, limit: 0 }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
   if (data.length < 2) return null;
 
+  const labels = GRANULARITY_LABELS[granularity];
   const total = data.reduce((sum, d) => sum + d.amount, 0);
   const average = total / data.length;
-  const chartData = data.map((d) => ({ ...d, average, dailyLimit: dailyLimit ?? 0 }));
+  const limitActive = !!dailyLimit && dailyLimit > 0;
+
+  // In monthly view each bucket is limited by its own day count, so a
+  // per-day budget scales to 930 for a 31-day month but 900 for a 30-day one.
+  const chartData = data.map((d) => ({
+    ...d,
+    average,
+    limit:
+      limitActive && granularity === "monthly"
+        ? dailyLimit * getDaysInMonth(d.date)
+        : dailyLimit ?? 0,
+  }));
 
   return (
     <div
@@ -140,7 +192,7 @@ export default function SpendingTrend({
       </h3>
       <div className="mb-3 flex items-center justify-between gap-2">
         <p className="text-xs text-space-indigo-400">
-          {formatCurrency(total)} across {data.length} day
+          {formatCurrency(total)} across {data.length} {labels.unit}
           {data.length > 1 ? "s" : ""}
         </p>
         <div className="flex items-center gap-3">
@@ -149,22 +201,25 @@ export default function SpendingTrend({
               className="h-2 w-2 rounded-full"
               style={{ backgroundColor: CHART_COLORS[0] }}
             />
-            Daily Spending
+            {labels.series}
           </span>
           <span className="flex items-center gap-1.5 text-xs text-space-indigo-400">
             <span
               className="h-2 w-2 rounded-full"
               style={{ backgroundColor: CHART_COLORS[9] }}
             />
-            Avg Daily Spend
+            {labels.average}
           </span>
-          {dailyLimit && dailyLimit > 0 && (
-            <span className="flex items-center gap-1.5 text-xs" style={{ color: "#f97316" }}>
+          {limitActive && (
+            <span
+              className="flex items-center gap-1.5 text-xs"
+              style={{ color: CHART_COLORS[7] }}
+            >
               <span
                 className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: "#f97316" }}
+                style={{ backgroundColor: CHART_COLORS[7] }}
               />
-              Daily Limit
+              {labels.limit}
             </span>
           )}
         </div>
@@ -174,10 +229,7 @@ export default function SpendingTrend({
           <XAxis
             dataKey="date"
             tick={{ fontSize: 10, fill: "#243075" }}
-            tickFormatter={(d: string) => {
-              const [, m, day] = d.split("-");
-              return `${m}/${day}`;
-            }}
+            tickFormatter={tickFormatterFor(granularity)}
             tickLine={false}
             axisLine={false}
             interval="preserveStartEnd"
@@ -193,11 +245,11 @@ export default function SpendingTrend({
             domain={[0, "auto"]}
             allowDecimals={false}
           />
-          <Tooltip content={CustomTooltip} />
+          <Tooltip content={<CustomTooltip granularity={granularity} />} />
           <Line
             type="monotone"
             dataKey="amount"
-            name="Daily Spending"
+            name={labels.series}
             stroke={CHART_COLORS[0]}
             strokeWidth={2}
             dot={{ fill: CHART_COLORS[0], strokeWidth: 0, r: 3 }}
@@ -217,19 +269,19 @@ export default function SpendingTrend({
           <Line
             type="monotone"
             dataKey="average"
-            name="Average Daily Spend"
+            name={labels.average}
             stroke={CHART_COLORS[9]}
             strokeWidth={1.5}
             strokeDasharray="4 4"
             dot={false}
             activeDot={false}
           />
-          {dailyLimit && dailyLimit > 0 && (
+          {limitActive && (
             <Line
               type="monotone"
-              dataKey="dailyLimit"
-              name="Daily Limit"
-              stroke="#f97316"
+              dataKey="limit"
+              name={labels.limit}
+              stroke={CHART_COLORS[7]}
               strokeWidth={2}
               strokeDasharray="5 3"
               dot={false}

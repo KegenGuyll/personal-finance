@@ -43,11 +43,22 @@ export function buildNameStatsPipeline(useAbsoluteValue: boolean) {
   ];
 }
 
-export function buildSpendingTrendPipeline(useAbsoluteValue: boolean) {
+export type TrendGranularity = "daily" | "monthly";
+
+export function buildSpendingTrendPipeline(
+  useAbsoluteValue: boolean,
+  granularity: TrendGranularity = "daily"
+) {
+  // Dates are stored as YYYY-MM-DD strings, so a 7-char prefix is the month key
+  // ("YYYY-MM") — and lexicographic sort keeps months ordered.
+  const groupKey =
+    granularity === "monthly"
+      ? { $substrCP: [{ $ifNull: ["$date", ""] }, 0, 7] }
+      : "$date";
   return [
     {
       $group: {
-        _id: "$date",
+        _id: groupKey,
         total: {
           $sum: useAbsoluteValue ? { $abs: "$amount" } : "$amount",
         },

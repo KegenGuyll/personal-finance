@@ -18,6 +18,8 @@ import SpendingTrend from "@/src/components/SpendingTrend";
 import ChartCarousel from "@/src/components/ChartCarousel";
 import SearchInput from "@/src/components/SearchInput";
 import DateRangeFilter, { getStartDate } from "@/src/components/DateRangeFilter";
+import { resolveTrendGranularity } from "@/src/utils/date";
+import { getEndOfMonth } from "@/src/lib/month-utils";
 import ManualTransactionModal from "@/src/components/ManualTransactionModal";
 import SavedTransactionNotice from "@/src/components/SavedTransactionNotice";
 import BackButton from "@/src/components/BackButton";
@@ -77,6 +79,7 @@ function CategoryStats({ accountId }: { accountId: string }) {
 
   const startDate = dateFilter || urlStartDate || getStartDate(range);
   const endDate = dateFilter || urlEndDate || null;
+  const granularity = resolveTrendGranularity(startDate, endDate);
 
   const { data, isLoading } = useCategoryStats(
     accountId,
@@ -95,7 +98,9 @@ function CategoryStats({ accountId }: { accountId: string }) {
     [accountId],
     selectedCategory ?? "",
     startDate,
-    endDate
+    endDate,
+    null,
+    granularity
   );
 
   const handleSelect = (category: string | null) => {
@@ -108,9 +113,18 @@ function CategoryStats({ accountId }: { accountId: string }) {
     router.replace(`?${params.toString()}`);
   };
 
-  const handleDateClick = (date: string) => {
+  const handleDateClick = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
-    params.set("date", date);
+    if (granularity === "monthly") {
+      // Monthly points carry a "YYYY-MM" key, so the drill-down is the whole
+      // month rather than the single-day filter a daily point sets.
+      params.delete("date");
+      params.delete("range");
+      params.set("startDate", `${value}-01`);
+      params.set("endDate", getEndOfMonth(value));
+    } else {
+      params.set("date", value);
+    }
     router.replace(`?${params.toString()}`);
   };
 
@@ -159,6 +173,7 @@ function CategoryStats({ accountId }: { accountId: string }) {
         points={trendData.points}
         className=""
         onPointClick={handleDateClick}
+        granularity={granularity}
       />
     );
   }

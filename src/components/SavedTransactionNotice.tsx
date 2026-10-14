@@ -7,14 +7,13 @@ import type { Transaction } from "@/src/features/plaid/plaidSlice";
 import { formatCurrency } from "@/src/utils/currency";
 
 /**
- * Confirms what a scan or manual entry actually saved.
+ * Confirms what a manual entry actually saved.
  *
- * A scanner can produce a plausible but wrong amount, so closing the modal
- * silently would leave the user with no confirmation of what was recorded and no
- * obvious way to check. The value is echoed back with a link to the entry, and
- * the notice clears itself so it does not become permanent furniture — the same
- * reasoning as `ManualEntriesBanner` for rendering nothing when it has nothing
- * to say.
+ * Closing the modal silently would leave the user with no confirmation of what was
+ * recorded and no obvious way to check. The value is echoed back with a link to the
+ * entry, and the notice clears itself so it does not become permanent furniture —
+ * the same reasoning as `ManualEntriesBanner` for rendering nothing when it has
+ * nothing to say.
  */
 export default function SavedTransactionNotice({
   transaction,

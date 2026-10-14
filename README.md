@@ -21,14 +21,10 @@ first — nothing loads accounts without them.
 | `npm run build` / `npm start` | Production build and server |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm test` | Unit tests for the pure parser, layout and image maths |
+| `npm test` | Node's built-in test runner |
 
 ## Notes
 
-- **Receipt scanning** reads a receipt photo on the device and pre-fills the
-  manual-transaction form. No setup step: the model downloads in the browser on
-  first use. Accuracy expectations and limits are in
-  [`docs/receipt-scanning.md`](docs/receipt-scanning.md).
 - **Manual transactions** are real rows in the same `transactions` collection,
   flagged `manual: true`, and are linked to the Plaid transaction they turn out
   to be once it syncs. Budgets, trends and goals count them with no special

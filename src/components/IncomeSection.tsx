@@ -3,6 +3,8 @@
 import { useIncomePatterns } from "@/src/hooks/useIncomePatterns";
 import { useDeleteIncomePattern } from "@/src/hooks/useDeleteIncomePattern";
 import { formatCurrency } from "@/src/utils/currency";
+import Button from "@/src/components/ui/Button";
+import Card from "@/src/components/ui/Card";
 
 interface IncomeSectionProps {
   totalIncome: number;
@@ -16,7 +18,7 @@ export default function IncomeSection({ totalIncome, expectedIncome }: IncomeSec
   const patterns = patternsData?.patterns ?? [];
 
   return (
-    <div className="rounded-xl border border-space-indigo-100 bg-white p-3.5 shadow-xs sm:p-4">
+    <Card className="rounded-xl p-3.5 shadow-xs sm:p-4">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-bold text-space-indigo-800">Monthly Income</h3>
@@ -46,22 +48,24 @@ export default function IncomeSection({ totalIncome, expectedIncome }: IncomeSec
                 className="inline-flex items-center gap-1.5 rounded-md border border-space-indigo-100 bg-space-indigo-50 px-2 py-1 text-xs font-medium text-space-indigo-700"
               >
                 <span>{p.name}</span>
-                <button
+                <Button
                   type="button"
                   onClick={() => {
                     if (p._id) deletePattern.mutate(p._id);
                   }}
                   disabled={deletePattern.isPending}
-                  className="flex h-4 w-4 items-center justify-center rounded text-space-indigo-400 hover:bg-space-indigo-200/60 hover:text-red-600 disabled:opacity-50"
+                  variant="bare"
+                  size="none"
+                  className="flex h-4 w-4 items-center justify-center rounded text-space-indigo-400 hover:bg-space-indigo-200/60 hover:text-red-600"
                   aria-label={`Remove pattern for ${p.name}`}
                 >
                   &times;
-                </button>
+                </Button>
               </span>
             ))}
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 }

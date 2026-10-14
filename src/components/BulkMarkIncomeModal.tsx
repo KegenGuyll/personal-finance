@@ -7,6 +7,10 @@ import { useTransactionsByName } from "@/src/hooks/useTransactionsByName";
 import { useBulkMarkIncome } from "@/src/hooks/useBulkMarkIncome";
 import { formatCurrency } from "@/src/utils/currency";
 import { getStartDate } from "@/src/components/DateRangeFilter";
+import Button from "@/src/components/ui/Button";
+import Chip from "@/src/components/ui/Chip";
+import Modal from "@/src/components/ui/Modal";
+import Notice from "@/src/components/ui/Notice";
 
 interface BulkMarkIncomeModalProps {
   transactionName: string;
@@ -105,11 +109,10 @@ export default function BulkMarkIncomeModal({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="mx-4 w-full max-w-lg rounded-lg border border-space-indigo-100 bg-white p-6 shadow-lg">
-        <h3 className="text-lg font-semibold text-space-indigo-800">
-          Mark as Income
-        </h3>
+    <Modal onClose={onClose} labelledBy="bulk-mark-income-title" size="lg">
+      <h3 id="bulk-mark-income-title" className="text-lg font-semibold text-space-indigo-800">
+        Mark as Income
+      </h3>
         <p className="mt-1 text-sm text-space-indigo-400">
           &ldquo;{transactionName}&rdquo; —{" "}
           {transactions.length} transaction
@@ -117,11 +120,11 @@ export default function BulkMarkIncomeModal({
         </p>
 
         {alreadyMarked && (
-          <p className="mt-2 rounded-md border border-cornflower-blue-200 bg-cornflower-blue-50 px-3 py-2 text-xs text-cornflower-blue-700">
+          <Notice tone="blue" className="mt-2">
             Some transactions are already marked as income. The pattern will be
             created so future occurrences of &ldquo;{transactionName}&rdquo; are
             auto-tagged.
-          </p>
+          </Notice>
         )}
 
         {isLoading ? (
@@ -140,14 +143,15 @@ export default function BulkMarkIncomeModal({
         ) : (
           <>
             <div className="my-3 flex items-center gap-2 border-b border-space-indigo-50 pb-2">
-              <button
+              <Button
+                variant="bare"
                 onClick={toggleAll}
                 className="text-xs font-medium text-space-indigo-500 hover:text-space-indigo-700"
               >
                 {selectedIds.size === transactions.length
                   ? "Deselect all"
                   : "Select all"}
-              </button>
+              </Button>
               <span className="text-xs text-space-indigo-300">
                 {selectedIds.size} of {transactions.length} selected
               </span>
@@ -183,9 +187,9 @@ export default function BulkMarkIncomeModal({
                           </span>
                         )}
                         {isAlreadyIncome && (
-                          <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                          <Chip tone="emerald" className="rounded px-1.5">
                             Income
-                          </span>
+                          </Chip>
                         )}
                       </div>
                     </div>
@@ -204,27 +208,23 @@ export default function BulkMarkIncomeModal({
         )}
 
         <div className="mt-5 flex justify-end gap-2 border-t border-space-indigo-50 pt-4">
-          <button
-            onClick={onClose}
-            className="rounded-lg border border-space-indigo-200 px-4 py-2 text-sm font-medium text-space-indigo-600 hover:bg-space-indigo-50"
-          >
+          <Button variant="secondary" onClick={onClose}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="primary"
             onClick={handleConfirm}
             disabled={
               bulkMarkIncome.isPending ||
               selectedIds.size === 0 ||
               transactions.length === 0
             }
-            className="rounded-lg bg-space-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-space-indigo-700 disabled:opacity-50"
           >
             {bulkMarkIncome.isPending
               ? "Saving..."
               : `Mark ${selectedIds.size} as Income`}
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

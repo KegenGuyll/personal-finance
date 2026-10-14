@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useAppSelector } from "@/src/lib/hooks";
 import type { Account } from "@/src/features/plaid/plaidSlice";
+import Button from "@/src/components/ui/Button";
 import { formatCurrency } from "@/src/utils/currency";
 import LoadingSkeleton from "@/src/components/LoadingSkeleton";
 
@@ -190,14 +191,14 @@ export default function Sidebar({
       >
         <div className="flex items-center justify-between gap-2 border-b border-space-indigo-100 px-4 py-3">
           <Brand />
-          <button
-            type="button"
+          <Button
+            variant="ghost"
             onClick={onClose}
             aria-label="Close navigation menu"
-            className="rounded-lg p-1.5 text-space-indigo-500 transition-colors hover:bg-space-indigo-50 hover:text-space-indigo-700"
+            className="rounded-lg p-1.5 text-space-indigo-500 hover:bg-space-indigo-50 hover:text-space-indigo-700"
           >
             <X aria-hidden="true" className="h-5 w-5" />
-          </button>
+          </Button>
         </div>
         <nav
           aria-label="Main navigation"
@@ -272,8 +273,8 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
                 <span className="flex-1">{section.label}</span>
               </Link>
               {hasChildren && (
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
                   onClick={() =>
                     setOverride({
                       path: pathname,
@@ -283,7 +284,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
                   }
                   aria-expanded={expanded}
                   aria-label={`${expanded ? "Collapse" : "Expand"} ${section.label} submenu`}
-                  className="flex w-8 shrink-0 items-center justify-center rounded-lg text-space-indigo-400 transition-colors hover:bg-space-indigo-50 hover:text-space-indigo-600"
+                  className="flex w-8 shrink-0 items-center justify-center rounded-lg p-0 text-space-indigo-400 hover:bg-space-indigo-50 hover:text-space-indigo-600"
                 >
                   <ChevronDown
                     aria-hidden="true"
@@ -291,7 +292,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
                       expanded ? "rotate-180" : ""
                     }`}
                   />
-                </button>
+                </Button>
               )}
             </div>
             {expanded && hasChildren && (

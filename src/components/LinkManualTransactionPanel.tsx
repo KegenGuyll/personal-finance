@@ -5,6 +5,10 @@ import type { Transaction } from "@/src/features/plaid/plaidSlice";
 import { useManualTransactions } from "@/src/hooks/useManualTransactions";
 import { useLinkManualTransaction } from "@/src/hooks/useLinkManualTransaction";
 import LoadingSkeleton from "@/src/components/LoadingSkeleton";
+import Button from "@/src/components/ui/Button";
+import Chip from "@/src/components/ui/Chip";
+import Modal from "@/src/components/ui/Modal";
+import Notice from "@/src/components/ui/Notice";
 import { formatCurrency } from "@/src/utils/currency";
 import { formatDate } from "@/src/utils/date";
 import {
@@ -68,23 +72,19 @@ export default function LinkManualTransactionPanel({
     if (transaction.manualEntryId) return null;
 
     return (
-      <button
-        onClick={() => setIsOpen(true)}
-        className="rounded-lg border border-space-indigo-200 bg-white px-4 py-2 text-sm font-medium text-space-indigo-700 transition-colors hover:bg-space-indigo-50"
-      >
+      <Button variant="secondary" onClick={() => setIsOpen(true)}>
         Link transaction
-      </button>
+      </Button>
     );
   }
 
   const success = linkManual.isSuccess && linkedName !== null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-space-indigo-900/40 p-4">
-      <div className="max-h-full w-full max-w-md overflow-y-auto rounded-lg border border-space-indigo-100 bg-white p-6 shadow-lg">
+    <Modal onClose={() => setIsOpen(false)} labelledBy="link-manual-transaction-title" className="max-h-full overflow-y-auto">
         {success ? (
           <>
-            <h3 className="text-lg font-semibold text-space-indigo-800">
+            <h3 id="link-manual-transaction-title" className="text-lg font-semibold text-space-indigo-800">
               Linked
             </h3>
             <p className="mt-1 text-sm text-space-indigo-400">
@@ -102,17 +102,12 @@ export default function LinkManualTransactionPanel({
               ))}
             </ul>
             <div className="mt-5 flex justify-end">
-              <button
-                onClick={() => setIsOpen(false)}
-                className="rounded-lg bg-space-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-space-indigo-700"
-              >
-                Done
-              </button>
+              <Button variant="primary" onClick={() => setIsOpen(false)}>Done</Button>
             </div>
           </>
         ) : (
           <>
-            <h3 className="text-lg font-semibold text-space-indigo-800">
+            <h3 id="link-manual-transaction-title" className="text-lg font-semibold text-space-indigo-800">
               Link a manual transaction
             </h3>
             <p className="mt-1 text-sm text-space-indigo-400">
@@ -147,11 +142,12 @@ export default function LinkManualTransactionPanel({
                   const isSelected = selectedId === entry.transaction_id;
 
                   return (
-                    <button
+                    <Button
                       key={entry.transaction_id}
+                      variant="bare"
                       onClick={() => setSelectedId(entry.transaction_id)}
                       disabled={!compatibility.ok}
-                      className={`w-full rounded-lg border px-3 py-2 text-left transition-colors ${
+                      className={`w-full rounded-lg border px-3 py-2 text-left font-normal ${
                         isSelected
                           ? "border-space-indigo-400 bg-space-indigo-50"
                           : "border-space-indigo-100 bg-white hover:bg-space-indigo-50"
@@ -170,25 +166,28 @@ export default function LinkManualTransactionPanel({
                       </p>
                       <p className="mt-1 flex flex-wrap gap-1">
                         {candidate.sameAmount && (
-                          <span className="rounded-md bg-baby-blue-ice-100 px-1.5 py-0.5 text-[10px] font-medium text-ocean-deep-700">
+                          <Chip className="rounded-md bg-baby-blue-ice-100 px-1.5 text-ocean-deep-700">
                             Same amount
-                          </span>
+                          </Chip>
                         )}
                         {candidate.sameAccount && (
-                          <span className="rounded-md bg-soft-periwinkle-100 px-1.5 py-0.5 text-[10px] font-medium text-soft-periwinkle-700">
+                          <Chip className="rounded-md bg-soft-periwinkle-100 px-1.5 text-soft-periwinkle-700">
                             Same account
-                          </span>
+                          </Chip>
                         )}
-                        <span className="rounded-md bg-space-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-space-indigo-500">
+                        <Chip
+                          tone="indigo"
+                          className="rounded-md px-1.5 text-space-indigo-500"
+                        >
                           {daysLabel(candidate.daysDiff)}
-                        </span>
+                        </Chip>
                       </p>
                       {!compatibility.ok && (
                         <p className="mt-1 text-[10px] text-space-indigo-400">
                           {compatibility.error}
                         </p>
                       )}
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
@@ -215,29 +214,23 @@ export default function LinkManualTransactionPanel({
             )}
 
             {linkManual.error && (
-              <p className="mt-3 rounded-md border border-soft-periwinkle-200 bg-soft-periwinkle-50 px-3 py-2 text-xs text-soft-periwinkle-800">
-                {linkManual.error.message}
-              </p>
+              <Notice className="mt-3">{linkManual.error.message}</Notice>
             )}
 
             <div className="mt-5 flex justify-end gap-2">
-              <button
-                onClick={() => setIsOpen(false)}
-                className="rounded-lg border border-space-indigo-200 px-4 py-2 text-sm font-medium text-space-indigo-600 transition-colors hover:bg-space-indigo-50"
-              >
+              <Button variant="secondary" onClick={() => setIsOpen(false)}>
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="primary"
                 onClick={handleLink}
                 disabled={!selected || linkManual.isPending}
-                className="rounded-lg bg-space-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-space-indigo-700 disabled:opacity-50"
               >
                 {linkManual.isPending ? "Linking..." : "Link"}
-              </button>
+              </Button>
             </div>
           </>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }

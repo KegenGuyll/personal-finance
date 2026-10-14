@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Button from "@/src/components/ui/Button";
 
 const OPTIONS = [
   { label: "7d", value: "7d" },
@@ -98,38 +99,44 @@ export default function DateRangeFilter() {
       {OPTIONS.map(({ label, value }) => {
         const isActive = active === value && !customMonthLabel && !isSingleDay;
         return (
-          <button
+          <Button
             key={label}
+            variant="bare"
+            size="none"
             onClick={() => handleSelect(value)}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
               isActive
                 ? "bg-space-indigo-600 text-white"
                 : "bg-space-indigo-50 text-space-indigo-600 hover:bg-space-indigo-100"
             }`}
           >
             {label}
-          </button>
+          </Button>
         );
       })}
 
       {!isSingleDay && customMonthLabel && (
-        <button
+        <Button
+          variant="accent"
+          size="sm"
           onClick={handleClearCustom}
-          className="rounded-lg bg-cornflower-blue-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-cornflower-blue-600"
+          className="bg-cornflower-blue-500 hover:bg-cornflower-blue-600"
         >
           {customMonthLabel}
-        </button>
+        </Button>
       )}
 
       {isSingleDay && (
-        <button
+        <Button
+          variant="bare"
+          size="none"
           onClick={handleClearDate}
           title="Clear date filter"
-          className="inline-flex items-center gap-1 rounded-full bg-space-indigo-100 px-3 py-1.5 text-xs font-medium text-space-indigo-700 transition-colors hover:bg-space-indigo-200"
+          className="inline-flex items-center gap-1 rounded-full bg-space-indigo-100 px-3 py-1.5 text-xs font-medium text-space-indigo-700 hover:bg-space-indigo-200"
         >
           {singleDayLabel}
           <span className="text-space-indigo-400">&times;</span>
-        </button>
+        </Button>
       )}
     </div>
   );

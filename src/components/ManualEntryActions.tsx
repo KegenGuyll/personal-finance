@@ -7,6 +7,9 @@ import { useAppSelector } from "@/src/lib/hooks";
 import { useAccount } from "@/src/hooks/useAccount";
 import { useDeleteManualTransaction } from "@/src/hooks/useDeleteManualTransaction";
 import ManualTransactionModal from "@/src/components/ManualTransactionModal";
+import Button from "@/src/components/ui/Button";
+import Card from "@/src/components/ui/Card";
+import Notice from "@/src/components/ui/Notice";
 
 /**
  * Edit / discard controls for a temporary transaction, shown on its own detail
@@ -50,33 +53,27 @@ export default function ManualEntryActions({
   };
 
   return (
-    <div className="rounded-lg border border-space-indigo-100 bg-white p-4 shadow-sm">
+    <Card>
       <p className="text-xs text-space-indigo-400">
         This is a manual transaction: it counts right away and stays until you
         link it to the real transaction once Plaid syncs it. Open the synced
         transaction and choose &ldquo;Link transaction&rdquo; to match them.
       </p>
 
-      {deleteManual.error && (
-        <p className="mt-3 rounded-md border border-soft-periwinkle-200 bg-soft-periwinkle-50 px-3 py-2 text-xs text-soft-periwinkle-800">
-          {deleteManual.error.message}
-        </p>
-      )}
+      {deleteManual.error && <Notice className="mt-3">{deleteManual.error.message}</Notice>}
 
       <div className="mt-3 flex gap-2">
-        <button
-          onClick={() => setIsEditing(true)}
-          className="rounded-lg border border-space-indigo-200 px-4 py-2 text-sm font-medium text-space-indigo-700 transition-colors hover:bg-space-indigo-50"
-        >
+        <Button variant="secondary" onClick={() => setIsEditing(true)}>
           Edit
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="secondary"
+          className="border-soft-periwinkle-200 text-soft-periwinkle-700 hover:bg-soft-periwinkle-50"
           onClick={handleDelete}
           disabled={deleteManual.isPending}
-          className="rounded-lg border border-soft-periwinkle-200 px-4 py-2 text-sm font-medium text-soft-periwinkle-700 transition-colors hover:bg-soft-periwinkle-50 disabled:opacity-50"
         >
           {deleteManual.isPending ? "Discarding..." : "Discard"}
-        </button>
+        </Button>
       </div>
 
       {isEditing && (
@@ -89,6 +86,6 @@ export default function ManualEntryActions({
           onSaved={handleSaved}
         />
       )}
-    </div>
+    </Card>
   );
 }

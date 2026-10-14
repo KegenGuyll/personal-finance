@@ -1,5 +1,6 @@
 "use client";
 
+import Button from "@/src/components/ui/Button";
 import { formatCurrency } from "@/src/utils/currency";
 import Link from "next/link";
 
@@ -57,11 +58,13 @@ export default function BudgetProgressBar({
       {/* Top row: Category name + Amounts & Remaining */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1.5">
-          <button
+          <Button
             type="button"
+            variant="bare"
+            size="none"
             onClick={onEdit}
             title="Click to edit budget"
-            className="flex items-center gap-1 truncate text-left text-xs font-semibold text-space-indigo-800 transition-colors hover:text-cornflower-blue-600"
+            className="flex items-center gap-1 truncate text-left text-xs font-semibold text-space-indigo-800 hover:text-cornflower-blue-600"
           >
             <span className="truncate">{label}</span>
             {onEdit && (
@@ -69,7 +72,7 @@ export default function BudgetProgressBar({
                 ✎
               </span>
             )}
-          </button>
+          </Button>
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5 text-xs">
@@ -127,17 +130,19 @@ export default function BudgetProgressBar({
                 Avg spend: <span className="font-medium text-space-indigo-700">{formatCurrency(suggestedAmount)}</span>
               </span>
               {onAcceptSuggestion && (
-                <button
+                <Button
                   type="button"
+                  variant="bare"
+                  size="none"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     onAcceptSuggestion();
                   }}
-                  className="rounded bg-cornflower-blue-50 px-2 py-0.5 text-[11px] font-medium text-cornflower-blue-600 transition-colors hover:bg-cornflower-blue-100 active:bg-cornflower-blue-200"
+                  className="rounded bg-cornflower-blue-50 px-2 py-0.5 text-[11px] font-medium text-cornflower-blue-600 hover:bg-cornflower-blue-100 active:bg-cornflower-blue-200"
                 >
                   Set Budget
-                </button>
+                </Button>
               )}
             </div>
           )}
@@ -147,8 +152,10 @@ export default function BudgetProgressBar({
             <div className="ml-auto flex items-center gap-1">
               {(onMoveUp || onMoveDown) && (
                 <div className="flex items-center rounded-md border border-space-indigo-200 bg-white shadow-2xs">
-                  <button
+                  <Button
                     type="button"
+                    variant="bare"
+                    size="none"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -157,13 +164,15 @@ export default function BudgetProgressBar({
                     disabled={!onMoveUp}
                     title="Move category up"
                     aria-label="Move category up"
-                    className="flex h-6 w-6 items-center justify-center text-xs text-space-indigo-500 transition-colors hover:bg-space-indigo-50 hover:text-space-indigo-800 disabled:opacity-30 disabled:hover:bg-transparent"
+                    className="flex h-6 w-6 items-center justify-center text-xs text-space-indigo-500 hover:bg-space-indigo-50 hover:text-space-indigo-800 disabled:opacity-30 disabled:hover:bg-transparent"
                   >
                     &#9650;
-                  </button>
+                  </Button>
                   <div className="h-3 w-px bg-space-indigo-100" />
-                  <button
+                  <Button
                     type="button"
+                    variant="bare"
+                    size="none"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -172,16 +181,18 @@ export default function BudgetProgressBar({
                     disabled={!onMoveDown}
                     title="Move category down"
                     aria-label="Move category down"
-                    className="flex h-6 w-6 items-center justify-center text-xs text-space-indigo-500 transition-colors hover:bg-space-indigo-50 hover:text-space-indigo-800 disabled:opacity-30 disabled:hover:bg-transparent"
+                    className="flex h-6 w-6 items-center justify-center text-xs text-space-indigo-500 hover:bg-space-indigo-50 hover:text-space-indigo-800 disabled:opacity-30 disabled:hover:bg-transparent"
                   >
                     &#9660;
-                  </button>
+                  </Button>
                 </div>
               )}
 
               {onToggleCarryOver && (
-                <button
+                <Button
                   type="button"
+                  variant="bare"
+                  size="none"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -192,7 +203,7 @@ export default function BudgetProgressBar({
                       ? "Leftover rolls into next month — click to reset monthly"
                       : "Leftover resets each month — click to roll over"
                   }
-                  className={`flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium shadow-2xs transition-colors ${
+                  className={`flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium shadow-2xs ${
                     carryOverEnabled
                       ? "border-ocean-deep-200 bg-ocean-deep-50 text-ocean-deep-700 hover:bg-ocean-deep-100"
                       : "border-space-indigo-200 bg-white text-space-indigo-600 hover:bg-space-indigo-50 hover:text-space-indigo-800"
@@ -200,23 +211,25 @@ export default function BudgetProgressBar({
                 >
                   <span aria-hidden="true">&#8635;</span>
                   {carryOverEnabled ? "Rolls over" : "Resets monthly"}
-                </button>
+                </Button>
               )}
 
               {onToggleBudget && (
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="none"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     onToggleBudget();
                   }}
                   title="Remove from budget envelope"
-                  className="flex items-center gap-1 rounded-md border border-space-indigo-200 bg-white px-2 py-0.5 text-[11px] font-medium text-space-indigo-600 shadow-2xs transition-colors hover:bg-space-indigo-50 hover:text-space-indigo-800"
+                  className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium shadow-2xs hover:text-space-indigo-800"
                 >
                   <span className="text-space-indigo-500">&#10003;</span>
                   In Budget
-                </button>
+                </Button>
               )}
             </div>
           )}

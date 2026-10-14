@@ -7,6 +7,7 @@ import GoalForm from "@/src/components/GoalForm";
 import GoalSummaryCard from "@/src/components/GoalSummaryCard";
 import BackButton from "@/src/components/BackButton";
 import { classifyGoals } from "@/src/lib/goal-sections";
+import Button from "@/src/components/ui/Button";
 import type { Goal } from "@/src/types/budget";
 
 function todayStr(): string {
@@ -68,12 +69,14 @@ function GoalsContent() {
         <h2 className="text-sm font-medium text-space-indigo-600">
           {total === 0 ? "No goals yet" : `${total} goal${total > 1 ? "s" : ""}`}
         </h2>
-        <button
+        <Button
+          variant="bare"
+          size="sm"
           onClick={() => setShowForm(!showForm)}
-          className="rounded-lg bg-space-indigo-50 px-3 py-1.5 text-xs font-medium text-space-indigo-600 transition-colors hover:bg-space-indigo-100"
+          className="bg-space-indigo-50 text-space-indigo-600 hover:bg-space-indigo-100"
         >
           {showForm ? "Cancel" : "New Goal"}
-        </button>
+        </Button>
       </div>
 
       {showForm && <GoalForm onClose={() => setShowForm(false)} />}
@@ -95,8 +98,10 @@ function GoalsContent() {
 
       {sections.archived.length > 0 && (
         <div>
-          <button
+          <Button
             type="button"
+            variant="bare"
+            size="none"
             onClick={() => setShowArchived(!showArchived)}
             className="flex w-full items-center gap-2"
           >
@@ -107,7 +112,7 @@ function GoalsContent() {
               Archived ({sections.archived.length})
             </span>
             <div className="h-px flex-1 bg-space-indigo-100" />
-          </button>
+          </Button>
           {showArchived && (
             <div className="mt-3 grid gap-3 opacity-60 md:grid-cols-2">
               {sections.archived.map((goal) => (

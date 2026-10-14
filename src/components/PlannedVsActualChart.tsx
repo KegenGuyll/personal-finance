@@ -10,6 +10,7 @@ import {
   Legend,
   CartesianGrid,
 } from "recharts";
+import Card from "@/src/components/ui/Card";
 import { formatCurrency } from "@/src/utils/currency";
 import { CHART_COLORS } from "@/src/utils/chart-colors";
 
@@ -35,7 +36,7 @@ function CustomTooltip({
   if (!active || !payload?.length) return null;
 
   return (
-    <div className="rounded-lg border border-space-indigo-100 bg-white px-3 py-2 shadow-sm">
+    <Card className="px-3 py-2">
       <p className="text-xs font-medium text-space-indigo-800">{String(label)}</p>
       {payload.map((entry, i) => (
         <p key={i} className="text-sm font-semibold text-space-indigo-600">
@@ -43,7 +44,7 @@ function CustomTooltip({
           {formatCurrency(typeof entry.value === "number" ? entry.value : Number(entry.value ?? 0))}
         </p>
       ))}
-    </div>
+    </Card>
   );
 }
 
@@ -58,14 +59,14 @@ export default function PlannedVsActualChart({
 }) {
   if (entries.length === 0) {
     return (
-      <div className={`rounded-lg border border-space-indigo-100 bg-white p-4 ${className}`}>
+      <Card className={`shadow-none ${className}`}>
         <h3 className="mb-1 text-sm font-medium text-space-indigo-600">
           Planned vs Actual
         </h3>
         <p className="text-xs text-space-indigo-400">
           No budget categories available for {anchorMonthLabel}.
         </p>
-      </div>
+      </Card>
     );
   }
 
@@ -73,7 +74,7 @@ export default function PlannedVsActualChart({
   const actualColor = CHART_COLORS[6];
 
   return (
-    <div className={`rounded-lg border border-space-indigo-100 bg-white p-4 ${className}`}>
+    <Card className={`shadow-none ${className}`}>
       <h3 className="mb-1 text-sm font-medium text-space-indigo-600">Planned vs Actual</h3>
       <p className="mb-3 text-xs text-space-indigo-400">
         {anchorMonthLabel} · planned budget vs actual spend
@@ -108,6 +109,6 @@ export default function PlannedVsActualChart({
           <Bar dataKey="actual" name="Actual" fill={actualColor} radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
-    </div>
+    </Card>
   );
 }

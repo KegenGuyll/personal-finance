@@ -9,6 +9,7 @@ import { useAllCategoryStats } from "@/src/hooks/useAllCategoryStats";
 import { useCategoryNameStats } from "@/src/hooks/useCategoryNameStats";
 import { useSpendingTrend } from "@/src/hooks/useSpendingTrend";
 import TransactionList from "@/src/components/TransactionList";
+import Card from "@/src/components/ui/Card";
 import CategoryBreakdown from "@/src/components/CategoryBreakdown";
 import CategoryNameBreakdown from "@/src/components/CategoryNameBreakdown";
 import SpendingTrend from "@/src/components/SpendingTrend";
@@ -23,6 +24,9 @@ import type { Transaction } from "@/src/features/plaid/plaidSlice";
 import ManualTransactionModal from "@/src/components/ManualTransactionModal";
 import SavedTransactionNotice from "@/src/components/SavedTransactionNotice";
 import BackButton from "@/src/components/BackButton";
+import Button from "@/src/components/ui/Button";
+import Chip from "@/src/components/ui/Chip";
+import Notice from "@/src/components/ui/Notice";
 
 const TYPE_OPTIONS = [
   { label: "All", value: "" },
@@ -57,17 +61,19 @@ function AccountTypeTabs() {
   return (
     <div className="flex gap-1">
       {TYPE_OPTIONS.map(({ label, value }) => (
-        <button
+        <Button
           key={label}
+          variant="bare"
+          size="none"
           onClick={() => handleSelect(value)}
-          className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+          className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
             active === value
               ? "bg-space-indigo-600 text-white"
               : "bg-space-indigo-50 text-space-indigo-600 hover:bg-space-indigo-100"
           }`}
         >
           {label}
-        </button>
+        </Button>
       ))}
     </div>
   );
@@ -92,17 +98,19 @@ function TransactionTypeTabs() {
   return (
     <div className="flex gap-1">
       {TRANSACTION_TYPE_OPTIONS.map(({ label, value }) => (
-        <button
+        <Button
           key={label}
+          variant="bare"
+          size="none"
           onClick={() => handleSelect(value)}
-          className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+          className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
             active === value || (!active && value === "")
               ? "bg-cornflower-blue-500 text-white"
               : "bg-cornflower-blue-50 text-cornflower-blue-600 hover:bg-cornflower-blue-100"
           }`}
         >
           {label}
-        </button>
+        </Button>
       ))}
     </div>
   );
@@ -238,14 +246,14 @@ function CategoryStats({
 
   if (isLoading) {
     return (
-      <div className="h-60 animate-pulse rounded-lg border border-space-indigo-100 bg-white" />
+      <Card className="h-60 animate-pulse p-0 shadow-none" />
     );
   }
 
   if (!data || data.categories.length === 0) return null;
 
   const chartSkeleton = (
-    <div className="h-60 animate-pulse rounded-lg border border-space-indigo-100 bg-white" />
+    <Card className="h-60 animate-pulse p-0 shadow-none" />
   );
 
   const slides: ReactNode[] = [
@@ -292,15 +300,20 @@ function CategoryStats({
       {selectedCategory && (
         <div className="mb-2 flex items-center gap-2">
           <span className="text-xs text-space-indigo-400">Filtering by:</span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-space-indigo-100 px-2.5 py-0.5 text-xs font-medium text-space-indigo-700">
+          <Chip
+            tone="indigo-muted"
+            className="gap-1 px-2.5 text-xs text-space-indigo-700"
+          >
             {selectedCategory}
-            <button
+            <Button
+              variant="bare"
+              size="none"
               onClick={() => handleSelect(null)}
               className="ml-0.5 text-space-indigo-400 hover:text-space-indigo-600"
             >
               &times;
-            </button>
-          </span>
+            </Button>
+          </Chip>
         </div>
       )}
       <ChartCarousel slides={slides} />
@@ -357,7 +370,7 @@ function AllTransactionsContent() {
   return (
     <>
       {markIncome && (
-        <div className="rounded-lg border border-cornflower-blue-200 bg-cornflower-blue-50 p-3">
+        <Notice as="div" tone="blue" className="rounded-lg p-3">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold text-cornflower-blue-800">
@@ -367,14 +380,16 @@ function AllTransactionsContent() {
                 Click <span className="font-medium">Income?</span> on deposits and paychecks. These will be auto-detected from now on.
               </p>
             </div>
-            <button
+            <Button
+              variant="accent"
+              size="sm"
               onClick={handleExitMarkIncome}
-              className="shrink-0 rounded-lg bg-cornflower-blue-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-cornflower-blue-600"
+              className="shrink-0 bg-cornflower-blue-500 hover:bg-cornflower-blue-600"
             >
               Done
-            </button>
+            </Button>
           </div>
-        </div>
+        </Notice>
       )}
 
       <AccountTypeTabs />
@@ -389,7 +404,7 @@ function AllTransactionsContent() {
         <>
           <Suspense
             fallback={
-              <div className="h-60 animate-pulse rounded-lg border border-space-indigo-100 bg-white" />
+              <Card className="h-60 animate-pulse p-0 shadow-none" />
             }
           >
             <CategoryStats accountIds={accountIds} />
@@ -410,7 +425,7 @@ function AllTransactionsContent() {
       )}
 
       {accountIds.length === 0 && !accountsLoaded && (
-        <div className="h-60 animate-pulse rounded-lg border border-space-indigo-100 bg-white" />
+        <Card className="h-60 animate-pulse p-0 shadow-none" />
       )}
 
       {markIncomeModalName && (
@@ -436,12 +451,14 @@ export default function TransactionsView() {
           <h1 className="text-xl font-bold text-space-indigo-800">
             All Transactions
           </h1>
-          <button
+          <Button
+            variant="primary"
+            size="sm"
             onClick={() => setIsAddingManual(true)}
-            className="shrink-0 rounded-lg bg-space-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-space-indigo-700"
+            className="shrink-0"
           >
             Add transaction
-          </button>
+          </Button>
         </div>
       </div>
 

@@ -23,6 +23,9 @@ import IncomeSection from "@/src/components/IncomeSection";
 import CategoryMappingsManager from "@/src/components/CategoryMappingsManager";
 import BudgetCategoryModal from "@/src/components/BudgetCategoryModal";
 import BackButton from "@/src/components/BackButton";
+import Button from "@/src/components/ui/Button";
+import Card from "@/src/components/ui/Card";
+import TextInput from "@/src/components/ui/TextInput";
 import { formatCurrency } from "@/src/utils/currency";
 
 function getCurrentMonth(): string {
@@ -94,7 +97,7 @@ function BudgetContent() {
 
   if (showIncomePrompt) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-space-indigo-100 bg-white p-8 py-16 text-center shadow-xs">
+      <Card className="flex flex-col items-center justify-center rounded-2xl p-8 py-16 text-center shadow-xs">
         <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-space-indigo-50 text-space-indigo-600">
           <span className="text-xl">📊</span>
         </div>
@@ -105,14 +108,15 @@ function BudgetContent() {
           Seed your 50/20/30 budget groups to get started. Categories will be
           automatically assigned based on your existing transactions.
         </p>
-        <button
+        <Button
+          variant="primary"
+          size="lg"
           onClick={() => seedGroups.mutate()}
           disabled={seedGroups.isPending}
-          className="rounded-xl bg-space-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-2xs transition-colors hover:bg-space-indigo-700 active:bg-space-indigo-800 disabled:opacity-50"
         >
           {seedGroups.isPending ? "Setting up..." : "Set Up 50/20/30 Budget"}
-        </button>
-      </div>
+        </Button>
+      </Card>
     );
   }
 
@@ -225,32 +229,36 @@ function BudgetContent() {
           >
             Compare
           </Link>
-          <button
+          <Button
+            variant="bare"
+            size="none"
             onClick={() => setIsEditing(!isEditing)}
-            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+            className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
               isEditing
                 ? "bg-space-indigo-600 text-white shadow-2xs hover:bg-space-indigo-700"
                 : "border border-space-indigo-200 bg-white text-space-indigo-700 hover:bg-space-indigo-50"
             }`}
           >
             {isEditing ? "Done Editing" : "Edit Categories"}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="bare"
+            size="none"
             onClick={() => dispatch(setCategoryMappingsOpen(!showMappingsManager))}
-            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+            className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
               showMappingsManager
                 ? "bg-space-indigo-100 text-space-indigo-800"
                 : "border border-space-indigo-200 bg-white text-space-indigo-700 hover:bg-space-indigo-50"
             }`}
           >
             {showMappingsManager ? "Close Mappings" : "Mappings"}
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Expected Income Bar */}
       {hasIncome && (
-        <div className="rounded-xl border border-space-indigo-100 bg-white p-3 shadow-2xs sm:p-3.5">
+        <Card padding="sm" className="rounded-xl shadow-2xs sm:p-3.5">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <span className="text-xs font-semibold text-space-indigo-700">
@@ -258,42 +266,46 @@ function BudgetContent() {
               </span>
               {editingExpectedIncome ? (
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <div className="relative flex items-center">
-                    <span className="absolute left-2 text-xs text-space-indigo-500">$</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={expectedIncomeInput}
-                      onChange={(e) => setExpectedIncomeInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSaveExpectedIncome();
-                      }}
-                      className="w-28 rounded-lg border border-space-indigo-300 py-1 pl-5 pr-2 text-xs font-bold text-space-indigo-900 focus:border-space-indigo-500 focus:outline-none"
-                      autoFocus
-                    />
-                  </div>
-                  <button
+                  <TextInput
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={expectedIncomeInput}
+                    onChange={(e) => setExpectedIncomeInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSaveExpectedIncome();
+                    }}
+                    leading={<span className="text-xs text-space-indigo-500">$</span>}
+                    className="w-28 rounded-lg border border-space-indigo-300 py-1 pl-5 pr-2 text-xs font-bold text-space-indigo-900 focus:border-space-indigo-500"
+                    autoFocus
+                  />
+                  <Button
+                    variant="primary"
+                    size="xs"
                     onClick={handleSaveExpectedIncome}
-                    className="rounded-lg bg-space-indigo-600 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-space-indigo-700"
+                    className="rounded-lg px-2.5 font-semibold shadow-2xs"
                   >
                     Save
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="xs"
                     onClick={() => setEditingExpectedIncome(false)}
-                    className="rounded-lg px-2 py-1 text-xs font-medium text-space-indigo-500 transition-colors hover:bg-space-indigo-50"
+                    className="rounded-lg text-space-indigo-500"
                   >
                     Cancel
-                  </button>
+                  </Button>
                 </div>
               ) : (
-                <button
+                <Button
                   type="button"
+                  variant="bare"
+                  size="none"
                   onClick={() => {
                     setExpectedIncomeInput(String(settingsData?.expectedIncome ?? 0));
                     setEditingExpectedIncome(true);
                   }}
-                  className={`rounded-md px-1.5 py-0.5 text-xs font-bold transition-colors hover:bg-space-indigo-50 ${
+                  className={`rounded-md px-1.5 py-0.5 text-xs font-bold hover:bg-space-indigo-50 ${
                     settingsData?.expectedIncome
                       ? "text-space-indigo-900 underline-offset-2 hover:underline"
                       : "text-cornflower-blue-600 hover:text-cornflower-blue-700"
@@ -302,7 +314,7 @@ function BudgetContent() {
                   {settingsData?.expectedIncome
                     ? formatCurrency(settingsData.expectedIncome)
                     : "+ Set expected income"}
-                </button>
+                </Button>
               )}
             </div>
 
@@ -318,7 +330,7 @@ function BudgetContent() {
               </span>
             )}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Category Mappings Modal / Section */}
@@ -372,17 +384,19 @@ function BudgetContent() {
           <div className="flex w-full overflow-x-auto rounded-xl border border-space-indigo-100 bg-white p-1 shadow-2xs">
             <div className="flex min-w-full gap-1">
               {PERIODS.map(({ label, value }) => (
-                <button
+                <Button
                   key={value}
+                  variant="bare"
+                  size="none"
                   onClick={() => setPeriod(value)}
-                  className={`flex-1 rounded-lg py-1.5 text-center text-xs font-semibold transition-colors ${
+                  className={`flex-1 rounded-lg py-1.5 text-center text-xs font-semibold ${
                     period === value
                       ? "bg-ocean-deep-500 text-white shadow-2xs"
                       : "text-ocean-deep-700 hover:bg-ocean-deep-50"
                   }`}
                 >
                   {label}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
@@ -437,7 +451,7 @@ function BudgetContent() {
 
           {/* Monthly Summary Health Card */}
           {!healthLoading && health && (
-            <div className="rounded-xl border border-space-indigo-100 bg-white p-4 shadow-xs sm:p-5">
+            <Card className="rounded-xl shadow-xs sm:p-5">
               <h3 className="mb-3 text-sm font-bold text-space-indigo-800">
                 Monthly Financial Summary
               </h3>
@@ -510,7 +524,7 @@ function BudgetContent() {
                   />
                 </div>
               </div>
-            </div>
+            </Card>
           )}
         </>
       )}

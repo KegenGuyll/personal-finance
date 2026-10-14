@@ -15,6 +15,7 @@ import LoadingSkeleton from "@/src/components/LoadingSkeleton";
 import ManualEntryActions from "@/src/components/ManualEntryActions";
 import LinkManualTransactionPanel from "@/src/components/LinkManualTransactionPanel";
 import BackButton from "@/src/components/BackButton";
+import Card from "@/src/components/ui/Card";
 
 export default function TransactionDetailView({
   params,
@@ -60,7 +61,7 @@ export default function TransactionDetailView({
       )}
 
       {transaction && (
-        <div className="rounded-lg border border-space-indigo-100 bg-white p-6 shadow-sm">
+        <Card padding="lg">
           <h1 className="text-xl font-bold text-space-indigo-800">
             {transaction.name}
           </h1>
@@ -200,7 +201,7 @@ export default function TransactionDetailView({
               </div>
             )}
           </dl>
-        </div>
+        </Card>
       )}
 
       {transaction && transaction.manual && (

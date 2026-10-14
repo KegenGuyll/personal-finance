@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import Button from "@/src/components/ui/Button";
 
 /**
  * Filters the All Transactions list down to manually entered transactions.
@@ -26,16 +27,18 @@ export default function ManualTransactionFilterToggle() {
   };
 
   return (
-    <button
-      onClick={handleToggle}
+    <Button
+      variant="bare"
+      size="sm"
       aria-pressed={active}
-      className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+      onClick={handleToggle}
+      className={
         active
           ? "bg-soft-periwinkle-500 text-white"
           : "bg-soft-periwinkle-50 text-soft-periwinkle-700 hover:bg-soft-periwinkle-100"
-      }`}
+      }
     >
       Manual
-    </button>
+    </Button>
   );
 }

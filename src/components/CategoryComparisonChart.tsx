@@ -8,6 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import Card from "@/src/components/ui/Card";
 import { formatCurrency } from "@/src/utils/currency";
 
 export interface CategorySeries {
@@ -42,7 +43,7 @@ function CustomTooltip({
   if (!active || !payload?.length) return null;
 
   return (
-    <div className="rounded-lg border border-space-indigo-100 bg-white px-3 py-2 shadow-sm">
+    <Card className="px-3 py-2">
       <p className="text-xs font-medium text-space-indigo-800">
         {formatMonthShort(String(label))}
       </p>
@@ -52,7 +53,7 @@ function CustomTooltip({
           {formatCurrency(typeof entry.value === "number" ? entry.value : Number(entry.value ?? 0))}
         </p>
       ))}
-    </div>
+    </Card>
   );
 }
 
@@ -67,12 +68,12 @@ export default function CategoryComparisonChart({
 }) {
   if (series.length === 0) {
     return (
-      <div className={`rounded-lg border border-space-indigo-100 bg-white p-4 ${className}`}>
+      <Card className={`shadow-none ${className}`}>
         <h3 className="mb-1 text-sm font-medium text-space-indigo-600">Spending Trend</h3>
         <p className="text-xs text-space-indigo-400">
           Select a category below to see its trend over time.
         </p>
-      </div>
+      </Card>
     );
   }
 
@@ -85,7 +86,7 @@ export default function CategoryComparisonChart({
   });
 
   return (
-    <div className={`rounded-lg border border-space-indigo-100 bg-white p-4 ${className}`}>
+    <Card className={`shadow-none ${className}`}>
       <h3 className="mb-1 text-sm font-medium text-space-indigo-600">Spending Trend</h3>
       <p className="mb-3 text-xs text-space-indigo-400">
         Actual spend per category across selected months
@@ -132,6 +133,6 @@ export default function CategoryComparisonChart({
           </span>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }

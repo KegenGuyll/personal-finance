@@ -1,5 +1,7 @@
 "use client";
 
+import Button from "@/src/components/ui/Button";
+
 interface MonthSelectorProps {
   value: string;
   onChange: (month: string) => void;
@@ -29,36 +31,42 @@ export default function MonthSelector({ value, onChange }: MonthSelectorProps) {
 
   return (
     <div className="flex items-center gap-1 sm:gap-2">
-      <button
+      <Button
         onClick={goToPrev}
-        className="flex h-9 w-9 items-center justify-center rounded-lg border border-space-indigo-200 bg-white text-sm font-semibold text-space-indigo-700 shadow-2xs transition-colors hover:bg-space-indigo-50 hover:text-space-indigo-900 active:bg-space-indigo-100"
+        variant="bare"
+        size="none"
+        className="flex h-9 w-9 items-center justify-center rounded-lg border border-space-indigo-200 bg-white text-sm font-semibold text-space-indigo-700 shadow-2xs hover:bg-space-indigo-50 hover:text-space-indigo-900 active:bg-space-indigo-100"
         aria-label="Previous month"
       >
         &#8592;
-      </button>
+      </Button>
 
       <span className="min-w-[7.5rem] text-center text-sm font-bold text-space-indigo-900 sm:min-w-[8.5rem] sm:text-base">
         {monthLabel}
       </span>
 
-      <button
+      <Button
         onClick={goToNext}
-        className="flex h-9 w-9 items-center justify-center rounded-lg border border-space-indigo-200 bg-white text-sm font-semibold text-space-indigo-700 shadow-2xs transition-colors hover:bg-space-indigo-50 hover:text-space-indigo-900 active:bg-space-indigo-100"
+        variant="bare"
+        size="none"
+        className="flex h-9 w-9 items-center justify-center rounded-lg border border-space-indigo-200 bg-white text-sm font-semibold text-space-indigo-700 shadow-2xs hover:bg-space-indigo-50 hover:text-space-indigo-900 active:bg-space-indigo-100"
         aria-label="Next month"
       >
         &#8594;
-      </button>
+      </Button>
 
       {!isCurrentMonth && (
-        <button
+        <Button
           onClick={() => {
             const now = new Date();
             onChange(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
           }}
-          className="rounded-lg bg-space-indigo-50 px-2.5 py-1.5 text-xs font-semibold text-space-indigo-600 transition-colors hover:bg-space-indigo-100 active:bg-space-indigo-200"
+          variant="ghost"
+          size="sm"
+          className="bg-space-indigo-50 px-2.5 font-semibold text-space-indigo-600 hover:bg-space-indigo-100 active:bg-space-indigo-200"
         >
           Today
-        </button>
+        </Button>
       )}
     </div>
   );

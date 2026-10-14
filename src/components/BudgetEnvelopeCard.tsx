@@ -5,6 +5,9 @@ import Link from "next/link";
 import BudgetProgressBar from "./BudgetProgressBar";
 import BudgetRingChart from "./BudgetRingChart";
 import SavingsGoalsSection from "./SavingsGoalsSection";
+import Button from "@/src/components/ui/Button";
+import Card from "@/src/components/ui/Card";
+import Chip from "@/src/components/ui/Chip";
 import type { BudgetGroupSummary, Goal } from "@/src/types/budget";
 import { formatCurrency } from "@/src/utils/currency";
 import { CHART_COLORS } from "@/src/utils/chart-colors";
@@ -98,8 +101,8 @@ export default function BudgetEnvelopeCard({
   const groupTransactionsUrl = `/transactions?startDate=${startDate}&endDate=${endDate}&transactionType=expense`;
 
   return (
-    <div
-      className={`flex flex-col rounded-xl border border-space-indigo-100 bg-white p-3.5 shadow-xs border-l-4 sm:p-4 ${getEnvelopeBgColor(group.name)}`}
+    <Card
+      className={`flex flex-col rounded-xl p-3.5 shadow-xs border-l-4 sm:p-4 ${getEnvelopeBgColor(group.name)}`}
     >
       {/* Header: Title + Ring Chart */}
       <div className="mb-3.5 flex items-center justify-between gap-3">
@@ -108,9 +111,9 @@ export default function BudgetEnvelopeCard({
             <h3 className="text-base font-bold text-space-indigo-800">
               {group.name}
             </h3>
-            <span className="rounded-full bg-space-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-space-indigo-600">
+            <Chip tone="indigo" className="font-semibold text-space-indigo-600">
               {group.percentage}%
-            </span>
+            </Chip>
           </div>
           <p className="mt-0.5 text-xs text-space-indigo-400">
             Target: <span className="font-semibold text-space-indigo-700">{formatCurrency(totalTarget)}</span>
@@ -252,10 +255,12 @@ export default function BudgetEnvelopeCard({
       {/* Unbudgeted Spending Accordion */}
       {!isSavings && group.unbudgetedCategories.length > 0 && (
         <div className="mt-3 border-t border-space-indigo-100 pt-2.5">
-          <button
+          <Button
             type="button"
+            variant="bare"
+            size="none"
             onClick={() => setShowUnbudgeted(!showUnbudgeted)}
-            className="flex w-full items-center justify-between rounded-md px-1.5 py-1 text-xs text-space-indigo-500 transition-colors hover:bg-space-indigo-50 hover:text-space-indigo-700"
+            className="flex w-full items-center justify-between rounded-md px-1.5 py-1 text-xs text-space-indigo-500 hover:bg-space-indigo-50 hover:text-space-indigo-700"
           >
             <span className="flex items-center gap-1.5 font-medium">
               <span className={`inline-block text-[9px] transition-transform ${showUnbudgeted ? "rotate-90" : ""}`}>
@@ -266,7 +271,7 @@ export default function BudgetEnvelopeCard({
             <span className="font-bold text-space-indigo-700">
               {formatCurrency(group.unbudgetedAmount)}
             </span>
-          </button>
+          </Button>
 
           {showUnbudgeted && (
             <div className="mt-1.5 space-y-1">
@@ -277,15 +282,17 @@ export default function BudgetEnvelopeCard({
                 >
                   <div className="flex min-w-0 items-center gap-1.5">
                     {isEditing && (
-                      <button
+                      <Button
                         type="button"
+                        variant="bare"
+                        size="none"
                         onClick={() => onToggleBudgetCategory(c.category, true)}
                         title="Add to budget"
                         aria-label={`Add ${c.category} to budget`}
-                        className="flex h-4 w-4 shrink-0 items-center justify-center rounded border border-space-indigo-300 text-xs font-bold leading-none text-space-indigo-600 transition-colors hover:bg-space-indigo-100"
+                        className="flex h-4 w-4 shrink-0 items-center justify-center rounded border border-space-indigo-300 text-xs font-bold leading-none text-space-indigo-600 hover:bg-space-indigo-100"
                       >
                         +
-                      </button>
+                      </Button>
                     )}
                     <span className="truncate font-medium text-space-indigo-700">
                       {c.category}
@@ -316,6 +323,6 @@ export default function BudgetEnvelopeCard({
           No categories assigned to this group yet
         </p>
       )}
-    </div>
+    </Card>
   );
 }

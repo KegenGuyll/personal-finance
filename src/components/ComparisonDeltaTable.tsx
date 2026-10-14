@@ -1,6 +1,8 @@
 "use client";
 
 import { formatCurrency } from "@/src/utils/currency";
+import Button from "@/src/components/ui/Button";
+import Card from "@/src/components/ui/Card";
 
 export type Direction = "up" | "down" | "stable" | "none";
 
@@ -104,12 +106,12 @@ export default function ComparisonDeltaTable({
 }) {
   if (rows.length === 0) {
     return (
-      <div className="rounded-lg border border-space-indigo-100 bg-white p-4">
+      <Card className="shadow-none">
         <h3 className="mb-1 text-sm font-medium text-space-indigo-600">Category Changes</h3>
         <p className="text-xs text-space-indigo-400">
           No budgeted categories to compare in this window.
         </p>
-      </div>
+      </Card>
     );
   }
 
@@ -132,7 +134,7 @@ export default function ComparisonDeltaTable({
   }
 
   return (
-    <div className="rounded-lg border border-space-indigo-100 bg-white p-4">
+    <Card className="shadow-none">
       <h3 className="mb-1 text-sm font-medium text-space-indigo-600">Category Changes</h3>
       <p className="text-xs text-space-indigo-400">{subtitle}</p>
       <p className="mt-1 text-[11px] text-space-indigo-400">
@@ -192,7 +194,7 @@ export default function ComparisonDeltaTable({
           </tbody>
         </table>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -253,14 +255,16 @@ function GroupRow({
             )}
           </td>
           <td className="px-2 py-2.5 text-right">
-            <button
+            <Button
               type="button"
               onClick={() => onEdit(row)}
               title={`Edit budget for ${anchorShort}`}
-              className="rounded-md bg-space-indigo-600 px-2.5 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-space-indigo-700 active:bg-space-indigo-800"
+              variant="primary"
+              size="xs"
+              className="px-2.5 py-1.5 text-[11px] font-semibold"
             >
               Edit
-            </button>
+            </Button>
           </td>
         </tr>
       ))}

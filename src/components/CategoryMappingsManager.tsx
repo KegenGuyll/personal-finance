@@ -8,6 +8,11 @@ import {
   setCategoryMappingsSearch,
   setCategoryMappingsShowUnmapped,
 } from "@/src/features/ui/uiSlice";
+import Button from "@/src/components/ui/Button";
+import Card from "@/src/components/ui/Card";
+import FieldLabel from "@/src/components/ui/FieldLabel";
+import Select from "@/src/components/ui/Select";
+import TextInput from "@/src/components/ui/TextInput";
 import { useCategoryMappings, useUpdateCategoryMappings, useDeleteCategoryMapping } from "@/src/hooks/useCategoryMappings";
 import type { CategoryMapping } from "@/src/types/budget";
 
@@ -92,9 +97,9 @@ export default function CategoryMappingsManager({ onClose, month }: CategoryMapp
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-space-indigo-100 bg-white p-4 sm:p-6">
+      <Card className="rounded-xl sm:p-6 shadow-none">
         <p className="text-sm text-space-indigo-400">Loading mappings...</p>
-      </div>
+      </Card>
     );
   }
 
@@ -107,7 +112,7 @@ export default function CategoryMappingsManager({ onClose, month }: CategoryMapp
     : "";
 
   return (
-    <div className="rounded-xl border border-space-indigo-100 bg-white p-3.5 shadow-sm sm:p-5">
+    <Card className="rounded-xl p-3.5 sm:p-5">
       {/* Header */}
       <div className="mb-3 flex items-center justify-between">
         <div>
@@ -118,12 +123,14 @@ export default function CategoryMappingsManager({ onClose, month }: CategoryMapp
             Map Plaid transaction categories to your budget groups
           </p>
         </div>
-        <button
+        <Button
+          variant="secondary"
+          size="xs"
           onClick={onClose}
-          className="rounded-lg border border-space-indigo-200 px-2.5 py-1 text-xs font-semibold text-space-indigo-600 transition-colors hover:bg-space-indigo-50"
+          className="rounded-lg px-2.5 font-semibold"
         >
           Close
-        </button>
+        </Button>
       </div>
 
       {/* Filter Tabs */}
@@ -132,45 +139,50 @@ export default function CategoryMappingsManager({ onClose, month }: CategoryMapp
           const isActive = filterGroup === name;
           const count = mappings.filter((m) => m.groupName === name).length;
           return (
-            <button
+            <Button
               key={name}
+              variant="bare"
+              size="none"
               onClick={() => {
                 dispatch(setCategoryMappingsFilterGroup(isActive ? null : name));
                 dispatch(setCategoryMappingsShowUnmapped(false));
               }}
-              className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors ${
+              className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
                 isActive
                   ? "bg-space-indigo-600 text-white shadow-2xs"
                   : "bg-space-indigo-50 text-space-indigo-600 hover:bg-space-indigo-100"
               }`}
             >
               {name}: {count}
-            </button>
+            </Button>
           );
         })}
-        <button
+        <Button
+          variant="bare"
+          size="none"
           onClick={() => {
             dispatch(setCategoryMappingsShowUnmapped(!showUnmappedOnly));
             dispatch(setCategoryMappingsFilterGroup(null));
           }}
-          className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors ${
+          className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
             showUnmappedOnly
               ? "bg-cornflower-blue-500 text-white shadow-2xs"
               : "bg-cornflower-blue-50 text-cornflower-blue-600 hover:bg-cornflower-blue-100"
           }`}
         >
           Unmapped: {unmapped.length}
-        </button>
+        </Button>
       </div>
 
       {/* Search Filter */}
       <div className="mb-3">
-        <input
+        <TextInput
           type="text"
           value={search}
           onChange={(e) => dispatch(setCategoryMappingsSearch(e.target.value))}
           placeholder="Search categories or mappings..."
-          className="w-full rounded-lg border border-space-indigo-200 bg-space-indigo-50/40 px-3 py-1.5 text-xs text-space-indigo-800 placeholder-space-indigo-400 focus:border-space-indigo-400 focus:bg-white focus:outline-none"
+          size="compact"
+          className="bg-space-indigo-50/40 placeholder-space-indigo-400 focus:bg-white"
         />
       </div>
 
@@ -179,51 +191,56 @@ export default function CategoryMappingsManager({ onClose, month }: CategoryMapp
         <p className="mb-2 text-[11px] font-semibold text-space-indigo-700">Add New Mapping</p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <div>
-            <label className="mb-1 block text-[10px] font-medium text-space-indigo-500">
+            <FieldLabel className="mb-1 text-[10px] text-space-indigo-500">
               Plaid Leaf Category
-            </label>
-            <input
+            </FieldLabel>
+            <TextInput
               type="text"
               value={newMapping.plaidLeafCategory}
               onChange={(e) => setNewMapping((p) => ({ ...p, plaidLeafCategory: e.target.value }))}
               placeholder="e.g. Fast Food"
-              className="w-full rounded-md border border-space-indigo-200 bg-white px-2.5 py-1 text-xs text-space-indigo-800 focus:border-space-indigo-400 focus:outline-none"
+              size="compact"
+              className="rounded-md px-2.5 py-1"
             />
           </div>
           <div>
-            <label className="mb-1 block text-[10px] font-medium text-space-indigo-500">
+            <FieldLabel className="mb-1 text-[10px] text-space-indigo-500">
               Budget Category Name
-            </label>
-            <input
+            </FieldLabel>
+            <TextInput
               type="text"
               value={newMapping.budgetCategory}
               onChange={(e) => setNewMapping((p) => ({ ...p, budgetCategory: e.target.value }))}
               placeholder="e.g. Dining Out"
-              className="w-full rounded-md border border-space-indigo-200 bg-white px-2.5 py-1 text-xs text-space-indigo-800 focus:border-space-indigo-400 focus:outline-none"
+              size="compact"
+              className="rounded-md px-2.5 py-1"
             />
           </div>
           <div>
-            <label className="mb-1 block text-[10px] font-medium text-space-indigo-500">
+            <FieldLabel className="mb-1 text-[10px] text-space-indigo-500">
               Envelope Group
-            </label>
+            </FieldLabel>
             <div className="flex gap-1.5">
-              <select
+              <Select
                 value={newMapping.groupName}
                 onChange={(e) => setNewMapping((p) => ({ ...p, groupName: e.target.value }))}
-                className="flex-1 rounded-md border border-space-indigo-200 bg-white px-2 py-1 text-xs text-space-indigo-800 focus:border-space-indigo-400 focus:outline-none"
+                size="compact"
+                className="flex-1 rounded-md"
               >
                 {GROUP_NAMES.map((n) => (
                   <option key={n} value={n}>{n}</option>
                 ))}
-              </select>
-              <button
+              </Select>
+              <Button
                 type="button"
+                variant="primary"
+                size="xs"
                 onClick={handleCreate}
                 disabled={!newMapping.plaidLeafCategory.trim() || updateMappings.isPending}
-                className="rounded-md bg-space-indigo-600 px-3 py-1 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-space-indigo-700 disabled:opacity-50"
+                className="px-3 font-semibold shadow-2xs"
               >
                 Add
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -255,7 +272,9 @@ export default function CategoryMappingsManager({ onClose, month }: CategoryMapp
               >
                 View
               </Link>
-              <button
+              <Button
+                variant="bare"
+                size="none"
                 onClick={() => {
                   setNewMapping({
                     plaidLeafCategory: u.leaf,
@@ -264,10 +283,10 @@ export default function CategoryMappingsManager({ onClose, month }: CategoryMapp
                   });
                   dispatch(setCategoryMappingsShowUnmapped(false));
                 }}
-                className="rounded bg-cornflower-blue-100 px-2 py-0.5 text-[11px] font-semibold text-cornflower-blue-700 transition-colors hover:bg-cornflower-blue-200"
+                className="rounded bg-cornflower-blue-100 px-2 py-0.5 text-[11px] font-semibold text-cornflower-blue-700 hover:bg-cornflower-blue-200"
               >
                 Map
-              </button>
+              </Button>
             </div>
           </div>
         ))}
@@ -284,36 +303,42 @@ export default function CategoryMappingsManager({ onClose, month }: CategoryMapp
                   <span className="truncate text-xs font-semibold text-space-indigo-800">{mapping.plaidLeafCategory}</span>
                 </div>
                 <div className="flex flex-1 flex-wrap items-center gap-1.5">
-                  <input
+                  <TextInput
                     value={editBudgetCat}
                     onChange={(e) => setEditBudgetCat(e.target.value)}
                     placeholder="Budget Category"
-                    className="flex-1 min-w-[120px] rounded border border-space-indigo-200 bg-white px-2 py-1 text-xs text-space-indigo-800 focus:border-space-indigo-400 focus:outline-none"
+                    size="compact"
+                    className="flex-1 min-w-[120px] rounded px-2 py-1"
                     autoFocus
                     onKeyDown={(e) => { if (e.key === "Enter") saveEdit(); }}
                   />
-                  <select
+                  <Select
                     value={editGroup}
                     onChange={(e) => setEditGroup(e.target.value)}
-                    className="rounded border border-space-indigo-200 bg-white px-2 py-1 text-xs text-space-indigo-800 focus:border-space-indigo-400 focus:outline-none"
+                    size="compact"
+                    className="w-auto rounded"
                   >
                     {GROUP_NAMES.map((n) => (
                       <option key={n} value={n}>{n}</option>
                     ))}
-                  </select>
-                  <button
+                  </Select>
+                  <Button
+                    variant="primary"
+                    size="xs"
                     onClick={saveEdit}
                     disabled={updateMappings.isPending}
-                    className="rounded bg-space-indigo-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-space-indigo-700"
+                    className="rounded px-2.5 font-semibold"
                   >
                     Save
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="xs"
                     onClick={() => setEditingLeaf(null)}
-                    className="rounded px-2 py-1 text-xs text-space-indigo-400 transition-colors hover:bg-space-indigo-100"
+                    className="rounded hover:bg-space-indigo-100"
                   >
                     Cancel
-                  </button>
+                  </Button>
                 </div>
               </div>
             ) : (
@@ -332,30 +357,34 @@ export default function CategoryMappingsManager({ onClose, month }: CategoryMapp
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
-                  <button
+                  <Button
+                    variant="bare"
+                    size="none"
                     onClick={() => startEdit(mapping)}
-                    className="rounded-full bg-space-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-space-indigo-700 transition-colors hover:bg-space-indigo-100"
+                    className="rounded-full bg-space-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-space-indigo-700 hover:bg-space-indigo-100"
                     title="Click to change group or name"
                   >
                     {mapping.groupName}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="none"
                     onClick={() => {
                       if (confirm(`Remove mapping for "${mapping.plaidLeafCategory}"?`)) {
                         deleteMapping.mutate(mapping.plaidLeafCategory);
                       }
                     }}
-                    className="flex h-5 w-5 items-center justify-center rounded text-xs text-space-indigo-300 transition-colors hover:bg-red-50 hover:text-red-600"
+                    className="flex h-5 w-5 items-center justify-center rounded text-xs text-space-indigo-300 hover:bg-red-50"
                     aria-label={`Delete mapping for ${mapping.plaidLeafCategory}`}
                   >
                     &times;
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }

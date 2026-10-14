@@ -16,6 +16,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { getDaysInMonth } from "@/src/lib/month-utils";
+import Card from "@/src/components/ui/Card";
 
 interface ChartData {
   // "YYYY-MM-DD" for daily points, "YYYY-MM" for monthly buckets.
@@ -76,7 +77,7 @@ function CustomTooltip({
   if (!data) return null;
 
   return (
-    <div className="rounded-lg border border-space-indigo-100 bg-white px-3 py-2 shadow-sm">
+    <Card className="px-3 py-2">
       {data.name && (
         <p className="text-xs font-medium text-space-indigo-800">
           {data.name}
@@ -95,7 +96,7 @@ function CustomTooltip({
           </span>
         </p>
       ))}
-    </div>
+    </Card>
   );
 }
 
@@ -184,9 +185,7 @@ export default function SpendingTrend({
   }));
 
   return (
-    <div
-      className={`rounded-lg border border-space-indigo-100 bg-white p-4 ${className}`}
-    >
+    <Card className={`shadow-none ${className}`}>
       <h3 className="mb-1 text-sm font-medium text-space-indigo-600">
         Spending Trend
       </h3>
@@ -290,6 +289,6 @@ export default function SpendingTrend({
           )}
         </LineChart>
       </ResponsiveContainer>
-    </div>
+    </Card>
   );
 }

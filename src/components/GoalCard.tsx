@@ -6,6 +6,7 @@ import { useContributeToGoal } from "@/src/hooks/useContributeToGoal";
 import { useDeleteGoal } from "@/src/hooks/useDeleteGoal";
 import { useDeleteContribution } from "@/src/hooks/useDeleteContribution";
 import GoalForm from "@/src/components/GoalForm";
+import GoalProgressBar from "@/src/components/GoalProgressBar";
 import GoalTransactionsModal from "@/src/components/GoalTransactionsModal";
 import type { Goal } from "@/src/types/budget";
 
@@ -121,12 +122,7 @@ export default function GoalCard({ goal }: GoalCardProps) {
       </div>
 
       <div className="mb-2">
-        <div className="h-2.5 w-full overflow-hidden rounded-full bg-space-indigo-100">
-          <div
-            className="h-full rounded-full bg-ocean-deep-400 transition-all duration-500"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
+        <GoalProgressBar percent={progressPercent} />
         <div className="mt-1 flex justify-between text-[10px] text-space-indigo-400">
           <span>{Math.round(progressPercent)}% saved</span>
           <span>

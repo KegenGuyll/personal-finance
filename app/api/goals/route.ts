@@ -4,21 +4,8 @@ import { connectToDatabase } from "@/src/lib/mongodb";
 import { getCategoryActuals, getMappings, remapActuals, SAVINGS_GROUP_NAME } from "@/src/lib/budget-pipeline";
 import { getCurrentMonth, getEndOfMonth } from "@/src/lib/month-utils";
 import { goalIdInMatch } from "@/src/lib/goal-ids";
+import { calcMonthlyContribution } from "@/src/lib/goal-math";
 import type { Goal } from "@/src/types/budget";
-
-function calcMonthlyContribution(goal: Goal): number {
-  const today = new Date();
-  const start = goal.startDate
-    ? Math.max(today.getTime(), new Date(`${goal.startDate}T00:00:00`).getTime())
-    : today.getTime();
-  const target = new Date(`${goal.targetDate}T00:00:00`).getTime();
-
-  if (today.getTime() > target) return 0;
-
-  const monthsRemaining = Math.max(1, Math.ceil((target - start) / (30.44 * 24 * 60 * 60 * 1000)));
-  const amountNeeded = goal.targetAmount - goal.currentAmount;
-  return amountNeeded > 0 ? Math.round(amountNeeded / monthsRemaining) : 0;
-}
 
 function isActiveToday(goal: Goal): boolean {
   const today = new Date().toISOString().split("T")[0];

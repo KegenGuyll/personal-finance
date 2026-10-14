@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
       const spendRows = await db
         .collection("transactions")
         .aggregate([
-          { $match: { goalId: { $in: goalIds } } },
+          { $match: { goalId: goalIdInMatch(goalIds) } },
           {
             $group: {
               _id: "$goalId",
@@ -89,10 +89,14 @@ export async function GET(request: NextRequest) {
         ])
         .toArray();
 
+      // Both stored id forms group separately, so their rows are merged onto
+      // the string key the map is read with below.
       for (const r of spendRows) {
-        spendByGoal.set(r._id as string, {
-          total: r.total as number,
-          count: r.count as number,
+        const key = String(r._id);
+        const existing = spendByGoal.get(key);
+        spendByGoal.set(key, {
+          total: (existing?.total ?? 0) + (r.total as number),
+          count: (existing?.count ?? 0) + (r.count as number),
         });
       }
     }

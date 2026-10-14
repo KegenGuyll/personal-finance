@@ -12,22 +12,47 @@ export async function PUT(
   try {
     const { db } = await connectToDatabase();
     const body: {
-      name?: string;
-      targetAmount?: number;
-      targetDate?: string;
-      linkedAccountId?: string;
+      name?: unknown;
+      targetAmount?: unknown;
+      targetDate?: unknown;
+      linkedAccountId?: unknown;
     } = await request.json();
 
     const update: Record<string, unknown> = { updatedAt: new Date() };
-    if (body.name !== undefined) update.name = body.name;
-    if (body.targetAmount !== undefined) update.targetAmount = body.targetAmount;
-    if (body.targetDate !== undefined) update.targetDate = body.targetDate;
-    if (body.linkedAccountId !== undefined) update.linkedAccountId = body.linkedAccountId;
+    if (body.name !== undefined) {
+      if (typeof body.name !== "string" || !body.name.trim()) {
+        return Response.json({ error: "name must be a non-empty string" }, { status: 400 });
+      }
+      update.name = body.name.trim();
+    }
+    if (body.targetAmount !== undefined) {
+      if (
+        typeof body.targetAmount !== "number" ||
+        !Number.isFinite(body.targetAmount) ||
+        body.targetAmount <= 0
+      ) {
+        return Response.json({ error: "targetAmount must be a positive number" }, { status: 400 });
+      }
+      update.targetAmount = body.targetAmount;
+    }
+    if (body.targetDate !== undefined) {
+      if (typeof body.targetDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(body.targetDate)) {
+        return Response.json({ error: "targetDate must be a YYYY-MM-DD string" }, { status: 400 });
+      }
+      update.targetDate = body.targetDate;
+    }
+    if (body.linkedAccountId !== undefined) {
+      update.linkedAccountId = body.linkedAccountId;
+    }
 
-    await db.collection("goals").updateOne(
+    const result = await db.collection("goals").updateOne(
       { _id: new ObjectId(id) },
       { $set: update }
     );
+
+    if (result.matchedCount === 0) {
+      return Response.json({ error: "Goal not found" }, { status: 404 });
+    }
 
     const updated = await db.collection<Goal>("goals").findOne({
       _id: new ObjectId(id),

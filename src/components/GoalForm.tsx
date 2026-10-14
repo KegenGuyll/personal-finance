@@ -1,43 +1,89 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useCreateGoal } from "@/src/hooks/useCreateGoal";
+import { useUpdateGoal } from "@/src/hooks/useUpdateGoal";
+import { calcMonthlyContribution } from "@/src/lib/goal-math";
+import { formatCurrency } from "@/src/utils/currency";
+import { formatDate } from "@/src/utils/date";
+import type { Goal } from "@/src/types/budget";
 
 interface GoalFormProps {
+  /** Set when editing an existing goal; omitted when creating one. */
+  goal?: Goal;
   onClose: () => void;
 }
 
-export default function GoalForm({ onClose }: GoalFormProps) {
-  const [name, setName] = useState("");
-  const [targetAmount, setTargetAmount] = useState("");
-  const [targetDate, setTargetDate] = useState("");
+export default function GoalForm({ goal, onClose }: GoalFormProps) {
+  const isEdit = Boolean(goal);
+  const [name, setName] = useState(goal?.name ?? "");
+  const [targetAmount, setTargetAmount] = useState(() =>
+    goal ? String(goal.targetAmount) : ""
+  );
+  const [targetDate, setTargetDate] = useState(goal?.targetDate ?? "");
   const [startDate, setStartDate] = useState(() =>
     new Date().toISOString().split("T")[0]
   );
   const createGoal = useCreateGoal();
+  const updateGoal = useUpdateGoal();
 
-  const handleSubmit = () => {
-    if (!name.trim() || !targetAmount || !targetDate) return;
+  const isPending = isEdit ? updateGoal.isPending : createGoal.isPending;
+  const mutationError = isEdit ? updateGoal.error : createGoal.error;
 
-    const amount = Math.round(parseFloat(targetAmount) * 100) / 100;
-    if (isNaN(amount) || amount <= 0) return;
+  const today = new Date().toISOString().split("T")[0];
+  const amount = Math.round(parseFloat(targetAmount) * 100) / 100;
+  const amountValid = Number.isFinite(amount) && amount > 0;
+  const dateValid = /^\d{4}-\d{2}-\d{2}$/.test(targetDate);
+  const canSubmit = Boolean(name.trim()) && amountValid && dateValid;
 
-    createGoal.mutate(
-      {
-        name: name.trim(),
+  const currentAmount = goal?.currentAmount ?? 0;
+  const monthlyNeeded = canSubmit
+    ? calcMonthlyContribution({
         targetAmount: amount,
         targetDate,
-        startDate,
-      },
-      {
-        onSuccess: () => {
-          setName("");
-          setTargetAmount("");
-          setTargetDate("");
-          setStartDate(new Date().toISOString().split("T")[0]);
-          onClose();
-        },
-      }
+        startDate: goal?.startDate ?? startDate,
+        currentAmount,
+      })
+    : null;
+
+  let preview: ReactNode = null;
+  if (monthlyNeeded !== null) {
+    if (targetDate < today) {
+      preview =
+        "That target date has passed — pick a date from today onward to preview the monthly amount.";
+    } else if (monthlyNeeded > 0) {
+      preview = (
+        <>
+          Needed monthly:{" "}
+          <span className="font-semibold text-space-indigo-800">
+            {formatCurrency(monthlyNeeded)}
+          </span>{" "}
+          to reach {formatCurrency(amount)} by {formatDate(targetDate)}.
+        </>
+      );
+    } else if (amount <= currentAmount) {
+      preview = `No monthly saving needed — ${formatCurrency(amount)} is already covered.`;
+    } else {
+      // The maths spreads the target over whole months, and there is none left
+      // when the target date is today.
+      preview = `Target date is today, so the remaining ${formatCurrency(amount - currentAmount)} cannot be spread across months.`;
+    }
+  }
+
+  const handleSubmit = () => {
+    if (!canSubmit) return;
+
+    if (goal?._id) {
+      updateGoal.mutate(
+        { id: goal._id, name: name.trim(), targetAmount: amount, targetDate },
+        { onSuccess: onClose }
+      );
+      return;
+    }
+
+    createGoal.mutate(
+      { name: name.trim(), targetAmount: amount, targetDate, startDate },
+      { onSuccess: onClose }
     );
   };
 
@@ -45,10 +91,11 @@ export default function GoalForm({ onClose }: GoalFormProps) {
     <div className="rounded-lg border border-space-indigo-100 bg-white p-4 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-space-indigo-800">
-          Create Savings Goal
+          {isEdit ? "Edit Goal" : "Create Savings Goal"}
         </h3>
         <button
           onClick={onClose}
+          aria-label="Close"
           className="rounded p-1 text-space-indigo-400 transition-colors hover:bg-space-indigo-50"
         >
           &times;
@@ -87,17 +134,19 @@ export default function GoalForm({ onClose }: GoalFormProps) {
           </div>
         </div>
 
-        <div>
-          <label className="mb-1 block text-xs font-medium text-space-indigo-600">
-            Start Date
-          </label>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="w-full rounded-md border border-space-indigo-200 px-3 py-1.5 text-sm text-space-indigo-800 focus:border-space-indigo-400 focus:outline-none"
-          />
-        </div>
+        {!isEdit && (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-space-indigo-600">
+              Start Date
+            </label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full rounded-md border border-space-indigo-200 px-3 py-1.5 text-sm text-space-indigo-800 focus:border-space-indigo-400 focus:outline-none"
+            />
+          </div>
+        )}
 
         <div>
           <label className="mb-1 block text-xs font-medium text-space-indigo-600">
@@ -111,12 +160,33 @@ export default function GoalForm({ onClose }: GoalFormProps) {
           />
         </div>
 
+        {preview && (
+          <div
+            aria-live="polite"
+            className="rounded-md bg-space-indigo-50 px-3 py-2 text-xs text-space-indigo-600"
+          >
+            {preview}
+          </div>
+        )}
+
+        {mutationError && (
+          <p className="rounded-md border border-soft-periwinkle-200 bg-soft-periwinkle-50 px-3 py-2 text-xs text-soft-periwinkle-800">
+            {mutationError.message}
+          </p>
+        )}
+
         <button
           onClick={handleSubmit}
-          disabled={createGoal.isPending}
+          disabled={!canSubmit || isPending}
           className="w-full rounded-lg bg-space-indigo-600 py-2 text-sm font-medium text-white transition-colors hover:bg-space-indigo-700 disabled:opacity-50"
         >
-          {createGoal.isPending ? "Creating..." : "Create Goal"}
+          {isPending
+            ? isEdit
+              ? "Saving..."
+              : "Creating..."
+            : isEdit
+              ? "Save Changes"
+              : "Create Goal"}
         </button>
       </div>
     </div>

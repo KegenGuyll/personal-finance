@@ -5,6 +5,7 @@ import { formatCurrency } from "@/src/utils/currency";
 import { useContributeToGoal } from "@/src/hooks/useContributeToGoal";
 import { useDeleteGoal } from "@/src/hooks/useDeleteGoal";
 import { useDeleteContribution } from "@/src/hooks/useDeleteContribution";
+import GoalForm from "@/src/components/GoalForm";
 import GoalTransactionsModal from "@/src/components/GoalTransactionsModal";
 import type { Goal } from "@/src/types/budget";
 
@@ -16,6 +17,7 @@ export default function GoalCard({ goal }: GoalCardProps) {
   const [showContribute, setShowContribute] = useState(false);
   const [contributeAmount, setContributeAmount] = useState("");
   const [showTransactions, setShowTransactions] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   const contributeToGoal = useContributeToGoal();
   const deleteGoal = useDeleteGoal();
   const deleteContribution = useDeleteContribution();
@@ -58,6 +60,10 @@ export default function GoalCard({ goal }: GoalCardProps) {
 
   const contributions = goal.contributions ?? [];
 
+  if (showEdit) {
+    return <GoalForm goal={goal} onClose={() => setShowEdit(false)} />;
+  }
+
   return (
     <div className="rounded-lg border border-space-indigo-100 bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-start justify-between">
@@ -90,6 +96,15 @@ export default function GoalCard({ goal }: GoalCardProps) {
             <span className="rounded-full bg-cornflower-blue-100 px-2 py-0.5 text-[10px] font-medium text-cornflower-blue-700">
               Needs Review
             </span>
+          )}
+          {!isArchived && (
+            <button
+              onClick={() => setShowEdit(true)}
+              className="rounded px-1.5 py-0.5 text-[10px] font-medium text-space-indigo-400 transition-colors hover:bg-space-indigo-50 hover:text-space-indigo-600"
+              aria-label="Edit goal"
+            >
+              Edit
+            </button>
           )}
           <button
             onClick={() => {

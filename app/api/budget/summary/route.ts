@@ -29,12 +29,7 @@ export async function GET(request: NextRequest) {
       getBudgetCategoryRegistry(db),
     ]);
 
-    const carryovers = await getCarryoverAmounts(db, month, mappings);
-    for (const category of [...carryovers.keys()]) {
-      if (budgetCategoryRegistry.get(category)?.isBudgeted === false) {
-        carryovers.delete(category);
-      }
-    }
+    const carryovers = await getCarryoverAmounts(db, month, mappings, budgetCategoryRegistry);
 
     const totalIncome = [...incomeActuals.values()].reduce(
       (sum, a) => sum + a.total,
@@ -141,6 +136,7 @@ export async function GET(request: NextRequest) {
           actualAmount,
           remaining,
           percentUsed,
+          carryOver: budgetCategoryRegistry.get(budgetCat)?.carryOver ?? true,
           carryoverFromPrevious,
           suggestedAmount,
         };

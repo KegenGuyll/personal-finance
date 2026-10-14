@@ -191,6 +191,7 @@ export const DEFAULT_CATEGORY_SORT_ORDER = 1000;
 
 export interface BudgetCategoryRegistryEntry {
   isBudgeted: boolean;
+  carryOver: boolean;
   sortOrder: number;
 }
 
@@ -206,6 +207,8 @@ export async function getBudgetCategoryRegistry(
       d.name,
       {
         isBudgeted: d.isBudgeted,
+        // Absent means carry over, so categories that predate this setting keep rolling over.
+        carryOver: d.carryOver !== false,
         sortOrder: d.sortOrder ?? DEFAULT_CATEGORY_SORT_ORDER,
       },
     ])
@@ -306,7 +309,8 @@ export async function ensureMonthInitialized(db: Db, month: string): Promise<voi
 export async function getCarryoverAmounts(
   db: Db,
   month: string,
-  mappings: CategoryMapping[]
+  mappings: CategoryMapping[],
+  registry: Map<string, BudgetCategoryRegistryEntry>
 ): Promise<Map<string, number>> {
   const groups = await getBudgetGroups(db);
   const savingsGroupIds = new Set(
@@ -386,6 +390,9 @@ export async function getCarryoverAmounts(
   const carryovers = new Map<string, number>();
   for (const [category, doc] of prevDocs) {
     if (savingsGroupIds.has(String(doc.groupId))) continue;
+
+    const entry = registry.get(category);
+    if (entry?.isBudgeted === false || entry?.carryOver === false) continue;
 
     let leftover = 0;
     for (const m of chain) {

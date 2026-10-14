@@ -32,10 +32,10 @@ export default function GoalTransactionsModal({
   };
 
   return (
-    <Modal onClose={onClose} size="lg">
+    <Modal onClose={onClose} labelledBy="goal-transactions-title" size="lg">
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-space-indigo-800">
+          <h3 id="goal-transactions-title" className="text-lg font-semibold text-space-indigo-800">
             {goal.name}
           </h3>
           <p className="mt-1 text-sm text-space-indigo-400">

@@ -316,7 +316,7 @@ export default function CategoryMappingsManager({ onClose, month }: CategoryMapp
                     value={editGroup}
                     onChange={(e) => setEditGroup(e.target.value)}
                     size="compact"
-                    className="rounded"
+                    className="w-auto rounded"
                   >
                     {GROUP_NAMES.map((n) => (
                       <option key={n} value={n}>{n}</option>

@@ -9,6 +9,12 @@ interface ModalProps {
   /** `bottom-sheet` keeps the mobile sheet layout of the budget modal. */
   variant?: "center" | "bottom-sheet";
   size?: "md" | "lg";
+  /**
+   * id of the element naming the dialog (usually the heading). `role="dialog"`
+   * without an accessible name leaves screen-reader users with an unnamed
+   * modal, so every call site should pass this.
+   */
+  labelledBy: string;
   /** Overrides on the panel (e.g. `overflow-y-auto` for tall content). */
   className?: string;
 }
@@ -39,6 +45,7 @@ export default function Modal({
   children,
   variant = "center",
   size = "md",
+  labelledBy,
   className,
 }: ModalProps) {
   const handleScrimClick = () => onClose();
@@ -48,6 +55,7 @@ export default function Modal({
       <div
         role="dialog"
         aria-modal="true"
+        aria-labelledby={labelledBy}
         className={cn(
           PANEL_CLASSES[variant],
           SIZE_CLASSES[size],

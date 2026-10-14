@@ -173,8 +173,8 @@ export default function ManualTransactionModal({
   };
 
   return (
-    <Modal onClose={onClose} className="max-h-full overflow-y-auto">
-      <h3 className="text-lg font-semibold text-space-indigo-800">
+    <Modal onClose={onClose} labelledBy="manual-transaction-title" className="max-h-full overflow-y-auto">
+      <h3 id="manual-transaction-title" className="text-lg font-semibold text-space-indigo-800">
         {isEdit ? "Edit manual transaction" : "Add manual transaction"}
       </h3>
       <p className="mt-1 text-sm text-space-indigo-400">

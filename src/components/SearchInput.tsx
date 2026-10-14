@@ -50,10 +50,17 @@ export default function SearchInput() {
       onChange={(e) => handleChange(e.target.value)}
       placeholder="Search transactions..."
       className="py-2.5 pl-4"
+      // The slot must stay mounted: toggling it would swap TextInput's root
+      // between input and wrapper, remounting this uncontrolled field mid-typing
+      // and losing focus/caret to the debounced URL state.
       trailing={
-        isPending ? (
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-space-indigo-300 border-t-transparent" />
-        ) : undefined
+        <div
+          className={
+            isPending
+              ? "h-4 w-4 animate-spin rounded-full border-2 border-space-indigo-300 border-t-transparent"
+              : "hidden"
+          }
+        />
       }
     />
   );

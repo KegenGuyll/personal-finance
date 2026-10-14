@@ -109,8 +109,8 @@ export default function BulkMarkIncomeModal({
   );
 
   return (
-    <Modal onClose={onClose} size="lg">
-      <h3 className="text-lg font-semibold text-space-indigo-800">
+    <Modal onClose={onClose} labelledBy="bulk-mark-income-title" size="lg">
+      <h3 id="bulk-mark-income-title" className="text-lg font-semibold text-space-indigo-800">
         Mark as Income
       </h3>
         <p className="mt-1 text-sm text-space-indigo-400">

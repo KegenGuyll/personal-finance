@@ -99,10 +99,10 @@ export default function BudgetCategoryModal({
   const wouldChangeCount = wouldChangeMonths.length;
 
   return (
-    <Modal onClose={onClose} variant="bottom-sheet">
+    <Modal onClose={onClose} variant="bottom-sheet" labelledBy="budget-category-title">
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h3 className="text-base font-bold text-space-indigo-800">
+          <h3 id="budget-category-title" className="text-base font-bold text-space-indigo-800">
             Set Planned Budget
           </h3>
           <p className="text-xs font-medium text-space-indigo-400">
@@ -124,30 +124,28 @@ export default function BudgetCategoryModal({
           <FieldLabel className="mb-1 font-semibold" htmlFor="budget-category-amount">
             Monthly Budget Amount
           </FieldLabel>
-          <div className="relative flex items-center">
-            <TextInput
-              id="budget-category-amount"
-              type="number"
-              step="0.01"
-              min="0"
-              value={amountInput}
-              onChange={(e) => {
-                setAmountInput(e.target.value);
-                setConfirming(false);
-                setPendingAmount(null);
-                setConfirmPreview(null);
-                setPreviewError(false);
-              }}
-              placeholder="0.00"
-              autoFocus
-              leading={
-                <span className="text-base font-semibold text-space-indigo-400">
-                  $
-                </span>
-              }
-              className="rounded-xl bg-space-indigo-50/30 py-2.5 pl-8 text-base font-bold text-space-indigo-900 focus:border-space-indigo-500 focus:bg-white"
-            />
-          </div>
+          <TextInput
+            id="budget-category-amount"
+            type="number"
+            step="0.01"
+            min="0"
+            value={amountInput}
+            onChange={(e) => {
+              setAmountInput(e.target.value);
+              setConfirming(false);
+              setPendingAmount(null);
+              setConfirmPreview(null);
+              setPreviewError(false);
+            }}
+            placeholder="0.00"
+            autoFocus
+            leading={
+              <span className="text-base font-semibold text-space-indigo-400">
+                $
+              </span>
+            }
+            className="rounded-xl bg-space-indigo-50/30 py-2.5 pl-8 text-base font-bold text-space-indigo-900 focus:border-space-indigo-500 focus:bg-white"
+          />
           {currentAmount > 0 && !confirming && (
             <p className="mt-1 text-[11px] text-space-indigo-400">
               Current budget: {formatCurrency(currentAmount)}

@@ -81,10 +81,10 @@ export default function LinkManualTransactionPanel({
   const success = linkManual.isSuccess && linkedName !== null;
 
   return (
-    <Modal onClose={() => setIsOpen(false)} className="max-h-full overflow-y-auto">
+    <Modal onClose={() => setIsOpen(false)} labelledBy="link-manual-transaction-title" className="max-h-full overflow-y-auto">
         {success ? (
           <>
-            <h3 className="text-lg font-semibold text-space-indigo-800">
+            <h3 id="link-manual-transaction-title" className="text-lg font-semibold text-space-indigo-800">
               Linked
             </h3>
             <p className="mt-1 text-sm text-space-indigo-400">
@@ -107,7 +107,7 @@ export default function LinkManualTransactionPanel({
           </>
         ) : (
           <>
-            <h3 className="text-lg font-semibold text-space-indigo-800">
+            <h3 id="link-manual-transaction-title" className="text-lg font-semibold text-space-indigo-800">
               Link a manual transaction
             </h3>
             <p className="mt-1 text-sm text-space-indigo-400">

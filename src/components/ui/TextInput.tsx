@@ -29,9 +29,9 @@ export default function TextInput({
     <input
       className={cn(
         "w-full rounded-lg border border-space-indigo-200 bg-white text-space-indigo-800 placeholder-space-indigo-300 outline-none transition-colors focus:border-space-indigo-400",
+        SIZE_CLASSES[size],
         leading && "pl-10",
         trailing && "pr-10",
-        SIZE_CLASSES[size],
         className
       )}
       {...props}

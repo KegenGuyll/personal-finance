@@ -156,8 +156,8 @@ export default function CategoryEditor({
       </Button>
 
       {isOpen && (
-        <Modal onClose={() => setIsOpen(false)}>
-          <h3 className="text-lg font-semibold text-space-indigo-800">
+        <Modal onClose={() => setIsOpen(false)} labelledBy="category-editor-title">
+          <h3 id="category-editor-title" className="text-lg font-semibold text-space-indigo-800">
             Edit Category
           </h3>
           <p className="mt-1 text-sm text-space-indigo-400">

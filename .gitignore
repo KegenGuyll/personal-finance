@@ -40,3 +40,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# backup/ — secrets, local config and artifacts. The scripts and templates are
+# tracked; everything that a deployment generates is not.
+/backup/backups/
+/backup/state/
+/backup/secrets/
+/backup/backup.env
+/backup/rclone.conf
+*.age
+*.age.partial
+age-*.key
+AGE-SECRET-KEY-*

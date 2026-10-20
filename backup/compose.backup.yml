@@ -1,0 +1,76 @@
+# Backup-only compose file, deliberately separate from the application stack:
+# the backup must keep working while the app is being redeployed, and the app
+# image (node:22-alpine) has no shell tooling suitable for mongodump.
+#
+#   docker compose -f backup/compose.backup.yml up -d --build
+#   docker compose -f backup/compose.backup.yml run --rm backup backup.sh --dry-run
+#   docker compose -f backup/compose.backup.yml run --rm verify --mode=drill
+#
+# Prerequisites on the host, alongside this file:
+#   backup.env            config (chmod 0600); copy of backup.env.example
+#   rclone.conf           `rclone config` output, with a drive remote
+#   secrets/age_recipient the PUBLIC key only (age1...)
+#   secrets/app.env       the application's env file, to bundle inside the archive
+#   backups/ state/       create both with chmod 0700
+
+name: personal-finance-backup
+
+x-backup-common: &backup-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  # Cap a wedged run instead of letting it block the next scheduled one; the
+  # script's own flock already refuses to run twice concurrently.
+  stop_grace_period: 10m
+  environment:
+    TZ: UTC
+  volumes:
+    - ./backups:/backups
+    - ./state:/state
+    # Read-only: the scripts only ever read configuration, never write it.
+    - ./backup.env:/etc/backup/backup.env:ro
+    - ./rclone.conf:/etc/backup/rclone.conf:ro
+  secrets:
+    - age_recipient
+    - app_env
+
+services:
+  # Long-running supervisor. The schedule itself is backup/crontab, baked into the
+  # image. A host systemd timer is a drop-in alternative that survives a container
+  # that fails to restart; see backup/README.md.
+  backup:
+    <<: *backup-common
+    restart: unless-stopped
+
+  # One-shot drill or restore. No restart policy and an explicit entrypoint, so
+  # `run --rm verify` never starts the crontab on top of the command you asked for.
+  verify:
+    <<: *backup-common
+    restart: "no"
+    entrypoint: ["/usr/local/lib/backup/restore.sh"]
+
+  # Attach to the application's compose network to reach the local database by
+  # service name after migrating off Atlas. Uncomment and set the name to the
+  # network created by the app stack.
+  # networks: [personal-finance]
+  #
+  # Uncomment the matching top-level block as well:
+  # networks:
+  #   personal-finance:
+  #     external: true
+
+secrets:
+  age_recipient:
+    file: ./secrets/age_recipient
+  app_env:
+    file: ./secrets/app.env
+  #
+  # OPTIONAL, and off by default: the age PRIVATE key, for an unattended drill.
+  #
+  # Mounting it here means this server can decrypt every archive it holds, which
+  # is exactly the property the design otherwise avoids. Prefer running the drill
+  # with the key mounted for one run (see backup/README.md, "Automating the
+  # drill"); enable this only if you have decided that tradeoff is worth it.
+  #
+  # age_identity:
+  #   file: ./secrets/age_identity

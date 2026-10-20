@@ -1,0 +1,36 @@
+# supercronic reads this file inside the backup container.
+#
+# Times are container-local and TZ is pinned to UTC in the image, so "03:15"
+# means 03:15 UTC regardless of where the server sits or whether DST is in play.
+#
+# supercronic passes each script's exit status through, so a failure is visible in
+# the container log on top of the ntfy alert the scripts raise themselves.
+
+# Nightly encrypted backup. 03:15 avoids the top of the hour, when every other
+# cron job on a home server tends to run.
+15 3 * * * /usr/local/lib/backup/backup.sh
+
+# Daily staleness check. This catches "the schedule quietly stopped firing", which
+# is the most common way a backup system fails without anyone noticing. It needs no
+# key, so it is always safe to run unattended.
+0 12 * * * /usr/local/lib/backup/restore.sh --check-staleness
+
+# ---------------------------------------------------------------------------
+# The weekly restore drill is NOT scheduled by default.
+#
+# It needs the age private key, and this design deliberately keeps that key off
+# the server so that a compromised server cannot decrypt its own backups. A cron
+# entry here would therefore fail every week with "AGE_IDENTITY_FILE is not set".
+#
+# Run it deliberately, from the operator's side, by mounting the key for one run:
+#
+#   docker compose -f compose.backup.yml run --rm \
+#     -e AGE_IDENTITY_FILE=/run/secrets/age_identity \
+#     -v ~/pf-backup-identity.txt:/run/secrets/age_identity:ro \
+#     verify --mode=drill
+#
+# To automate it instead, read "Automating the drill" in backup/README.md and
+# accept the tradeoff it describes. Then uncomment this line:
+#
+# 30 4 * * 0 /usr/local/lib/backup/restore.sh --mode=drill
+# ---------------------------------------------------------------------------

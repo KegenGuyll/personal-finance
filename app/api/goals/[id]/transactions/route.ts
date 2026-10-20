@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { connectToDatabase } from "@/src/lib/mongodb";
+import { goalIdInMatch } from "@/src/lib/goal-ids";
 
 export async function GET(
   _request: NextRequest,
@@ -13,7 +14,7 @@ export async function GET(
     const transactions = await db
       .collection("transactions")
       .find(
-        { goalId: id },
+        { goalId: goalIdInMatch([id]) },
         {
           projection: {
             transaction_id: 1,
